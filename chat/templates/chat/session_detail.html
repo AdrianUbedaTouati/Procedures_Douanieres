@@ -1,0 +1,122 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Chat - TenderAI{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        height: 600px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        background-color: #f8f9fa;
+    }
+    .message {
+        margin-bottom: 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        max-width: 80%;
+    }
+    .message-user {
+        background-color: #007bff;
+        color: white;
+        margin-left: auto;
+        text-align: right;
+    }
+    .message-assistant {
+        background-color: white;
+        border: 1px solid #dee2e6;
+    }
+    .message-time {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="bi bi-chat-dots"></i>
+                    {{ session.title|default:"Nueva Conversación" }}
+                </h1>
+                <div>
+                    <a href="{% url 'chat:session_list' %}" class="btn btn-secondary">
+                        <i class="bi bi-list"></i> Mis Chats
+                    </a>
+                    <form method="post" action="{% url 'chat:session_archive' session.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-archive"></i> Archivar
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-container mb-3" id="chatContainer">
+                {% if messages %}
+                    {% for msg in messages %}
+                    <div class="message message-{{ msg.role }}" style="{% if msg.role == 'user' %}margin-left: auto;{% endif %}">
+                        <div><strong>{% if msg.role == 'user' %}Tú{% else %}Asistente IA{% endif %}</strong></div>
+                        <div>{{ msg.content }}</div>
+                        <div class="message-time">{{ msg.created_at|date:"d/m/Y H:i" }}</div>
+                        {% if msg.role == 'assistant' and msg.metadata %}
+                            {% if msg.metadata.documents_used %}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-file-text"></i> Documentos: {{ msg.metadata.documents_used|length }}
+                                </small>
+                            </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-chat-dots fs-1"></i>
+                    <p>Envía tu primer mensaje para comenzar la conversación.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Message Input -->
+            <form method="post" action="{% url 'chat:message_create' session.id %}" id="messageForm">
+                {% csrf_token %}
+                <div class="input-group">
+                    <textarea class="form-control" name="message" id="messageInput"
+                              placeholder="Escribe tu pregunta sobre licitaciones..."
+                              rows="2" required></textarea>
+                    <button type="submit" class="btn btn-primary" id="sendButton">
+                        <i class="bi bi-send"></i> Enviar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-scroll to bottom of chat
+    const chatContainer = document.getElementById('chatContainer');
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    // Handle form submission (could be enhanced with AJAX)
+    document.getElementById('messageForm').addEventListener('submit', function() {
+        document.getElementById('sendButton').disabled = true;
+        document.getElementById('sendButton').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+    });
+
+    // Auto-resize textarea
+    const textarea = document.getElementById('messageInput');
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
+    });
+</script>
+{% endblock %}

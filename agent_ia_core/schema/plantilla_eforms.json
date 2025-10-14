@@ -1,0 +1,117 @@
+{
+  "REQUIRED": {
+    "_desc": "Campos mínimos para identificar, trazar y filtrar el anuncio.",
+    "ojs_notice_id": {
+      "type": "string",
+      "desc": "ID OJS único (para citas/dedupe)."
+    },
+    "source_path": {
+      "type": "string",
+      "desc": "Ruta del XML origen (trazabilidad/XPath)."
+    },
+    "publication_date": {
+      "type": "string",
+      "format": "date-time",
+      "desc": "Fecha de publicación en ISO-8601."
+    },
+    "buyer_name": {
+      "type": "string",
+      "desc": "Nombre oficial de la entidad contratante."
+    },
+    "title": {
+      "type": "string",
+      "desc": "Título del contrato/proyecto."
+    },
+    "cpv_main": {
+      "type": "string",
+      "desc": "CPV principal (ej. 72267100)."
+    }
+  },
+  "OPTIONAL": {
+    "_desc": "Campos recomendados; pueden faltar o variar por anuncio.",
+    "description": {
+      "type": "string|null",
+      "desc": "Descripción ampliada del objeto."
+    },
+    "cpv_additional": {
+      "type": "string[]",
+      "desc": "CPV secundarios."
+    },
+    "nuts_regions": {
+      "type": "string[]",
+      "desc": "Códigos NUTS de ejecución."
+    },
+    "procedure_type": {
+      "type": "string|null",
+      "desc": "Tipo de procedimiento (abierto, etc.)."
+    },
+    "contract_type": {
+      "type": "string|null",
+      "desc": "Servicios, suministros, obras…"
+    },
+    "budget_eur": {
+      "type": "number|null",
+      "desc": "Importe estimado total en EUR."
+    },
+    "currency": {
+      "type": "string|null",
+      "desc": "Moneda del presupuesto."
+    },
+    "tender_deadline_date": {
+      "type": "string|null",
+      "format": "date",
+      "desc": "Fecha límite de ofertas (ISO)."
+    },
+    "tender_deadline_time": {
+      "type": "string|null",
+      "format": "time",
+      "desc": "Hora límite (ISO)."
+    },
+    "lots": {
+      "type": "array",
+      "desc": "Información por lotes (si aplica).",
+      "items_schema": {
+        "lot_id": "string|number (requerido)",
+        "name": "string|null",
+        "description": "string|null",
+        "budget_eur": "number|null"
+      }
+    },
+    "award_criteria": {
+      "type": "array",
+      "desc": "Criterios de adjudicación y pesos.",
+      "items_schema": {
+        "name": "string (requerido)",
+        "weight": "string|number|null",
+        "type": "string|null"
+      }
+    },
+    "eligibility_requirements": {
+      "type": "string|null",
+      "desc": "Requisitos de solvencia/elegibilidad."
+    },
+    "external_references": {
+      "type": "string[]",
+      "desc": "URLs oficiales (PCSP/OJS)."
+    },
+    "attachments": {
+      "type": "array",
+      "desc": "Documentos referenciados.",
+      "items_schema": {
+        "name": "string",
+        "uri": "string"
+      }
+    }
+  },
+  "META": {
+    "_desc": "Auxiliar para citas y auditoría.",
+    "xpaths": {
+      "type": "object",
+      "desc": "XPaths usados por campo. Ej.: {'title':'//cac:ProcurementProject/cbc:Name/text()'}"
+    },
+    "namespaces": {
+      "type": "object",
+      "desc": "Prefijos UBL/eForms para evaluar XPath (cn,cac,cbc,efac,efbc,efext,ext)."
+    }
+  }
+}

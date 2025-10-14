@@ -1,0 +1,89 @@
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.conf import settings
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from .forms import EditProfileForm
+import uuid
+
+
+def home_view(request):
+    """Vista principal de la aplicación"""
+    context = {
+        'total_users': 0,  # Placeholder for future statistics
+    }
+    return render(request, 'core/home.html', context)
+
+
+def about_view(request):
+    """Vista de información sobre la aplicación"""
+    return render(request, 'core/about.html')
+
+
+def contact_view(request):
+    """Vista de contacto"""
+    return render(request, 'core/contact.html')
+
+
+@login_required
+def dashboard_view(request):
+    """Dashboard para usuarios autenticados"""
+    context = {
+        'user': request.user,
+    }
+    return render(request, 'core/dashboard.html', context)
+
+
+@login_required
+def profile_view(request):
+    """Vista del perfil del usuario"""
+    return render(request, 'core/profile.html', {'user': request.user})
+
+
+@login_required
+def edit_profile_view(request):
+    """Vista para editar el perfil del usuario"""
+    if request.method == 'POST':
+        form = EditProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            # Si el email cambió, marcar como no verificado
+            old_email = request.user.email
+            user = form.save(commit=False)
+
+            # Si el email cambió y la verificación está habilitada
+            if old_email != user.email and settings.EMAIL_VERIFICATION_REQUIRED:
+                user.email_verified = False
+                user.verification_token = uuid.uuid4()
+
+                # Enviar nuevo email de verificación
+                subject = 'Confirma tu nuevo correo'
+                html_message = render_to_string('authentication/email/verify_email.html', {
+                    'user': user,
+                    'domain': settings.SITE_URL.replace('http://', '').replace('https://', ''),
+                    'protocol': 'https' if 'https' in settings.SITE_URL else 'http',
+                    'token': user.verification_token,
+                })
+                plain_message = strip_tags(html_message)
+
+                try:
+                    send_mail(
+                        subject,
+                        plain_message,
+                        settings.DEFAULT_FROM_EMAIL,
+                        [user.email],
+                        html_message=html_message,
+                        fail_silently=False,
+                    )
+                    messages.warning(request, 'Tu correo ha cambiado. Por favor revisa tu bandeja de entrada para confirmar el nuevo correo.')
+                except Exception as e:
+                    messages.warning(request, 'Perfil actualizado pero no se pudo enviar el email de confirmación.')
+
+            user.save()
+            messages.success(request, 'Tu perfil ha sido actualizado exitosamente.')
+            return redirect('core:profile')
+    else:
+        form = EditProfileForm(instance=request.user)
+
+    return render(request, 'core/edit_profile.html', {'form': form})

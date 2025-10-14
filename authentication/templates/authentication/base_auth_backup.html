@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Autenticación{% endblock %}</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'authentication/css/auth-style.css' %}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="auth-body">
+    <!-- Simple Auth Navbar -->
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'core:home' %}">
+                <i class="bi bi-shield-lock"></i> BasePage
+            </a>
+        </div>
+    </nav>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="container mt-3" id="django-messages-container">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert"
+                     data-message="{{ message }}" data-tags="{{ message.tags }}">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Modal Simple para Verificación de Email (sin fade para evitar auto-cierre) -->
+    {% if EMAIL_VERIFICATION_REQUIRED %}
+    <div class="modal" id="emailVerificationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title" id="modalTitle">
+                        <i class="bi bi-envelope-exclamation-fill text-warning"></i>
+                        Verificación de Email Requerida
+                    </h5>
+                    <button type="button" class="btn-close" id="closeModalX"></button>
+                </div>
+
+                <div class="modal-body">
+                    <!-- Mensaje Principal -->
+                    <div id="modalMessage" class="mb-3">
+                        <p>Tu cuenta aún no ha sido verificada. Por favor verifica tu email para poder iniciar sesión.</p>
+                    </div>
+
+                    <!-- Alert para mensajes de estado -->
+                    <div id="resendAlert" class="alert d-none" role="alert">
+                        <div class="d-flex align-items-center">
+                            <div id="resendAlertIcon" class="me-2"></div>
+                            <div id="resendAlertText"></div>
+                        </div>
+                    </div>
+
+                    <!-- Timer de countdown -->
+                    <div id="resendTimer" class="d-none">
+                        <div class="text-muted small mb-2">
+                            <i class="bi bi-clock"></i>
+                            Podrás reenviar el email en <strong><span id="timerSeconds">120</span></strong> segundos
+                        </div>
+                        <div class="progress" style="height: 5px;">
+                            <div id="timerProgress" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top">
+                    <button type="button" class="btn btn-secondary" id="closeModalBtn">
+                        Cerrar
+                    </button>
+                    <button type="button" id="resendEmailBtn" class="btn btn-primary">
+                        <i class="bi bi-send"></i>
+                        Reenviar Email de Verificación
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="auth-main py-5">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% load static %}
+    <script src="{% static 'authentication/js/auth.js' %}"></script>
+
+    <!-- Script para Modal de Verificación -->
+    {% if EMAIL_VERIFICATION_REQUIRED %}
+    <script>
+    (function() {
+        'use strict';
+
+        let resendCountdown = null;
+        let countdownSeconds = 120;
+        let modalInstance = null;
+        let cooldownData = {};
+        let currentUser = null;
+        let isModalActive = false;
+
+        // Función para detectar mensajes de verificación
+        function checkForVerificationMessages() {
+            // Buscar errores del formulario
+            const formErrors = document.querySelector('.alert-danger[data-form-errors="true"]');
+            const alerts = document.querySelectorAll('.alert[data-message]');
+
+            let needsModal = false;
+            let messageText = '';
+
+            // Verificar errores del formulario
+            if (formErrors) {
+                const errorText = formErrors.textContent || formErrors.innerText || '';
+                if (errorText.toLowerCase().includes('no ha sido confirmada') ||
+                    errorText.toLowerCase().includes('sin confirmar') ||
+                    errorText.toLowerCase().includes('verificar') ||
+                    errorText.toLowerCase().includes('confirmar')) {
+                    needsModal = true;
+                    messageText = 'Tu cuenta aún no ha sido verificada. Por favor verifica tu email para poder iniciar sesión.';
+                    formErrors.style.display = 'none';
+                }
+            }
+
+            // Verificar mensajes de Django
+            alerts.forEach(alert => {
+                const message = alert.getAttribute('data-message') || '';
+
+                if (message.toLowerCase().includes('verificar') ||
+                    message.toLowerCase().includes('confirmar') ||
+                    message.toLowerCase().includes('revisa tu correo')) {
+                    needsModal = true;
+                    messageText = message;
+                    alert.style.display = 'none';
+                }
+            });
+
+            if (needsModal) {
+                showVerificationModal(messageText);
+            }
+        }
+
+        // Función para mostrar la modal (mejorada)
+        function showVerificationModal(message) {
+            const modal = document.getElementById('emailVerificationModal');
+            if (!modal) return;
+
+            // Limpiar cualquier backdrop residual antes de mostrar
+            removeModalBackdrop();
+
+            // Actualizar mensaje
+            const modalMessage = document.getElementById('modalMessage');
+            if (modalMessage) {
+                modalMessage.innerHTML = `<p>${message}</p>`;
+            }
+
+            // Si ya existe una instancia, destruirla primero
+            if (modalInstance) {
+                modalInstance.dispose();
+                modalInstance = null;
+            }
+
+            // Crear nueva instancia de modal
+            modalInstance = new bootstrap.Modal(modal, {
+                backdrop: 'static',
+                keyboard: false,
+                focus: true
+            });
+
+            // Marcar que la modal está activa
+            isModalActive = true;
+            modal.setAttribute('data-modal-active', 'true');
+
+            // Mostrar la modal
+            modalInstance.show();
+
+            // Agregar listeners para prevenir problemas de focus/blur
+            window.addEventListener('blur', handleWindowBlur);
+            window.addEventListener('focus', handleWindowFocus);
+
+            // Guardar username/email si existe
+            const usernameInput = document.querySelector('input[name="username"]');
+            if (usernameInput && usernameInput.value) {
+                modal.setAttribute('data-user-email', usernameInput.value);
+                currentUser = usernameInput.value;
+            }
+
+            // Cargar cooldowns guardados
+            loadCooldowns();
+
+            // Verificar si hay un cooldown activo para este usuario
+            if (currentUser && cooldownData[currentUser]) {
+                const endTime = cooldownData[currentUser];
+                const now = new Date().getTime();
+
+                if (now < endTime) {
+                    const btn = document.getElementById('resendEmailBtn');
+                    const remainingTime = Math.floor((endTime - now) / 1000);
+                    if (remainingTime > 0) {
+                        resumeCountdown(btn, remainingTime);
+                        // Mostrar mensaje de que ya se envió un email
+                        showAlert('success', 'Email de verificación enviado. Revisa tu bandeja de entrada.');
+                    }
+                } else {
+                    // El cooldown expiró, eliminar del registro
+                    delete cooldownData[currentUser];
+                    saveCooldowns();
+                }
+            }
+
+            // Configurar los botones de cierre manualmente
+            const closeBtn = document.getElementById('closeModalBtn');
+            const closeX = document.getElementById('closeModalX');
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    closeModal();
+                });
+            }
+
+            if (closeX) {
+                closeX.addEventListener('click', function() {
+                    closeModal();
+                });
+            }
+        }
+
+        // Función para cerrar la modal correctamente
+        function closeModal() {
+            const modal = document.getElementById('emailVerificationModal');
+            if (modal) {
+                isModalActive = false;
+                modal.removeAttribute('data-modal-active');
+            }
+
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+
+            // Remover listeners de ventana
+            window.removeEventListener('blur', handleWindowBlur);
+            window.removeEventListener('focus', handleWindowFocus);
+
+            // Limpiar backdrop después de un delay
+            setTimeout(function() {
+                removeModalBackdrop();
+            }, 300);
+        }
+
+        // Configurar botón de reenvío
+        function setupResendButton() {
+            const btn = document.getElementById('resendEmailBtn');
+            if (!btn) return;
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Verificar si hay cooldown para este usuario
+                loadCooldowns();
+                if (currentUser && cooldownData[currentUser]) {
+                    const now = new Date().getTime();
+                    if (now < cooldownData[currentUser]) {
+                        // Aún en cooldown, no permitir envío
+                        return;
+                    }
+                }
+
+                const modal = document.getElementById('emailVerificationModal');
+                const userEmail = modal.getAttribute('data-user-email') || '';
+
+                // Cambiar estado del botón
+                btn.disabled = true;
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+
+                // Obtener CSRF token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+                // Preparar datos
+                const formData = new FormData();
+                if (userEmail) {
+                    formData.append('email', userEmail);
+                }
+
+                // NO limpiar alert anterior - mantener mensaje visible
+
+                // Enviar petición
+                fetch('/auth/resend-verification/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData,
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Mostrar mensaje
+                    showAlert(data.success ? 'success' : 'danger', data.message || 'Email enviado correctamente');
+
+                    if (data.success) {
+                        // Restaurar botón inmediatamente después del éxito
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+
+                        // Iniciar countdown
+                        startCountdown(btn, originalContent);
+                    } else {
+                        // Restaurar botón en caso de error
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', 'Error al enviar el email. Por favor intenta más tarde.');
+
+                    // Restaurar botón
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                });
+            });
+        }
+
+        // Mostrar alert en la modal (completamente reescrito)
+        function showAlert(type, message) {
+            const alert = document.getElementById('resendAlert');
+            const alertIcon = document.getElementById('resendAlertIcon');
+            const alertText = document.getElementById('resendAlertText');
+
+            if (alert && alertIcon && alertText) {
+                // Eliminar todas las clases de Bootstrap que podrían causar auto-ocultamiento
+                alert.className = '';
+                alert.classList.add('alert', `alert-${type}`, 'show');
+
+                // Asegurar que sea visible
+                alert.style.display = 'block';
+                alert.style.opacity = '1';
+                alert.removeAttribute('aria-hidden');
+
+                alertIcon.innerHTML = type === 'success' ?
+                    '<i class="bi bi-check-circle-fill text-success"></i>' :
+                    '<i class="bi bi-x-circle-fill text-danger"></i>';
+
+                alertText.textContent = message;
+
+                // Marcar como persistente y prevenir cualquier auto-ocultamiento
+                alert.setAttribute('data-persistent', 'true');
+                alert.setAttribute('data-bs-dismiss', 'false');
+
+                // Interceptar cualquier intento de ocultar el alert
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (alert.classList.contains('d-none') || alert.style.display === 'none') {
+                            alert.classList.remove('d-none');
+                            alert.style.display = 'block';
+                            alert.style.opacity = '1';
+                        }
+                    });
+                });
+                observer.observe(alert, { attributes: true, attributeFilter: ['class', 'style'] });
+            }
+        }
+
+        // Funciones para manejar cooldowns en localStorage
+        function saveCooldowns() {
+            localStorage.setItem('emailVerificationCooldowns', JSON.stringify(cooldownData));
+        }
+
+        function loadCooldowns() {
+            try {
+                const saved = localStorage.getItem('emailVerificationCooldowns');
+                if (saved) {
+                    cooldownData = JSON.parse(saved);
+                }
+            } catch (e) {
+                cooldownData = {};
+            }
+        }
+
+        // Manejar pérdida de foco de la ventana
+        function handleWindowBlur() {
+            // No hacer nada especial, mantener modal abierta
+        }
+
+        // Manejar regreso del foco a la ventana
+        function handleWindowFocus() {
+            if (isModalActive && modalInstance) {
+                // Asegurar que la modal sigue visible
+                const modal = document.getElementById('emailVerificationModal');
+                if (modal && !modal.classList.contains('show')) {
+                    modalInstance.show();
+                }
+                // Limpiar cualquier backdrop fantasma
+                setTimeout(removeModalBackdrop, 100);
+            }
+        }
+
+        // Función para remover el backdrop de Bootstrap (mejorada)
+        function removeModalBackdrop() {
+            // Remover todos los backdrops de Bootstrap
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => {
+                backdrop.remove();
+            });
+
+            // Solo restaurar el body si la modal NO está activa
+            if (!isModalActive) {
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            }
+        }
+
+        // Iniciar countdown
+        function startCountdown(btn, originalContent) {
+            // Guardar el tiempo de finalización para el usuario actual
+            const endTime = new Date().getTime() + (countdownSeconds * 1000);
+
+            if (currentUser) {
+                cooldownData[currentUser] = endTime;
+                saveCooldowns();
+            }
+
+            const timer = document.getElementById('resendTimer');
+            const seconds = document.getElementById('timerSeconds');
+            const progress = document.getElementById('timerProgress');
+
+            if (!timer || !seconds || !progress) return;
+
+            // Mostrar timer
+            timer.classList.remove('d-none');
+
+            // Deshabilitar el botón durante el countdown
+            btn.disabled = true;
+            canResend = false;
+
+            let remaining = countdownSeconds;
+
+            resendCountdown = setInterval(() => {
+                remaining--;
+                seconds.textContent = remaining;
+
+                // Actualizar barra de progreso
+                const percentage = ((countdownSeconds - remaining) / countdownSeconds) * 100;
+                progress.style.width = percentage + '%';
+
+                if (remaining <= 0) {
+                    // Limpiar interval
+                    clearInterval(resendCountdown);
+                    resendCountdown = null;
+
+                    // Eliminar cooldown del usuario
+                    if (currentUser && cooldownData[currentUser]) {
+                        delete cooldownData[currentUser];
+                        saveCooldowns();
+                    }
+
+                    // Habilitar el botón de nuevo
+                    btn.disabled = false;
+                    canResend = true;
+
+                    // Ocultar timer y reiniciar valores
+                    timer.classList.add('d-none');
+                    progress.style.width = '0%';
+                    seconds.textContent = countdownSeconds;
+                }
+            }, 1000);
+        }
+
+        // Resumir countdown si se cierra y abre la modal
+        function resumeCountdown(btn, remainingTime) {
+            const timer = document.getElementById('resendTimer');
+            const seconds = document.getElementById('timerSeconds');
+            const progress = document.getElementById('timerProgress');
+
+            if (!timer || !seconds || !progress) return;
+
+            // Mostrar timer
+            timer.classList.remove('d-none');
+
+            // Deshabilitar el botón durante el countdown
+            btn.disabled = true;
+            canResend = false;
+
+            let remaining = remainingTime;
+
+            // Mostrar el valor correcto inmediatamente
+            seconds.textContent = remaining;
+            const percentage = ((countdownSeconds - remaining) / countdownSeconds) * 100;
+            progress.style.width = percentage + '%';
+
+            resendCountdown = setInterval(() => {
+                remaining--;
+                seconds.textContent = remaining;
+
+                // Actualizar barra de progreso
+                const percentage = ((countdownSeconds - remaining) / countdownSeconds) * 100;
+                progress.style.width = percentage + '%';
+
+                if (remaining <= 0) {
+                    // Limpiar interval
+                    clearInterval(resendCountdown);
+                    resendCountdown = null;
+
+                    // Eliminar cooldown del usuario
+                    if (currentUser && cooldownData[currentUser]) {
+                        delete cooldownData[currentUser];
+                        saveCooldowns();
+                    }
+
+                    // Habilitar el botón de nuevo
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-send"></i> Reenviar Email de Verificación';
+                    canResend = true;
+
+                    // Ocultar timer y reiniciar valores
+                    timer.classList.add('d-none');
+                    progress.style.width = '0%';
+                    seconds.textContent = countdownSeconds;
+                }
+            }, 1000);
+        }
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            checkForVerificationMessages();
+            setupResendButton();
+
+            // Verificar periódicamente el estado de la modal
+            setInterval(function() {
+                // Si la modal debe estar activa pero no lo está, recuperarla
+                if (isModalActive && modalInstance) {
+                    const modal = document.getElementById('emailVerificationModal');
+                    if (modal && !modal.classList.contains('show')) {
+                        modalInstance.show();
+                    }
+                }
+
+                // Limpiar backdrops residuales si la modal no está activa
+                if (!isModalActive) {
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    if (backdrops.length > 0) {
+                        removeModalBackdrop();
+                    }
+                }
+            }, 2000); // Verificar cada 2 segundos
+
+            // Listener adicional para limpiar cuando se cierre la modal
+            const modal = document.getElementById('emailVerificationModal');
+            if (modal) {
+                modal.addEventListener('hidden.bs.modal', function() {
+                    if (!modal.hasAttribute('data-modal-active')) {
+                        removeModalBackdrop();
+                    }
+                });
+            }
+        });
+    })();
+    </script>
+    {% endif %}
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

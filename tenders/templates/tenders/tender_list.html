@@ -1,0 +1,121 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Buscar Licitaciones - TenderAI{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Buscar Licitaciones</h1>
+
+    <!-- Formulario de Búsqueda y Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="{% url 'tenders:list' %}">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="search" class="form-label">Buscar</label>
+                        <input type="text" class="form-control" id="search" name="q"
+                               value="{{ search_query }}" placeholder="Título, descripción, organismo...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="contract_type" class="form-label">Tipo de Contrato</label>
+                        <select class="form-select" id="contract_type" name="contract_type">
+                            <option value="">Todos</option>
+                            <option value="services" {% if contract_type == 'services' %}selected{% endif %}>Servicios</option>
+                            <option value="supplies" {% if contract_type == 'supplies' %}selected{% endif %}>Suministros</option>
+                            <option value="works" {% if contract_type == 'works' %}selected{% endif %}>Obras</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="min_budget" class="form-label">Presupuesto Mín (EUR)</label>
+                        <input type="number" class="form-control" id="min_budget" name="min_budget"
+                               value="{{ min_budget }}" placeholder="0">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="max_budget" class="form-label">Presupuesto Máx (EUR)</label>
+                        <input type="number" class="form-control" id="max_budget" name="max_budget"
+                               value="{{ max_budget }}" placeholder="Sin límite">
+                    </div>
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Buscar
+                        </button>
+                        <a href="{% url 'tenders:list' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Limpiar Filtros
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resultados -->
+    {% if tenders %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Resultados ({{ page_obj.paginator.count }} licitaciones)</h5>
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                {% for tender in tenders %}
+                <a href="{% url 'tenders:detail' tender.ojs_notice_id %}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">{{ tender.title }}</h6>
+                        <small class="text-muted">{{ tender.publication_date|date:"d/m/Y" }}</small>
+                    </div>
+                    <p class="mb-1 text-muted">{{ tender.buyer_name }}</p>
+                    <p class="mb-1 small">{{ tender.short_description|truncatechars:150 }}</p>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-info">{{ tender.get_contract_type_display }}</span>
+                            <span class="badge bg-secondary">{{ tender.get_procedure_type_display }}</span>
+                            {% if tender.deadline %}
+                            <span class="text-danger small"><i class="bi bi-alarm"></i> {{ tender.deadline|date:"d/m/Y H:i" }}</span>
+                            {% endif %}
+                        </div>
+                        {% if tender.budget_amount %}
+                        <span class="text-primary fw-bold">{{ tender.budget_amount|floatformat:0 }} {{ tender.currency }}</span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if is_paginated %}
+    <nav aria-label="Paginación" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if contract_type %}&contract_type={{ contract_type }}{% endif %}">Primera</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if contract_type %}&contract_type={{ contract_type }}{% endif %}">Anterior</a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            </li>
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if contract_type %}&contract_type={{ contract_type }}{% endif %}">Siguiente</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if contract_type %}&contract_type={{ contract_type }}{% endif %}">Última</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info text-center">
+        <h5>No se encontraron licitaciones</h5>
+        <p>Intenta ajustar los filtros de búsqueda.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

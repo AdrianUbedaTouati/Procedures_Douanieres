@@ -1,0 +1,136 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Mi Perfil - BasePage{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">Mi Perfil</h2>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Nombre de usuario:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ user.username }}
+                        </div>
+                    </div>
+
+                    {% if user.first_name or user.last_name %}
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Nombre completo:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ user.first_name }} {{ user.last_name }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Correo electrónico:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ user.email }}
+                            {% if EMAIL_VERIFICATION_REQUIRED %}
+                                {% if user.email_verified %}
+                                    <span class="badge bg-success ms-2">
+                                        <i class="bi bi-check-circle"></i> Confirmado
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning ms-2">
+                                        <i class="bi bi-exclamation-circle"></i> Sin confirmar
+                                    </span>
+                                    <a href="{% url 'authentication:resend_verification' %}" class="btn btn-sm btn-link">
+                                        Reenviar confirmación
+                                    </a>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Teléfono:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {% if user.phone %}
+                                {{ user.phone }}
+                            {% else %}
+                                <span class="text-muted">No especificado</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <h5 class="mb-3">Dirección de Envío</h5>
+
+                    {% if user.has_complete_address %}
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Dirección completa:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {% if user.address_line1 %}
+                                {{ user.address_line1 }}<br>
+                            {% endif %}
+                            {% if user.address_line2 %}
+                                {{ user.address_line2 }}<br>
+                            {% endif %}
+                            {% if user.city or user.state_province or user.postal_code %}
+                                {{ user.city }}{% if user.city and user.state_province %}, {% endif %}{{ user.state_province }} {{ user.postal_code }}<br>
+                            {% endif %}
+                            {% if user.country %}
+                                {{ user.country }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning alert-permanent">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        No tienes una dirección de envío completa.
+                        <a href="{% url 'core:edit_profile' %}">Añádela ahora</a>
+                    </div>
+                    {% endif %}
+
+                    <hr class="my-3">
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Fecha de registro:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ user.created_at|date:"d/m/Y H:i" }}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Último acceso:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            {{ user.last_login|date:"d/m/Y H:i"|default:"Nunca" }}
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="text-center">
+                        <a href="{% url 'core:edit_profile' %}" class="btn btn-primary me-2">
+                            <i class="bi bi-pencil"></i> Editar Perfil
+                        </a>
+                        <a href="{% url 'authentication:password_reset_request' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-key"></i> Cambiar Contraseña
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

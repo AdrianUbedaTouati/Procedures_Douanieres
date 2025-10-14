@@ -1,0 +1,245 @@
+# ============================================================================
+# CONFIGURACIÓN DEL MOTOR DE RECOMENDACIONES
+# ============================================================================
+# Este archivo controla cómo se calculan las recomendaciones TOP N
+
+# ============================================================================
+# PESOS DE CATEGORÍAS (Deben sumar 1.0)
+# ============================================================================
+category_weights:
+  technical: 0.30       # 30% - Compatibilidad técnica (CPV, keywords, tipo contrato)
+  budget: 0.25          # 25% - Ajuste presupuestario
+  geographic: 0.15      # 15% - Presencia geográfica
+  experience: 0.20      # 20% - Portfolio y experiencia
+  competition: 0.10     # 10% - Factores competitivos
+
+# TOTAL: 1.00 (100%)
+
+# ============================================================================
+# SCORING - COMPATIBILIDAD TÉCNICA (0-100)
+# ============================================================================
+technical_scoring:
+  cpv_match:
+    score: 50           # Puntos por match de CPV code
+    description: "CPV code coincide con especialización"
+
+  keyword_match:
+    score_per_keyword: 10   # Puntos por cada keyword encontrado
+    max_score: 30           # Máximo puntos por keywords
+    description: "Keywords técnicos en descripción/título"
+
+  contract_type_match:
+    score: 20           # Puntos por tipo de contrato preferido
+    description: "Tipo de contrato (services, supplies, works)"
+
+  avoid_keywords_penalty:
+    score: -20          # Penalización por keywords a evitar
+    description: "Contiene términos no deseados"
+
+# ============================================================================
+# SCORING - PRESUPUESTO (0-100)
+# ============================================================================
+budget_scoring:
+  in_range:
+    score: 100          # Presupuesto dentro del rango
+    description: "Presupuesto entre min y max preferido"
+
+  below_minimum:
+    calculation: "ratio * 50"    # ratio = budget / min_budget
+    description: "Presupuesto por debajo del mínimo"
+
+  above_maximum:
+    calculation: "ratio * 70"    # ratio = max_budget / budget
+    description: "Presupuesto por encima del máximo"
+
+  no_budget_specified:
+    score: 50           # Score neutral si no hay presupuesto
+    description: "Presupuesto no especificado en el aviso"
+
+  # Advertencias
+  warnings:
+    high_vs_revenue_threshold: 0.50    # >50% de facturación anual
+    message: "Presupuesto muy alto vs facturación anual"
+
+# ============================================================================
+# SCORING - GEOGRAFÍA (0-100)
+# ============================================================================
+geographic_scoring:
+  direct_match:
+    score: 100          # Región NUTS en presencia geográfica
+    description: "Presencia directa en la región"
+
+  country_match:
+    score: 60           # Mismo país, región diferente
+    description: "Mismo país, diferente región NUTS"
+
+  no_match:
+    score: 30           # Fuera de presencia habitual
+    description: "Región fuera de cobertura actual"
+
+  no_region_specified:
+    score: 50           # Score neutral
+    description: "Región NUTS no especificada"
+
+# ============================================================================
+# SCORING - EXPERIENCIA (0-100)
+# ============================================================================
+experience_scoring:
+  base_score: 50        # Score base
+
+  public_sector_experience:
+    score: 30           # Puntos por experiencia sector público
+    description: "Experiencia previa en administración pública"
+
+  relevant_projects:
+    score: 20           # Puntos por proyectos en portfolio
+    description: "Proyectos similares completados"
+
+  no_relevant_projects:
+    warning: "Sin proyectos similares en portfolio"
+
+# ============================================================================
+# SCORING - COMPETENCIA (0-100)
+# ============================================================================
+competition_scoring:
+  base_score: 70        # Score base (asume competencia media)
+
+  procedure_type:
+    open:
+      adjustment: -10   # Mayor competencia
+      description: "Procedimiento abierto"
+    restricted:
+      adjustment: 10    # Menor competencia
+      description: "Procedimiento restringido"
+    negotiated:
+      adjustment: 10    # Menor competencia
+      description: "Procedimiento negociado"
+
+  deadline_proximity:
+    very_close:         # < 15 días
+      adjustment: -15
+      threshold_days: 15
+      message: "Deadline muy próximo"
+    sufficient:         # > 45 días
+      adjustment: 10
+      threshold_days: 45
+      message: "Tiempo suficiente para preparar oferta"
+
+  competitive_advantages:
+    score_per_advantage: 6.67   # ~20 puntos por 3 ventajas
+    description: "Ventajas competitivas identificadas"
+
+# ============================================================================
+# CÁLCULO DE PROBABILIDAD DE ÉXITO
+# ============================================================================
+success_probability:
+  base_calculation: "base_score"    # Partir del score total
+
+  # Penalizaciones
+  penalties:
+    per_warning: 5                  # -5% por cada factor de advertencia
+
+    financial_capacity_low: 10      # -10% si capacidad financiera baja
+    team_availability_low: 15       # -15% si disponibilidad equipo baja
+    overcommitment_high: 10         # -10% si riesgo sobrecompromiso alto
+
+  # Ajustes por tamaño de empresa
+  company_size_adjustment:
+    pequeña: 0.85       # -15% (menor tasa de éxito estadística)
+    mediana: 1.00       # Sin ajuste
+    grande: 1.10        # +10% (mayor capacidad)
+
+  # Límites realistas
+  min_probability: 5    # Mínimo 5%
+  max_probability: 95   # Máximo 95% (nunca 100%)
+
+# ============================================================================
+# NIVELES DE RECOMENDACIÓN
+# ============================================================================
+recommendation_levels:
+  alta:
+    min_score: 75
+    color: "verde"
+    icon: "✅"
+    description: "Altamente recomendado - Excelente ajuste"
+
+  media:
+    min_score: 50
+    color: "amarillo"
+    icon: "⚠️"
+    description: "Recomendado con reservas - Ajuste moderado"
+
+  baja:
+    min_score: 0
+    color: "rojo"
+    icon: "❌"
+    description: "No recomendado - Bajo ajuste"
+
+# ============================================================================
+# CONFIGURACIÓN DE SALIDA
+# ============================================================================
+output:
+  default_top_n: 5                  # TOP N por defecto
+  max_recommendations: 20           # Máximo recomendaciones a generar
+
+  include_in_report:
+    - "total_score"
+    - "recommendation_level"
+    - "probability_success"
+    - "category_breakdown"
+    - "match_reasons"
+    - "warning_factors"
+    - "contact_info"
+
+  # Formato de presentación
+  display:
+    show_score_breakdown: true      # Mostrar desglose por categoría
+    show_contact_info: true         # Incluir información de contacto
+    show_probability: true          # Mostrar probabilidad de éxito
+    show_warnings: true             # Mostrar factores de advertencia
+
+# ============================================================================
+# FILTROS GLOBALES (Aplicar antes de scoring)
+# ============================================================================
+global_filters:
+  enabled: false
+
+  # Filtros automáticos (opcional)
+  filters:
+    min_budget: null                # Presupuesto mínimo absoluto
+    max_budget: null                # Presupuesto máximo absoluto
+    required_regions: []            # Regiones NUTS obligatorias
+    required_cpv_codes: []          # CPV codes obligatorios
+    exclude_keywords: []            # Excluir si contiene estas palabras
+
+# ============================================================================
+# OPCIONES AVANZADAS
+# ============================================================================
+advanced:
+  # Re-scoring dinámico
+  enable_dynamic_weights: false     # Ajustar pesos según contexto
+  enable_ml_scoring: false          # Usar ML para scoring (futuro)
+
+  # Análisis competitivo
+  competitor_analysis: true         # Considerar competidores en scoring
+  market_intelligence: false        # Análisis de mercado (futuro)
+
+  # Exportación
+  export_format: "json"             # json, csv, xlsx
+  export_detailed_scores: true      # Incluir scores detallados en export
+
+# ============================================================================
+# MENSAJES Y TEXTOS
+# ============================================================================
+messages:
+  no_tenders: "No se encontraron licitaciones para analizar."
+  analysis_complete: "Análisis completado: {count} licitaciones evaluadas"
+  top_n_header: "TOP {n} LICITACIONES RECOMENDADAS PARA: {company_name}"
+
+# ============================================================================
+# LOGGING Y DEBUG
+# ============================================================================
+debug:
+  log_scoring_details: false        # Registrar detalles de scoring
+  log_filtering: false              # Registrar aplicación de filtros
+  verbose_output: false             # Salida detallada en consola

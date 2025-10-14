@@ -1,0 +1,156 @@
+/* Authentication Specific Styles */
+.auth-body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.auth-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+/* Auth Cards */
+.auth-main .card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.auth-main .card-body {
+    padding: 2.5rem;
+}
+
+/* Auth Forms */
+.auth-main .form-control {
+    border-radius: 10px;
+    padding: 12px 15px;
+    font-size: 16px;
+}
+
+.auth-main .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Password Input Group */
+.auth-main .password-input {
+    border-right: none;
+}
+
+.auth-main .password-toggle {
+    border-left: none;
+    background-color: white;
+    border-radius: 0 10px 10px 0;
+}
+
+.auth-main .password-toggle:hover {
+    background-color: #f8f9fa;
+}
+
+.auth-main .input-group .form-control {
+    border-radius: 10px 0 0 10px;
+}
+
+.auth-main .input-group .form-control:focus + .password-toggle {
+    border-color: #667eea;
+}
+
+/* Auth Buttons */
+.auth-main .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: transform 0.3s;
+}
+
+.auth-main .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Auth Links */
+.auth-main a {
+    color: #667eea;
+    font-weight: 500;
+}
+
+.auth-main a:hover {
+    color: #764ba2;
+}
+
+/* Auth Titles */
+.auth-main h2 {
+    color: #333;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+/* Form Labels */
+.auth-main .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+/* Error Messages */
+.auth-main .text-danger {
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+/* Info Text */
+.auth-main .form-text {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+/* Alerts in Auth Pages */
+.auth-main ~ .container .alert,
+.auth-body .alert {
+    border-radius: 10px;
+    border: none;
+}
+
+/* Auth Navbar */
+.auth-body .navbar {
+    background: rgba(0, 0, 0, 0.1) !important;
+    backdrop-filter: blur(10px);
+}
+
+.auth-body .navbar-brand {
+    color: white !important;
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+/* Checkbox */
+.auth-main .form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+/* Loading State */
+.auth-main .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .auth-main .card-body {
+        padding: 2rem 1.5rem;
+    }
+
+    .auth-main h2 {
+        font-size: 1.5rem;
+    }
+}

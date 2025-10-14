@@ -1,0 +1,253 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ tender.title }} - TenderAI{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Título y Acciones -->
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <h1>{{ tender.title }}</h1>
+                <form method="post" action="{% url 'tenders:save' tender.ojs_notice_id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn {% if is_saved %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                        <i class="bi bi-bookmark{% if is_saved %}-fill{% endif %}"></i>
+                        {% if is_saved %}Guardada{% else %}Guardar{% endif %}
+                    </button>
+                </form>
+            </div>
+
+            <!-- Info Básica -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <p class="text-muted mb-2">
+                        <strong>ID:</strong> {{ tender.ojs_notice_id }}
+                    </p>
+                    <p class="text-muted mb-2">
+                        <strong>Organismo:</strong> {{ tender.buyer_name }}
+                        {% if tender.buyer_type %}({{ tender.buyer_type }}){% endif %}
+                    </p>
+                    <p class="mb-2">
+                        <span class="badge bg-info">{{ tender.get_contract_type_display }}</span>
+                        <span class="badge bg-secondary">{{ tender.get_procedure_type_display }}</span>
+                    </p>
+                    {% if tender.deadline %}
+                    <p class="mb-2">
+                        <strong class="text-danger"><i class="bi bi-alarm"></i> Fecha Límite:</strong>
+                        {{ tender.deadline|date:"d/m/Y H:i" }}
+                    </p>
+                    {% endif %}
+                    {% if tender.publication_date %}
+                    <p class="mb-2">
+                        <strong>Publicado:</strong> {{ tender.publication_date|date:"d/m/Y" }}
+                    </p>
+                    {% endif %}
+                    {% if tender.budget_amount %}
+                    <p class="mb-0">
+                        <strong>Presupuesto:</strong>
+                        <span class="text-primary fs-5 fw-bold">{{ tender.budget_amount|floatformat:2 }} {{ tender.currency }}</span>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Descripción -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Descripción</h5>
+                </div>
+                <div class="card-body">
+                    <p style="white-space: pre-wrap;">{{ tender.description }}</p>
+                </div>
+            </div>
+
+            <!-- Códigos CPV -->
+            {% if tender.cpv_codes %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Códigos CPV</h5>
+                </div>
+                <div class="card-body">
+                    {% for cpv in tender.cpv_codes %}
+                    <span class="badge bg-light text-dark border me-1 mb-1">{{ cpv }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Regiones NUTS -->
+            {% if tender.nuts_regions %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Regiones NUTS</h5>
+                </div>
+                <div class="card-body">
+                    {% for nuts in tender.nuts_regions %}
+                    <span class="badge bg-light text-dark border me-1 mb-1">{{ nuts }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Información de Contacto -->
+            {% if tender.contact_email or tender.contact_phone or tender.contact_url %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información de Contacto</h5>
+                </div>
+                <div class="card-body">
+                    {% if tender.contact_email %}
+                    <p class="mb-2">
+                        <i class="bi bi-envelope"></i> <a href="mailto:{{ tender.contact_email }}">{{ tender.contact_email }}</a>
+                    </p>
+                    {% endif %}
+                    {% if tender.contact_phone %}
+                    <p class="mb-2">
+                        <i class="bi bi-telephone"></i> {{ tender.contact_phone }}
+                    </p>
+                    {% endif %}
+                    {% if tender.contact_url %}
+                    <p class="mb-0">
+                        <i class="bi bi-link-45deg"></i> <a href="{{ tender.contact_url }}" target="_blank">{{ tender.contact_url }}</a>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Recomendación -->
+            {% if recommendation %}
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-star-fill"></i> Recomendación IA</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <h2 class="display-4 mb-0">{{ recommendation.score_total|floatformat:0 }}</h2>
+                        <p class="text-muted mb-0">Score Total</p>
+                        <span class="badge
+                            {% if recommendation.recommendation_level == 'alta' %}bg-success
+                            {% elif recommendation.recommendation_level == 'media' %}bg-warning
+                            {% else %}bg-secondary{% endif %} fs-6">
+                            Nivel: {{ recommendation.get_recommendation_level_display }}
+                        </span>
+                    </div>
+
+                    <h6>Desglose de Puntuación</h6>
+                    <div class="mb-2">
+                        <small>Técnico</small>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar" style="width: {{ recommendation.score_technical }}%">
+                                {{ recommendation.score_technical|floatformat:0 }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <small>Presupuesto</small>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" style="width: {{ recommendation.score_budget }}%">
+                                {{ recommendation.score_budget|floatformat:0 }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <small>Geográfico</small>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-info" style="width: {{ recommendation.score_geographic }}%">
+                                {{ recommendation.score_geographic|floatformat:0 }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <small>Experiencia</small>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-warning" style="width: {{ recommendation.score_experience }}%">
+                                {{ recommendation.score_experience|floatformat:0 }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <small>Competencia</small>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-danger" style="width: {{ recommendation.score_competition }}%">
+                                {{ recommendation.score_competition|floatformat:0 }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6>Probabilidad de Éxito</h6>
+                    <div class="alert alert-info mb-3">
+                        <strong>{{ recommendation.probability_success|floatformat:1 }}%</strong>
+                    </div>
+
+                    {% if recommendation.match_reasons %}
+                    <h6>Razones de Compatibilidad</h6>
+                    <ul class="small">
+                        {% for reason in recommendation.match_reasons %}
+                        <li>{{ reason }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    {% if recommendation.warning_factors %}
+                    <h6 class="text-danger">Factores de Advertencia</h6>
+                    <ul class="small text-danger">
+                        {% for warning in recommendation.warning_factors %}
+                        <li>{{ warning }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Estado (si está guardada) -->
+            {% if is_saved %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Estado</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'tenders:update_status' tender.ojs_notice_id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Estado</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="interested">Interesado</option>
+                                <option value="applied">Oferta Presentada</option>
+                                <option value="won">Ganada</option>
+                                <option value="lost">Perdida</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Notas</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Actualizar Estado</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Acciones -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Acciones</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'chat:session_create' %}" class="btn btn-success w-100 mb-2" onclick="event.preventDefault(); fetch('{% url 'chat:session_create' %}', {method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}}).then(r => r.json()).then(d => window.location.href = d.redirect_url + '?tender_id={{ tender.ojs_notice_id }}');">
+                        <i class="bi bi-chat-dots"></i> Consultar con IA
+                    </a>
+                    <a href="{% url 'tenders:list' %}" class="btn btn-secondary w-100">
+                        <i class="bi bi-arrow-left"></i> Volver al Listado
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

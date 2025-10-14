@@ -1,0 +1,82 @@
+{% extends 'authentication/base_auth.html' %}
+
+{% block title %}Reenviar Confirmación - BasePage{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">Reenviar Email de Confirmación</h2>
+
+                    {% if user.is_authenticated %}
+                        {% if user.email_verified %}
+                            <div class="alert alert-info">
+                                <i class="bi bi-check-circle"></i> Tu cuenta ya está confirmada.
+                            </div>
+                            <div class="text-center">
+                                <a href="{% url 'authentication:profile' %}" class="btn btn-primary">
+                                    <i class="bi bi-person"></i> Ir al perfil
+                                </a>
+                            </div>
+                        {% else %}
+                            <p class="text-center text-muted mb-4">
+                                Haz clic en el botón para recibir un nuevo email de confirmación en <strong>{{ user.email }}</strong>
+                            </p>
+
+                            <form method="post">
+                                {% csrf_token %}
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-envelope"></i> Reenviar Email de Confirmación
+                                    </button>
+                                </div>
+                            </form>
+
+                            <hr class="my-4">
+
+                            <div class="text-center">
+                                <p class="small text-muted">
+                                    ¿Email incorrecto?
+                                    <a href="{% url 'authentication:logout' %}">Cerrar sesión</a>
+                                    y regístrate con el email correcto.
+                                </p>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-center text-muted mb-4">
+                            Ingresa tu email para recibir un nuevo enlace de confirmación.
+                        </p>
+
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email" required
+                                       placeholder="tu@email.com">
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-envelope"></i> Enviar Email de Confirmación
+                                </button>
+                            </div>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <div class="text-center">
+                            <p>
+                                <a href="{% url 'authentication:login' %}" class="text-decoration-none">
+                                    Volver al login
+                                </a>
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

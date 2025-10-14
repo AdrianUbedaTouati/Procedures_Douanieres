@@ -1,0 +1,155 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Perfil de Empresa - TenderAI{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Perfil de Empresa</h1>
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        <strong>Importante:</strong> Completa tu perfil de empresa para obtener recomendaciones personalizadas de licitaciones.
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                <!-- Información Básica -->
+                <h5 class="mb-3">Información Básica</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="id_company_name" class="form-label">Nombre de la Empresa *</label>
+                        {{ form.company_name }}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="id_size" class="form-label">Tamaño *</label>
+                        {{ form.size }}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_description" class="form-label">Descripción</label>
+                    {{ form.description }}
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="id_employees" class="form-label">Empleados</label>
+                        {{ form.employees }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="id_annual_revenue_eur" class="form-label">Facturación Anual (EUR)</label>
+                        {{ form.annual_revenue_eur }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="id_years_in_business" class="form-label">Años en el Negocio</label>
+                        {{ form.years_in_business }}
+                    </div>
+                </div>
+
+                <!-- Capacidades Técnicas -->
+                <h5 class="mb-3 mt-4">Capacidades Técnicas</h5>
+                <div class="mb-3">
+                    <label for="id_sectors" class="form-label">Sectores (JSON array)</label>
+                    {{ form.sectors }}
+                    <small class="form-text text-muted">Ejemplo: ["Tecnología", "Salud", "Educación"]</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_technical_areas" class="form-label">Áreas Técnicas (JSON array)</label>
+                    {{ form.technical_areas }}
+                    <small class="form-text text-muted">Ejemplo: ["Desarrollo Web", "Cloud Computing", "IA"]</small>
+                </div>
+
+                <!-- Preferencias de Licitación -->
+                <h5 class="mb-3 mt-4">Preferencias de Licitación</h5>
+                <div class="mb-3">
+                    <label for="id_preferred_cpv_codes" class="form-label">Códigos CPV Preferidos (JSON array)</label>
+                    {{ form.preferred_cpv_codes }}
+                    <small class="form-text text-muted">Ejemplo: ["72000000", "48000000"]</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_preferred_contract_types" class="form-label">Tipos de Contrato Preferidos (JSON array)</label>
+                    {{ form.preferred_contract_types }}
+                    <small class="form-text text-muted">Ejemplo: ["services", "supplies"]</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_budget_range" class="form-label">Rango de Presupuesto (JSON object)</label>
+                    {{ form.budget_range }}
+                    <small class="form-text text-muted">Ejemplo: {"min_eur": 200000, "max_eur": 3000000}</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_preferred_regions" class="form-label">Regiones Preferidas NUTS (JSON array)</label>
+                    {{ form.preferred_regions }}
+                    <small class="form-text text-muted">Ejemplo: ["ES", "ES51", "ES52"]</small>
+                </div>
+
+                <!-- Experiencia -->
+                <h5 class="mb-3 mt-4">Experiencia</h5>
+                <div class="mb-3">
+                    <div class="form-check">
+                        {{ form.public_sector_experience }}
+                        <label class="form-check-label" for="id_public_sector_experience">
+                            Experiencia en Sector Público
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Capacidades -->
+                <h5 class="mb-3 mt-4">Capacidades y Riesgos</h5>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="id_financial_capacity" class="form-label">Capacidad Financiera</label>
+                        {{ form.financial_capacity }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="id_team_availability" class="form-label">Disponibilidad del Equipo</label>
+                        {{ form.team_availability }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="id_overcommitment_risk" class="form-label">Riesgo de Sobrecarga</label>
+                        {{ form.overcommitment_risk }}
+                    </div>
+                </div>
+
+                <!-- Perfil Completo -->
+                <div class="mb-3">
+                    <div class="form-check">
+                        {{ form.is_complete }}
+                        <label class="form-check-label" for="id_is_complete">
+                            <strong>Marcar perfil como completo</strong> (necesario para recomendaciones)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-save"></i> Guardar Perfil
+                    </button>
+                    <a href="{% url 'tenders:dashboard' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    {{ form.media }}
+    input[type="text"], input[type="number"], textarea, select {
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+    }
+    textarea {
+        min-height: 100px;
+    }
+</style>
+{% endblock %}

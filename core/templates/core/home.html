@@ -1,0 +1,140 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Inicio - TenderAI{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="hero-section text-center py-5">
+                <h1 class="display-3"><i class="bi bi-file-earmark-text text-primary"></i> TenderAI</h1>
+                <p class="lead">Plataforma Inteligente de Análisis de Licitaciones Públicas</p>
+                <hr class="my-4">
+
+                {% if user.is_authenticated %}
+                    <p class="mb-4">Hola, <strong>{{ user.email }}</strong>!</p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <a class="btn btn-primary btn-lg" href="{% url 'tenders:dashboard' %}" role="button">
+                            <i class="bi bi-speedometer2"></i> Ir al Dashboard
+                        </a>
+                        <a class="btn btn-success btn-lg" href="{% url 'tenders:list' %}" role="button">
+                            <i class="bi bi-search"></i> Buscar Licitaciones
+                        </a>
+                    </div>
+                {% else %}
+                    <p class="mb-4">Encuentra y analiza las mejores oportunidades de licitación para tu empresa</p>
+                    <div class="d-flex justify-content-center gap-2">
+                        <a class="btn btn-primary btn-lg" href="{% url 'authentication:login' %}" role="button">
+                            <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                        </a>
+                        <a class="btn btn-outline-primary btn-lg" href="{% url 'authentication:register' %}" role="button">
+                            <i class="bi bi-person-plus"></i> Registrarse
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h2 class="text-center mb-4">Características Principales</h2>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-robot display-3 text-primary mb-3"></i>
+                        <h3>Recomendaciones IA</h3>
+                        <p>Sistema inteligente que analiza licitaciones y recomienda las más adecuadas según tu perfil empresarial</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-chat-dots display-3 text-primary mb-3"></i>
+                        <h3>Asistente de Chat</h3>
+                        <p>Consulta información de licitaciones de forma conversacional con nuestro agente de IA</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-graph-up display-3 text-primary mb-3"></i>
+                        <h3>Análisis Multicriteria</h3>
+                        <p>Evaluación técnica, presupuestaria, geográfica y de competencia para cada licitación</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="feature-card mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-bookmark display-3 text-success mb-3"></i>
+                        <h3>Gestión de Ofertas</h3>
+                        <p>Guarda y organiza licitaciones por estado: interesado, presentada, ganada o perdida</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-file-earmark-code display-3 text-info mb-3"></i>
+                        <h3>Análisis XML</h3>
+                        <p>Procesamiento automático de documentos TED (Tenders Electronic Daily) con verificación XPath</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-building display-3 text-warning mb-3"></i>
+                        <h3>Perfiles Empresariales</h3>
+                        <p>Crea un perfil detallado de tu empresa para recibir recomendaciones personalizadas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if user.is_authenticated %}
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <div class="card bg-light">
+                <div class="card-body text-center py-5">
+                    <h3 class="mb-4">¿Listo para encontrar tu próxima licitación?</h3>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <a href="{% url 'tenders:dashboard' %}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                        <a href="{% url 'tenders:recommended' %}" class="btn btn-warning btn-lg">
+                            <i class="bi bi-star"></i> Ver Recomendadas
+                        </a>
+                        <a href="{% url 'company:profile' %}" class="btn btn-info btn-lg">
+                            <i class="bi bi-building"></i> Mi Empresa
+                        </a>
+                        <a href="{% url 'chat:session_list' %}" class="btn btn-success btn-lg">
+                            <i class="bi bi-chat-dots"></i> Chat IA
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,669 @@
+// Authentication Module JavaScript
+(function() {
+    'use strict';
+
+    // Variables globales para el módulo
+    let resendCountdown = null;
+    let lastResendTime = null;
+    const RESEND_COOLDOWN = 120; // 2 minutos en segundos
+
+    // Initialize on DOM load
+    document.addEventListener('DOMContentLoaded', function() {
+        initPasswordToggles();
+        initPasswordValidation();
+        initAutoHideAlerts();
+        initFormValidation();
+        initEmailVerificationModal();
+    });
+
+    // Password visibility toggle
+    function initPasswordToggles() {
+        const toggleButtons = document.querySelectorAll('.password-toggle');
+
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const passwordInput = document.getElementById(targetId);
+                const icon = document.getElementById(targetId + '-icon');
+
+                if (passwordInput && icon) {
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        icon.classList.remove('bi-eye');
+                        icon.classList.add('bi-eye-slash');
+                        this.setAttribute('aria-label', 'Ocultar contraseña');
+                    } else {
+                        passwordInput.type = 'password';
+                        icon.classList.remove('bi-eye-slash');
+                        icon.classList.add('bi-eye');
+                        this.setAttribute('aria-label', 'Mostrar contraseña');
+                    }
+                }
+            });
+        });
+    }
+
+    // Real-time password validation
+    function initPasswordValidation() {
+        const passwordInputs = document.querySelectorAll('#password1, #new-password1');
+
+        passwordInputs.forEach(input => {
+            // Create validation feedback element if it doesn't exist
+            if (input && !input.parentElement.querySelector('.password-validation-feedback')) {
+                const feedbackDiv = createPasswordFeedback();
+                input.parentElement.parentElement.appendChild(feedbackDiv);
+
+                input.addEventListener('input', function() {
+                    updatePasswordFeedback(this.value, feedbackDiv);
+                });
+
+                // Show feedback on focus
+                input.addEventListener('focus', function() {
+                    feedbackDiv.style.display = 'block';
+                });
+            }
+        });
+    }
+
+    // Create password validation feedback element
+    function createPasswordFeedback() {
+        const div = document.createElement('div');
+        div.className = 'password-validation-feedback mt-2';
+        div.style.display = 'none';
+        div.innerHTML = `
+            <small class="text-muted">
+                <div class="requirement" data-requirement="length">
+                    <i class="bi bi-circle"></i> Mínimo 8 caracteres
+                </div>
+                <div class="requirement" data-requirement="uppercase">
+                    <i class="bi bi-circle"></i> Al menos 1 mayúscula
+                </div>
+                <div class="requirement" data-requirement="special">
+                    <i class="bi bi-circle"></i> Al menos 1 carácter especial (!@#$%^&*(),.?":{}|<>)
+                </div>
+            </small>
+        `;
+        return div;
+    }
+
+    // Update password validation feedback
+    function updatePasswordFeedback(password, feedbackDiv) {
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+        };
+
+        Object.keys(requirements).forEach(key => {
+            const element = feedbackDiv.querySelector(`[data-requirement="${key}"]`);
+            const icon = element.querySelector('i');
+
+            if (requirements[key]) {
+                element.classList.remove('text-danger');
+                element.classList.add('text-success');
+                icon.classList.remove('bi-circle', 'bi-x-circle');
+                icon.classList.add('bi-check-circle');
+            } else {
+                element.classList.remove('text-success');
+                element.classList.add('text-danger');
+                icon.classList.remove('bi-circle', 'bi-check-circle');
+                icon.classList.add('bi-x-circle');
+            }
+        });
+
+        // Check if all requirements are met
+        const allMet = Object.values(requirements).every(req => req === true);
+        return allMet;
+    }
+
+    // Auto-hide alerts (excepto los de verificación)
+    function initAutoHideAlerts() {
+        const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
+
+        alerts.forEach(alert => {
+            // No auto-ocultar si el alert está dentro de la modal
+            if (alert.closest('#emailVerificationModal')) {
+                return;
+            }
+
+            const message = alert.getAttribute('data-message') || '';
+            const isVerificationMessage = checkIfVerificationMessage(message.toLowerCase());
+
+            // No auto-ocultar mensajes de verificación si está activada la verificación
+            const modal = document.getElementById('emailVerificationModal');
+            if (modal && isVerificationMessage) {
+                return; // No auto-ocultar estos mensajes
+            }
+
+            // Auto-ocultar otros mensajes después de 5 segundos
+            setTimeout(() => {
+                if (typeof bootstrap !== 'undefined') {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                } else {
+                    alert.style.display = 'none';
+                }
+            }, 5000);
+        });
+    }
+
+    // Verificar si es un mensaje de verificación
+    function checkIfVerificationMessage(message) {
+        const verificationKeywords = [
+            'correo',
+            'email',
+            'verificar',
+            'confirmar',
+            'confirmación',
+            'verificación',
+            'revisa tu correo',
+            'confirma tu cuenta',
+            'no ha sido confirmada',
+            'sin confirmar',
+            'aún no ha sido confirmada'
+        ];
+
+        return verificationKeywords.some(keyword => message.includes(keyword));
+    }
+
+    // Form validation enhancement
+    function initFormValidation() {
+        const forms = document.querySelectorAll('form');
+
+        forms.forEach(form => {
+            // Add loading state to submit buttons (pero no para el formulario de modal)
+            if (!form.closest('#emailVerificationModal')) {
+                form.addEventListener('submit', function(e) {
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    if (submitBtn && !submitBtn.disabled) {
+                        const originalText = submitBtn.innerHTML;
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+
+                        // Re-enable after 10 seconds (failsafe)
+                        setTimeout(() => {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }, 10000);
+                    }
+                });
+            }
+
+            // Password confirmation validation
+            const password1 = form.querySelector('#password1, #new-password1');
+            const password2 = form.querySelector('#password2, #new-password2');
+
+            if (password1 && password2) {
+                password2.addEventListener('input', function() {
+                    if (this.value !== password1.value) {
+                        this.setCustomValidity('Las contraseñas no coinciden');
+                        this.classList.add('is-invalid');
+                    } else {
+                        this.setCustomValidity('');
+                        this.classList.remove('is-invalid');
+                        this.classList.add('is-valid');
+                    }
+                });
+            }
+        });
+    }
+
+    // Email verification modal
+    function initEmailVerificationModal() {
+        // Buscar modal de verificación
+        const modal = document.getElementById('emailVerificationModal');
+        if (!modal) return;
+
+        let emailVerificationMessage = null;
+        let userEmail = null;
+        let messageContext = 'login'; // Por defecto asumimos login
+
+        // PRIMERO: Buscar errores en el formulario
+        // Buscar el contenedor de errores del formulario
+        const formErrorContainer = document.querySelector('.alert-danger[data-form-errors="true"]');
+        if (formErrorContainer) {
+            // Obtener todos los errores dentro del contenedor
+            const errorList = formErrorContainer.querySelectorAll('.errorlist li');
+
+            errorList.forEach(error => {
+                const errorText = error.textContent || error.innerText || '';
+                const errorTextLower = errorText.toLowerCase();
+
+                // Verificar si es un error de verificación
+                if (checkIfVerificationMessage(errorTextLower)) {
+                    emailVerificationMessage = {
+                        text: errorText,
+                        type: 'error',
+                        element: formErrorContainer,
+                        context: 'login'
+                    };
+
+                    // Ocultar completamente el contenedor del error
+                    formErrorContainer.style.display = 'none';
+                }
+            });
+
+            // Si no hay elementos li, verificar el texto directo del contenedor
+            if (!emailVerificationMessage && errorList.length === 0) {
+                const containerText = formErrorContainer.textContent || formErrorContainer.innerText || '';
+                const containerTextLower = containerText.toLowerCase();
+
+                if (checkIfVerificationMessage(containerTextLower)) {
+                    emailVerificationMessage = {
+                        text: containerText.trim(),
+                        type: 'error',
+                        element: formErrorContainer,
+                        context: 'login'
+                    };
+
+                    // Ocultar el contenedor
+                    formErrorContainer.style.display = 'none';
+                }
+            }
+        }
+
+        // SEGUNDO: Buscar mensajes de Django messages
+        if (!emailVerificationMessage) {
+            const alerts = document.querySelectorAll('.alert[data-message]');
+
+            alerts.forEach(alert => {
+                const message = alert.getAttribute('data-message');
+                const messageLower = message.toLowerCase();
+                const tags = alert.getAttribute('data-tags') || '';
+
+                // Verificar si es un mensaje de verificación
+                const isVerificationMessage = checkIfVerificationMessage(messageLower);
+
+                if (isVerificationMessage) {
+                    // Determinar el contexto
+                    if (messageLower.includes('registro exitoso') || messageLower.includes('revisa tu correo')) {
+                        messageContext = 'register';
+                    } else if (messageLower.includes('no ha sido confirmada') || messageLower.includes('sin confirmar')) {
+                        messageContext = 'login';
+                    } else if (messageLower.includes('confirmado exitosamente')) {
+                        messageContext = 'verified';
+                    }
+
+                    emailVerificationMessage = {
+                        text: message,
+                        type: tags,
+                        element: alert,
+                        context: messageContext
+                    };
+
+                    // Intentar extraer el email del mensaje
+                    const emailMatch = message.match(/[\w.-]+@[\w.-]+\.\w+/);
+                    if (emailMatch) {
+                        userEmail = emailMatch[0];
+                    }
+                }
+            });
+        }
+
+        // Intentar obtener el username/email del formulario
+        if (!userEmail) {
+            const loginForm = document.querySelector('form input[name="username"]');
+            if (loginForm && loginForm.value) {
+                userEmail = loginForm.value;
+            }
+        }
+
+        // Si encontramos un mensaje de verificación, mostrar la modal
+        if (emailVerificationMessage) {
+            showEmailVerificationModal(emailVerificationMessage, modal, userEmail);
+        }
+
+        // Configurar botón de reenvío
+        setupResendButton();
+    }
+
+    // Mostrar modal de verificación de email
+    function showEmailVerificationModal(messageInfo, modal, userEmail) {
+        // Ocultar el alert original inmediatamente
+        if (messageInfo.element) {
+            messageInfo.element.style.display = 'none';
+        }
+
+        // Configurar el contenido de la modal
+        const modalMessage = modal.querySelector('#modalMessage');
+        const modalTitle = modal.querySelector('.modal-title');
+        const resendBtn = document.getElementById('resendEmailBtn');
+        const resendTimer = document.getElementById('resendTimer');
+
+        if (modalMessage) {
+            let iconClass = 'bi-envelope-exclamation';
+            let textClass = 'text-primary';
+            let titleText = 'Verificación de Email';
+            let messageText = messageInfo.text;
+            let showResendBtn = true;
+
+            // Personalizar según el contexto
+            switch(messageInfo.context) {
+                case 'register':
+                    iconClass = 'bi-envelope-plus';
+                    textClass = 'text-info';
+                    titleText = 'Confirma tu Email';
+                    if (!messageText.includes('revisa tu correo')) {
+                        messageText = 'Te hemos enviado un email de confirmación. Por favor revisa tu correo para activar tu cuenta.';
+                    }
+                    break;
+
+                case 'login':
+                    iconClass = 'bi-envelope-x';
+                    textClass = 'text-warning';
+                    titleText = 'Email No Verificado';
+                    messageText = 'Tu cuenta aún no ha sido confirmada. Por favor verifica tu email para poder iniciar sesión.';
+                    break;
+
+                case 'verified':
+                    iconClass = 'bi-envelope-check-fill';
+                    textClass = 'text-success';
+                    titleText = '¡Email Verificado!';
+                    showResendBtn = false;
+                    break;
+            }
+
+            // Actualizar título
+            if (modalTitle) {
+                modalTitle.innerHTML = `<i class="bi ${iconClass}"></i> ${titleText}`;
+            }
+
+            // Actualizar mensaje
+            modalMessage.innerHTML = `
+                <div class="${textClass} mb-3">
+                    <i class="bi ${iconClass}" style="font-size: 3rem;"></i>
+                </div>
+                <p class="lead">${messageText}</p>
+                ${messageInfo.context !== 'verified' ? '<p class="text-muted small">Revisa también tu carpeta de spam o correo no deseado.</p>' : ''}
+            `;
+
+            // Mostrar/ocultar botón de reenvío
+            if (resendBtn) {
+                resendBtn.style.display = showResendBtn ? 'inline-block' : 'none';
+            }
+            if (resendTimer) {
+                resendTimer.style.display = 'none';
+            }
+        }
+
+        // Guardar el email o username si lo tenemos
+        if (userEmail) {
+            modal.setAttribute('data-user-email', userEmail);
+        }
+
+        // Mostrar la modal con Bootstrap
+        if (typeof bootstrap !== 'undefined') {
+            // Verificar si ya existe una instancia de modal
+            let bsModal = bootstrap.Modal.getInstance(modal);
+
+            if (!bsModal) {
+                // Crear nueva instancia si no existe
+                bsModal = new bootstrap.Modal(modal, {
+                    backdrop: 'static', // No cerrar al hacer clic fuera
+                    keyboard: false     // No cerrar con ESC para evitar cierre accidental
+                });
+            }
+
+            bsModal.show();
+
+            // Guardar instancia de modal para uso posterior
+            modal.bsModal = bsModal;
+
+            // Asegurarnos de que la modal no se cierre automáticamente
+            // Eliminar cualquier timeout que pueda cerrar la modal
+            if (modal._autoCloseTimeout) {
+                clearTimeout(modal._autoCloseTimeout);
+            }
+        }
+    }
+
+    // Configurar botón de reenvío de email
+    function setupResendButton() {
+        const resendBtn = document.getElementById('resendEmailBtn');
+        if (!resendBtn) return;
+
+        // Remover listeners anteriores para evitar duplicados
+        const newBtn = resendBtn.cloneNode(true);
+        resendBtn.parentNode.replaceChild(newBtn, resendBtn);
+
+        // Agregar el nuevo listener
+        newBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            console.log('Botón de reenvío clickeado'); // Debug
+
+            // Si hay un countdown activo, no hacer nada
+            if (resendCountdown) {
+                console.log('Countdown activo, no se puede reenviar aún');
+                return false;
+            }
+
+            const modal = document.getElementById('emailVerificationModal');
+            const userEmail = modal ? modal.getAttribute('data-user-email') : null;
+
+            console.log('Email/Username a reenviar:', userEmail); // Debug
+
+            // Obtener URL del botón
+            const url = this.getAttribute('data-url');
+            console.log('URL para reenvío:', url); // Debug
+
+            // Deshabilitar botón y mostrar spinner
+            const button = this;
+            button.disabled = true;
+            const originalHTML = button.innerHTML;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+
+            // Obtener CSRF token - buscar en cualquier formulario de la página
+            let csrfToken = null;
+
+            // Primero buscar en el formulario oculto que agregamos
+            const csrfForm = document.getElementById('csrfForm');
+            if (csrfForm) {
+                const csrfInput = csrfForm.querySelector('[name=csrfmiddlewaretoken]');
+                if (csrfInput) {
+                    csrfToken = csrfInput.value;
+                    console.log('CSRF token encontrado en formulario oculto'); // Debug
+                }
+            }
+
+            // Si no, buscar en cualquier formulario
+            if (!csrfToken) {
+                const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (csrfInput) {
+                    csrfToken = csrfInput.value;
+                    console.log('CSRF token encontrado en formulario'); // Debug
+                }
+            }
+
+            // Si no hay un input, buscar en las cookies
+            if (!csrfToken) {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrftoken') {
+                        csrfToken = value;
+                        console.log('CSRF token encontrado en cookies'); // Debug
+                        break;
+                    }
+                }
+            }
+
+            // Si no encontramos CSRF token, mostrar error
+            if (!csrfToken) {
+                console.error('No se pudo encontrar el CSRF token');
+                const resendAlert = document.getElementById('resendAlert');
+                const resendAlertText = document.getElementById('resendAlertText');
+
+                if (resendAlert && resendAlertText) {
+                    resendAlert.style.display = 'block';
+                    resendAlert.className = 'alert alert-danger';
+                    resendAlertText.innerHTML = '<i class="bi bi-x-circle"></i> Error de configuración. Por favor recarga la página.';
+                }
+
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+                return false;
+            }
+
+            console.log('CSRF token obtenido:', csrfToken.substring(0, 10) + '...'); // Debug
+
+            // Preparar datos
+            const formData = new FormData();
+            if (userEmail) {
+                // Si es un email, enviarlo como email
+                if (userEmail.includes('@')) {
+                    formData.append('email', userEmail);
+                } else {
+                    // Si es un username, enviarlo como email para que el backend lo maneje
+                    formData.append('email', userEmail);
+                }
+            }
+
+            // Limpiar alert anterior
+            const resendAlert = document.getElementById('resendAlert');
+            if (resendAlert) {
+                resendAlert.style.display = 'none';
+            }
+
+            // Enviar petición AJAX
+            console.log('Enviando petición a:', url); // Debug
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData,
+                credentials: 'same-origin' // Importante para incluir cookies
+            })
+            .then(response => {
+                console.log('Respuesta recibida:', response.status); // Debug
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Datos recibidos:', data); // Debug
+
+                // Mostrar resultado en el alert dentro de la modal
+                const resendAlert = document.getElementById('resendAlert');
+                const resendAlertText = document.getElementById('resendAlertText');
+
+                if (resendAlert && resendAlertText) {
+                    resendAlert.style.display = 'block';
+
+                    if (data.success) {
+                        resendAlert.className = 'alert alert-success';
+                        resendAlertText.innerHTML = '<i class="bi bi-check-circle"></i> ' + (data.message || 'Email enviado correctamente');
+
+                        // Iniciar countdown de 2 minutos
+                        startResendCountdown(button, originalHTML);
+                    } else {
+                        resendAlert.className = 'alert alert-danger';
+                        resendAlertText.innerHTML = '<i class="bi bi-x-circle"></i> ' + (data.message || 'Error al enviar el email');
+
+                        // Restaurar botón después de 3 segundos si hay error
+                        setTimeout(() => {
+                            button.disabled = false;
+                            button.innerHTML = originalHTML;
+                        }, 3000);
+                    }
+                }
+
+                // Asegurar que la modal siga abierta
+                const modal = document.getElementById('emailVerificationModal');
+                if (modal && modal.bsModal) {
+                    modal.bsModal.show();
+                }
+            })
+            .catch(error => {
+                console.error('Error en la petición:', error);
+
+                // Mostrar error
+                const resendAlert = document.getElementById('resendAlert');
+                const resendAlertText = document.getElementById('resendAlertText');
+
+                if (resendAlert && resendAlertText) {
+                    resendAlert.style.display = 'block';
+                    resendAlert.className = 'alert alert-danger';
+                    resendAlertText.innerHTML = '<i class="bi bi-x-circle"></i> Error al conectar con el servidor. Por favor intenta más tarde.';
+                }
+
+                // Restaurar botón
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+            });
+
+            return false; // Prevenir cualquier acción por defecto
+        });
+    }
+
+    // Iniciar countdown de reenvío
+    function startResendCountdown(button, originalHTML) {
+        const timerDiv = document.getElementById('resendTimer');
+        const timerSeconds = document.getElementById('timerSeconds');
+
+        if (!timerDiv || !timerSeconds) {
+            // Si no hay timer, solo deshabilitar el botón por 2 minutos
+            button.disabled = true;
+            setTimeout(() => {
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+            }, RESEND_COOLDOWN * 1000);
+            return;
+        }
+
+        // Mostrar timer
+        timerDiv.style.display = 'block';
+        button.disabled = true;
+        button.innerHTML = '<i class="bi bi-clock"></i> Esperando...';
+
+        let secondsLeft = RESEND_COOLDOWN;
+
+        // Actualizar timer cada segundo
+        resendCountdown = setInterval(() => {
+            secondsLeft--;
+            timerSeconds.textContent = secondsLeft;
+
+            if (secondsLeft <= 0) {
+                // Limpiar countdown
+                clearInterval(resendCountdown);
+                resendCountdown = null;
+
+                // Restaurar botón
+                button.disabled = false;
+                button.innerHTML = originalHTML;
+
+                // Ocultar timer
+                timerDiv.style.display = 'none';
+                timerSeconds.textContent = RESEND_COOLDOWN;
+            }
+        }, 1000);
+    }
+
+    // Export functions for external use
+    window.AuthModule = {
+        validatePassword: function(password) {
+            return {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+            };
+        },
+        showEmailModal: function(message, type, context) {
+            // Función pública para mostrar modal de email desde el exterior
+            const modal = document.getElementById('emailVerificationModal');
+            if (modal) {
+                showEmailVerificationModal({
+                    text: message,
+                    type: type || 'info',
+                    context: context || 'login'
+                }, modal);
+            }
+        }
+    };
+
+})();
