@@ -13,6 +13,8 @@ from typing import Optional, Dict, Any, List
 from django.conf import settings
 from .models import Tender
 import xml.etree.ElementTree as ET
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 # URLs y configuración
 SEARCH_URL = "https://api.ted.europa.eu/v3/notices/search"
@@ -26,21 +28,98 @@ DEFAULT_WINDOW_DAYS = 7
 DEFAULT_MAX_DOWNLOAD = 50
 TIMEOUT = 60
 DOWNLOAD_DELAY = 1.2  # segundos entre requests
+MAX_RETRIES = 3  # Número máximo de reintentos
+BACKOFF_FACTOR = 2  # Factor de backoff exponencial
 
 # Regex para números de publicación
 PUBNUM_RE = re.compile(r"\b\d{6,8}-\d{4}\b")
 
 
-def http_post(url: str, **kwargs) -> requests.Response:
-    """POST con delay para respetar rate limits"""
-    time.sleep(DOWNLOAD_DELAY)
-    return requests.post(url, **kwargs)
+def create_session_with_retries() -> requests.Session:
+    """
+    Crea una sesión de requests con reintentos automáticos configurados.
+    Maneja errores de conexión, timeouts y errores DNS.
+    """
+    session = requests.Session()
+
+    # Configurar estrategia de reintentos
+    retry_strategy = Retry(
+        total=MAX_RETRIES,
+        backoff_factor=BACKOFF_FACTOR,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "POST", "OPTIONS"],
+        raise_on_status=False
+    )
+
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    # Headers comunes
+    session.headers.update({
+        'User-Agent': 'TenderAI-Platform/1.0 (Python requests)',
+        'Accept': 'application/json',
+    })
+
+    return session
 
 
-def http_get(url: str, **kwargs) -> requests.Response:
-    """GET con delay para respetar rate limits"""
+def http_post(url: str, session: Optional[requests.Session] = None, **kwargs) -> requests.Response:
+    """POST con delay para respetar rate limits y manejo de errores"""
     time.sleep(DOWNLOAD_DELAY)
-    return requests.get(url, **kwargs)
+
+    if session is None:
+        session = create_session_with_retries()
+
+    try:
+        response = session.post(url, **kwargs)
+        return response
+    except requests.exceptions.RequestException as e:
+        # Mejorar el mensaje de error
+        error_msg = str(e)
+        if "Failed to resolve" in error_msg or "getaddrinfo failed" in error_msg:
+            raise ConnectionError(
+                f"No se pudo resolver el nombre de dominio. "
+                f"Verifica tu conexión a Internet y configuración de DNS. "
+                f"Error original: {error_msg}"
+            )
+        elif "Connection refused" in error_msg:
+            raise ConnectionError(
+                f"Conexión rechazada por el servidor. "
+                f"Verifica tu firewall o configuración de proxy. "
+                f"Error original: {error_msg}"
+            )
+        else:
+            raise ConnectionError(f"Error de conexión: {error_msg}")
+
+
+def http_get(url: str, session: Optional[requests.Session] = None, **kwargs) -> requests.Response:
+    """GET con delay para respetar rate limits y manejo de errores"""
+    time.sleep(DOWNLOAD_DELAY)
+
+    if session is None:
+        session = create_session_with_retries()
+
+    try:
+        response = session.get(url, **kwargs)
+        return response
+    except requests.exceptions.RequestException as e:
+        # Mejorar el mensaje de error
+        error_msg = str(e)
+        if "Failed to resolve" in error_msg or "getaddrinfo failed" in error_msg:
+            raise ConnectionError(
+                f"No se pudo resolver el nombre de dominio. "
+                f"Verifica tu conexión a Internet y configuración de DNS. "
+                f"Error original: {error_msg}"
+            )
+        elif "Connection refused" in error_msg:
+            raise ConnectionError(
+                f"Conexión rechazada por el servidor. "
+                f"Verifica tu firewall o configuración de proxy. "
+                f"Error original: {error_msg}"
+            )
+        else:
+            raise ConnectionError(f"Error de conexión: {error_msg}")
 
 
 def date_range_clause(start_d: date, end_d: date) -> str:
@@ -173,12 +252,17 @@ def search_tenders_by_date_windows(
     notice_type: str = DEFAULT_NOTICE_TYPE,
     window_days: int = DEFAULT_WINDOW_DAYS,
     max_results: int = DEFAULT_MAX_DOWNLOAD,
-    progress_callback=None
+    progress_callback=None,
+    session: Optional[requests.Session] = None
 ) -> Dict[str, Any]:
     """
     Busca licitaciones en ventanas de fechas.
     Retorna: dict con pub_numbers, total_range, analyzed_range, remaining_range
     """
+    # Crear sesión si no se proporciona
+    if session is None:
+        session = create_session_with_retries()
+
     all_nd: List[str] = []
     today = date.today()
     total_start = today - timedelta(days=days_back)
@@ -203,7 +287,7 @@ def search_tenders_by_date_windows(
             })
 
         payload = {"query": q, "fields": ["ND"]}
-        resp = http_post(SEARCH_URL, json=payload, timeout=TIMEOUT)
+        resp = http_post(SEARCH_URL, session=session, json=payload, timeout=TIMEOUT)
 
         if resp.status_code >= 400:
             try:
@@ -275,6 +359,9 @@ def download_and_save_tenders(
     Returns:
         Dict con estadísticas: total_found, downloaded, saved, errors
     """
+    # Crear sesión reutilizable con reintentos
+    session = create_session_with_retries()
+
     # Construir expresión CPV
     if cpv_codes:
         cpv_expr = " or ".join([f"classification-cpv={code}*" for code in cpv_codes])
@@ -287,16 +374,47 @@ def download_and_save_tenders(
 
     # 1. Buscar licitaciones
     if progress_callback:
-        progress_callback({'type': 'start', 'message': 'Iniciando búsqueda en TED API...'})
+        progress_callback({'type': 'start', 'message': '🚀 Conectando con TED API...'})
 
-    search_res = search_tenders_by_date_windows(
-        days_back=days_back,
-        cpv_expr=cpv_expr,
-        place=place_expr,
-        notice_type=notice_type_expr,
-        max_results=max_download,
-        progress_callback=progress_callback
-    )
+    try:
+        search_res = search_tenders_by_date_windows(
+            days_back=days_back,
+            cpv_expr=cpv_expr,
+            place=place_expr,
+            notice_type=notice_type_expr,
+            max_results=max_download,
+            progress_callback=progress_callback,
+            session=session
+        )
+    except ConnectionError as e:
+        # Error de conexión detectado
+        if progress_callback:
+            progress_callback({
+                'type': 'error',
+                'message': str(e)
+            })
+        return {
+            "total_found": 0,
+            "downloaded": 0,
+            "saved": 0,
+            "errors": [str(e)],
+            "date_range": (date.today(), date.today()),
+        }
+    except Exception as e:
+        # Otro tipo de error
+        error_msg = f"Error en la búsqueda: {str(e)}"
+        if progress_callback:
+            progress_callback({
+                'type': 'error',
+                'message': error_msg
+            })
+        return {
+            "total_found": 0,
+            "downloaded": 0,
+            "saved": 0,
+            "errors": [error_msg],
+            "date_range": (date.today(), date.today()),
+        }
 
     pub_numbers = search_res["pub_numbers"][:max_download]
     total_found = len(search_res["pub_numbers"])
@@ -363,6 +481,15 @@ def download_and_save_tenders(
                     'saved_count': saved
                 })
 
+        except ConnectionError as e:
+            error_msg = f"{pub_num}: {str(e)}"
+            errors.append(error_msg)
+            if progress_callback:
+                progress_callback({
+                    'type': 'error',
+                    'pub_number': pub_num,
+                    'message': str(e)
+                })
         except Exception as e:
             error_msg = f"{pub_num}: {str(e)}"
             errors.append(error_msg)

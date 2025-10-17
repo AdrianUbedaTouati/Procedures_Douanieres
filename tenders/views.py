@@ -530,3 +530,48 @@ class DownloadTendersExecuteView(LoginRequiredMixin, View):
         response['Cache-Control'] = 'no-cache'
         response['X-Accel-Buffering'] = 'no'  # Disable nginx buffering
         return response
+
+
+class DeleteAllXMLsView(LoginRequiredMixin, View):
+    """Vista para borrar todos los XMLs (licitaciones) de la cuenta del usuario"""
+
+    def post(self, request):
+        try:
+            # Contar licitaciones antes de borrar
+            count = Tender.objects.count()
+
+            # Borrar todas las licitaciones (esto también borrará SavedTender y TenderRecommendation por CASCADE)
+            Tender.objects.all().delete()
+
+            return JsonResponse({
+                'success': True,
+                'deleted_count': count,
+                'message': f'{count} licitaciones borradas exitosamente'
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+
+
+class DeleteXMLView(LoginRequiredMixin, View):
+    """Vista para borrar una licitación individual"""
+
+    def post(self, request, ojs_notice_id):
+        try:
+            tender = get_object_or_404(Tender, ojs_notice_id=ojs_notice_id)
+            title = tender.title
+            tender.delete()
+
+            return JsonResponse({
+                'success': True,
+                'message': f'Licitación "{title}" borrada exitosamente'
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)

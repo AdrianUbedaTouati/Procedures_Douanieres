@@ -26,6 +26,17 @@
                     <p style="color: #6e6e73; font-size: 16px;">
                         Actualmente tienes <strong style="color: #1d1d1f;">{{ total_tenders }} licitaciones</strong> en tu base de datos
                     </p>
+                    {% if total_tenders > 0 %}
+                    <div style="margin-top: 16px;">
+                        <button
+                            id="deleteAllBtn"
+                            type="button"
+                            onclick="confirmDeleteAll()"
+                            style="padding: 10px 24px; background: #ff3b30; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                            <i class="bi bi-trash3"></i> Borrar Todos los XMLs
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <!-- Formulario de descarga -->
@@ -81,20 +92,24 @@
                             🔍 Filtros de Búsqueda en TED
                         </h3>
 
-                        <!-- Códigos CPV -->
+                        <!-- Códigos CPV con Autocompletado -->
                         <div style="margin-bottom: 20px;">
-                            <label for="cpv_codes" style="display: block; margin-bottom: 10px; font-weight: 600; color: #1d1d1f; font-size: 15px;">
-                                <i class="bi bi-tag"></i> Códigos CPV (separados por coma)
+                            <label for="cpv_input_download" style="display: block; margin-bottom: 10px; font-weight: 600; color: #1d1d1f; font-size: 15px;">
+                                <i class="bi bi-tag"></i> Códigos CPV
                             </label>
-                            <input
-                                type="text"
-                                name="cpv_codes"
-                                id="cpv_codes"
-                                value="7226"
-                                placeholder="7226,7240,7210"
-                                style="width: 100%; padding: 14px; border: 2px solid #d2d2d7; border-radius: 10px; font-size: 16px;">
+                            <div class="tags-container" id="cpvContainerDownload">
+                                <input
+                                    type="text"
+                                    class="tag-input"
+                                    id="cpv_input_download"
+                                    placeholder="Buscar por código o nombre..."
+                                    autocomplete="off"
+                                >
+                                <div class="autocomplete-dropdown" id="cpvDropdownDownload"></div>
+                            </div>
+                            <input type="hidden" name="cpv_codes" id="cpv_codes_hidden">
                             <small style="color: #6e6e73; display: block; margin-top: 8px; font-size: 13px;">
-                                <i class="bi bi-info-circle"></i> Ejemplos: <strong>7226</strong> (software), <strong>7240</strong> (consultoría), <strong>7210</strong> (procesamiento datos)
+                                <i class="bi bi-info-circle"></i> Busca y selecciona códigos CPV (software, consultoría, etc.)
                             </small>
                         </div>
 
@@ -332,6 +347,332 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     });
 });
+
+// ============================================
+// AUTOCOMPLETE TAGS INPUT FOR CPV
+// ============================================
+class AutocompleteTagsInput {
+    constructor(containerId, inputId, dropdownId, hiddenInputId, apiUrl, initialTags = []) {
+        this.container = document.getElementById(containerId);
+        this.input = document.getElementById(inputId);
+        this.dropdown = document.getElementById(dropdownId);
+        this.hiddenInput = document.getElementById(hiddenInputId);
+        this.apiUrl = apiUrl;
+        this.tags = [];
+        this.selectedIndex = -1;
+        this.searchTimeout = null;
+        this.initialTagCodes = initialTags;
+
+        this.init();
+    }
+
+    async init() {
+        // Load initial tags with proper names from API
+        if (this.initialTagCodes) {
+            const tagsArray = typeof this.initialTagCodes === 'string'
+                ? this.initialTagCodes.split(',').map(t => t.trim()).filter(t => t)
+                : this.initialTagCodes;
+
+            // Fetch names for initial tags
+            for (const code of tagsArray) {
+                await this.loadTagName(code);
+            }
+        }
+
+        this.renderTags();
+        this.updateHiddenInput();
+
+        // Event listeners
+        this.input.addEventListener('input', () => this.handleInput());
+        this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+        this.input.addEventListener('focus', () => this.handleFocus());
+        this.container.addEventListener('click', (e) => {
+            if (e.target === this.container) {
+                this.input.focus();
+            }
+        });
+
+        // Prevent dropdown from closing when clicking inside it
+        this.dropdown.addEventListener('mousedown', (e) => {
+            e.preventDefault(); // Prevent blur on input
+        });
+
+        // Click outside to close
+        document.addEventListener('click', (e) => {
+            if (!this.container.contains(e.target) && !this.dropdown.contains(e.target)) {
+                this.hideDropdown();
+            }
+        });
+    }
+
+    async loadTagName(code) {
+        try {
+            // Search for the code to get its name
+            const response = await fetch(`${this.apiUrl}?q=${encodeURIComponent(code)}`);
+            const data = await response.json();
+
+            if (data.results && data.results.length > 0) {
+                // Find exact match
+                const match = data.results.find(r => r.code === code);
+                if (match) {
+                    this.tags.push({ code: match.code, name: match.name });
+                } else {
+                    // Use first result if no exact match
+                    this.tags.push({ code: data.results[0].code, name: data.results[0].name });
+                }
+            } else {
+                // If no match found, add with code as name
+                this.tags.push({ code, name: code });
+            }
+        } catch (error) {
+            console.error('Error loading tag name:', error);
+            // Fallback to code as name
+            this.tags.push({ code, name: code });
+        }
+    }
+
+    handleFocus() {
+        // Show suggestions immediately on focus
+        const query = this.input.value.trim();
+        if (query.length === 0) {
+            // Show default suggestions
+            this.showDefaultSuggestions();
+        } else if (query.length >= 2) {
+            // Continue with existing search
+            this.handleInput();
+        }
+    }
+
+    async showDefaultSuggestions() {
+        // Show loading
+        this.dropdown.innerHTML = '<div class="autocomplete-loading">Cargando sugerencias...</div>';
+        this.dropdown.classList.add('active');
+
+        try {
+            // Fetch with empty query to get top suggestions
+            const response = await fetch(`${this.apiUrl}?q=`);
+            const data = await response.json();
+
+            if (data.results && data.results.length > 0) {
+                this.renderDropdown(data.results);
+            } else {
+                this.dropdown.innerHTML = '<div class="autocomplete-no-results">No hay sugerencias disponibles</div>';
+            }
+        } catch (error) {
+            console.error('Error loading suggestions:', error);
+            this.dropdown.innerHTML = '<div class="autocomplete-no-results">Error al cargar sugerencias</div>';
+        }
+    }
+
+    handleInput() {
+        const query = this.input.value.trim();
+
+        clearTimeout(this.searchTimeout);
+
+        if (query.length < 2) {
+            this.hideDropdown();
+            return;
+        }
+
+        // Show loading
+        this.dropdown.innerHTML = '<div class="autocomplete-loading">Buscando...</div>';
+        this.dropdown.classList.add('active');
+
+        // Debounce search
+        this.searchTimeout = setTimeout(() => {
+            this.search(query);
+        }, 300);
+    }
+
+    async search(query) {
+        try {
+            const response = await fetch(`${this.apiUrl}?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            if (data.results && data.results.length > 0) {
+                this.renderDropdown(data.results);
+            } else {
+                this.dropdown.innerHTML = '<div class="autocomplete-no-results">No se encontraron resultados</div>';
+            }
+        } catch (error) {
+            console.error('Error searching:', error);
+            this.dropdown.innerHTML = '<div class="autocomplete-no-results">Error al buscar</div>';
+        }
+    }
+
+    renderDropdown(results) {
+        this.dropdown.innerHTML = '';
+        this.selectedIndex = -1;
+
+        // Filter out already added tags
+        const filteredResults = results.filter(item =>
+            !this.tags.some(tag => tag.code === item.code)
+        );
+
+        if (filteredResults.length === 0) {
+            this.dropdown.innerHTML = '<div class="autocomplete-no-results">Todas las opciones ya han sido añadidas</div>';
+            this.dropdown.classList.add('active');
+            return;
+        }
+
+        filteredResults.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            div.dataset.index = index;
+            div.innerHTML = `
+                <div class="autocomplete-code">${item.code}</div>
+                <div class="autocomplete-name">${item.name}</div>
+            `;
+
+            div.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.addTag(item.code, item.name);
+                this.input.value = '';
+                // Keep dropdown open by showing default suggestions again
+                this.showDefaultSuggestions();
+                this.input.focus();
+            });
+
+            this.dropdown.appendChild(div);
+        });
+
+        this.dropdown.classList.add('active');
+    }
+
+    handleKeydown(e) {
+        const items = this.dropdown.querySelectorAll('.autocomplete-item');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.selectedIndex = Math.min(this.selectedIndex + 1, items.length - 1);
+            this.updateSelection(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.selectedIndex = Math.max(this.selectedIndex - 1, -1);
+            this.updateSelection(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (this.selectedIndex >= 0 && items[this.selectedIndex]) {
+                items[this.selectedIndex].click();
+            } else if (this.input.value.trim()) {
+                // Allow custom input
+                const customCode = this.input.value.trim();
+                this.addTag(customCode, customCode);
+                this.input.value = '';
+                // Keep dropdown open with default suggestions
+                this.showDefaultSuggestions();
+            }
+        } else if (e.key === 'Escape') {
+            this.hideDropdown();
+        } else if (e.key === 'Backspace' && this.input.value === '' && this.tags.length > 0) {
+            this.removeTag(this.tags[this.tags.length - 1].code);
+        }
+    }
+
+    updateSelection(items) {
+        items.forEach((item, index) => {
+            if (index === this.selectedIndex) {
+                item.classList.add('selected');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    addTag(code, name) {
+        // Check if tag already exists
+        if (this.tags.some(tag => tag.code === code)) {
+            return;
+        }
+
+        this.tags.push({ code, name });
+        this.renderTags();
+        this.updateHiddenInput();
+    }
+
+    removeTag(code) {
+        this.tags = this.tags.filter(tag => tag.code !== code);
+        this.renderTags();
+        this.updateHiddenInput();
+    }
+
+    renderTags() {
+        // Remove existing tags
+        this.container.querySelectorAll('.tag').forEach(tag => tag.remove());
+
+        // Add new tags before input
+        this.tags.forEach(tag => {
+            const tagEl = document.createElement('div');
+            tagEl.className = 'tag';
+            tagEl.innerHTML = `
+                <span>${tag.code} - ${tag.name}</span>
+                <span class="tag-remove" data-code="${tag.code}">×</span>
+            `;
+
+            tagEl.querySelector('.tag-remove').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removeTag(tag.code);
+            });
+
+            this.container.insertBefore(tagEl, this.input);
+        });
+    }
+
+    updateHiddenInput() {
+        // Store as comma-separated codes
+        this.hiddenInput.value = this.tags.map(tag => tag.code).join(',');
+    }
+
+    hideDropdown() {
+        this.dropdown.classList.remove('active');
+        this.selectedIndex = -1;
+    }
+}
+
+// Initialize CPV autocomplete for download form
+const cpvTagsDownload = new AutocompleteTagsInput(
+    'cpvContainerDownload',
+    'cpv_input_download',
+    'cpvDropdownDownload',
+    'cpv_codes_hidden',
+    '/empresa/api/autocomplete/cpv/',
+    '7226' // Default CPV code
+);
+
+// Función para borrar todos los XMLs
+function confirmDeleteAll() {
+    if (confirm('⚠️ ¿Estás seguro de que deseas borrar TODOS los XMLs de tu cuenta?\n\nEsta acción no se puede deshacer.')) {
+        const deleteBtn = document.getElementById('deleteAllBtn');
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Borrando...';
+
+        fetch("{% url 'tenders:delete_all_xmls' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`✓ ${data.deleted_count} licitaciones borradas exitosamente`);
+                location.reload();
+            } else {
+                alert('✗ Error: ' + data.error);
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = '<i class="bi bi-trash3"></i> Borrar Todos los XMLs';
+            }
+        })
+        .catch(error => {
+            alert('✗ Error al borrar los XMLs');
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '<i class="bi bi-trash3"></i> Borrar Todos los XMLs';
+        });
+    }
+}
 </script>
 
 <style>
@@ -348,6 +689,126 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     #logContainer::-webkit-scrollbar-thumb:hover {
         background: #777;
+    }
+
+    /* Tags/Bubbles para CPV */
+    .tags-container {
+        border: 2px solid #d2d2d7;
+        border-radius: 10px;
+        padding: 8px;
+        min-height: 50px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        cursor: text;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .tags-container:focus-within {
+        border-color: #007aff;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+    }
+
+    .tag {
+        background: #007aff;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 16px;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+    }
+
+    .tag-remove {
+        cursor: pointer;
+        font-weight: bold;
+        padding: 0 4px;
+        border-radius: 50%;
+        transition: background 0.2s;
+    }
+
+    .tag-remove:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .tag-input {
+        border: none;
+        outline: none;
+        flex: 1;
+        min-width: 150px;
+        padding: 6px;
+        font-size: 15px;
+    }
+
+    .tag-input::placeholder {
+        color: #86868b;
+    }
+
+    /* Autocomplete Dropdown */
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #d2d2d7;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+        margin-top: 4px;
+    }
+
+    .autocomplete-dropdown.active {
+        display: block;
+    }
+
+    .autocomplete-item {
+        padding: 12px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid #f5f5f7;
+        transition: background 0.2s;
+    }
+
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+
+    .autocomplete-item:hover,
+    .autocomplete-item.selected {
+        background: #f5f5f7;
+    }
+
+    .autocomplete-code {
+        font-weight: 600;
+        color: #007aff;
+        font-size: 13px;
+    }
+
+    .autocomplete-name {
+        color: #1d1d1f;
+        font-size: 14px;
+        margin-top: 2px;
+    }
+
+    .autocomplete-loading {
+        padding: 12px 16px;
+        text-align: center;
+        color: #86868b;
+        font-size: 13px;
+    }
+
+    .autocomplete-no-results {
+        padding: 12px 16px;
+        text-align: center;
+        color: #86868b;
+        font-size: 13px;
     }
 </style>
 {% endblock %}

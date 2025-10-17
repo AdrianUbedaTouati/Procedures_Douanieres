@@ -1,4 +1,4 @@
-# TenderAI Platform v1.0.0
+# TenderAI Platform v1.2.0
 
 Plataforma inteligente de análisis de licitaciones públicas con IA integrada.
 
@@ -268,7 +268,7 @@ static/
     └── js/main.js         # Utilidades generales
 ```
 
-## 📝 Notas de la Versión 1.0.0
+## 📝 Notas de la Versión 1.2.0
 
 ### ✅ Implementado
 - Sistema completo de autenticación
@@ -279,8 +279,11 @@ static/
 - **Interfaz AJAX sin recargas**
 - Gestión de licitaciones (CRUD)
 - **Descarga automatizada desde TED API** con progreso en tiempo real (SSE)
+- **Sistema de eliminación de licitaciones** (individual y masiva)
+- **Autocompletado inteligente con burbujas** para CPV y NUTS
 - **Búsqueda avanzada** con filtros CPV, NUTS, presupuesto, fechas
 - **Filtros configurables** en descarga TED (CPV, país, tipo de aviso)
+- **Manejo robusto de errores** de conexión con reintentos automáticos
 - Admin interface completo
 - Templates Bootstrap 5
 - API key por usuario
@@ -325,4 +328,4 @@ Desarrollado con Django 5.2 + LangChain 0.3 + Google Gemini 2.5 Flash
 
 ---
 
-**TenderAI Platform v1.0.0** - Encuentra las mejores oportunidades de licitación con IA
+**TenderAI Platform v1.2.0** - Encuentra las mejores oportunidades de licitación con IA

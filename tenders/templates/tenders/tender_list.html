@@ -653,6 +653,15 @@
                     💰 {{ tender.budget_amount|floatformat:0 }} {{ tender.currency }}
                 </span>
                 {% endif %}
+
+                <!-- Botón de borrar -->
+                <button
+                    onclick="deleteXML('{{ tender.ojs_notice_id }}', '{{ tender.title|escapejs }}')"
+                    style="margin-left: auto; padding: 6px 12px; background: #ff3b30; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.2s;"
+                    onmouseover="this.style.background='#cc0000'"
+                    onmouseout="this.style.background='#ff3b30'">
+                    <i class="bi bi-trash3"></i> Borrar
+                </button>
             </div>
         </div>
         {% endfor %}
@@ -1158,5 +1167,50 @@ enableDeadlineCheckbox.addEventListener('change', () => {
         deadlineToInput.value = '';
     }
 });
+
+// ============================================
+// DELETE XML FUNCTION
+// ============================================
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function deleteXML(ojsNoticeId, title) {
+    if (confirm(`⚠️ ¿Estás seguro de que deseas borrar esta licitación?\n\n"${title}"\n\nEsta acción no se puede deshacer.`)) {
+        const csrftoken = getCookie('csrftoken');
+
+        fetch(`/licitaciones/delete-xml/${ojsNoticeId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`✓ ${data.message}`);
+                location.reload();
+            } else {
+                alert('✗ Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('✗ Error al borrar la licitación');
+            console.error('Error:', error);
+        });
+    }
+}
 </script>
 {% endblock %}

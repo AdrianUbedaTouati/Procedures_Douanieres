@@ -21,6 +21,10 @@ urlpatterns = [
     # Generación de recomendaciones
     path('generar-recomendaciones/', views.GenerateRecommendationsView.as_view(), name='generate_recommendations'),
 
+    # Borrar XMLs
+    path('delete-all-xmls/', views.DeleteAllXMLsView.as_view(), name='delete_all_xmls'),
+    path('delete-xml/<str:ojs_notice_id>/', views.DeleteXMLView.as_view(), name='delete_xml'),
+
     # Detalle de licitación (debe estar AL FINAL porque captura cualquier string)
     path('<str:ojs_notice_id>/', views.TenderDetailView.as_view(), name='detail'),
     path('<str:ojs_notice_id>/guardar/', views.SaveTenderView.as_view(), name='save'),
