@@ -66,6 +66,11 @@
                                 <i class="bi bi-chat-dots"></i> Chat
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'tenders:vectorization_dashboard' %}">
+                                <i class="bi bi-database"></i> Vectorización
+                            </a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-person-circle"></i> {{ user.email|truncatechars:20 }}

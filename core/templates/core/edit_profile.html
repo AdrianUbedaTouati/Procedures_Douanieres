@@ -89,23 +89,113 @@
                         </div>
 
                         <hr class="my-4">
-                        <h5><i class="bi bi-key-fill"></i> Configuración de IA</h5>
 
-                        <div class="mb-3">
-                            <label for="{{ form.llm_api_key.id_for_label }}" class="form-label">
-                                {{ form.llm_api_key.label }}
-                            </label>
-                            {{ form.llm_api_key }}
-                            {% if form.llm_api_key.errors %}
-                                <div class="text-danger small mt-1">
-                                    {{ form.llm_api_key.errors }}
+                        <!-- Sección de Configuración de IA -->
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3">
+                                    <i class="bi bi-robot"></i> Configuración de IA
+                                </h5>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.llm_provider.id_for_label }}" class="form-label fw-bold">
+                                        <i class="bi bi-cloud-fill"></i> Proveedor de IA
+                                    </label>
+                                    {{ form.llm_provider }}
+                                    <small class="form-text text-muted">
+                                        Selecciona el proveedor de IA que prefieras utilizar
+                                    </small>
+                                    {% if form.llm_provider.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.llm_provider.errors }}
+                                        </div>
+                                    {% endif %}
                                 </div>
-                            {% endif %}
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle"></i> Necesaria para usar las funciones de chat y recomendaciones IA.
-                                <a href="https://aistudio.google.com/app/apikey" target="_blank">Obtén tu API key de Google Gemini aquí</a>
-                            </small>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.llm_api_key.id_for_label }}" class="form-label fw-bold">
+                                        <i class="bi bi-key-fill"></i> API Key
+                                    </label>
+                                    {{ form.llm_api_key }}
+                                    <small class="form-text text-muted" id="api_key_help">
+                                        Ingresa tu API key del proveedor seleccionado
+                                    </small>
+                                    {% if form.llm_api_key.errors %}
+                                        <div class="text-danger small mt-1">
+                                            {{ form.llm_api_key.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="alert alert-info mb-0">
+                                    <h6 class="alert-heading">
+                                        <i class="bi bi-info-circle"></i> ¿Para qué necesitas una API Key?
+                                    </h6>
+                                    <p class="mb-2">La API Key es necesaria para usar las siguientes funciones:</p>
+                                    <ul class="mb-2">
+                                        <li><strong>Chat IA con RAG</strong>: Pregunta sobre tus licitaciones indexadas</li>
+                                        <li><strong>Vectorización</strong>: Indexa tus licitaciones en ChromaDB para búsquedas semánticas</li>
+                                        <li><strong>Recomendaciones IA</strong>: Obtén sugerencias personalizadas de licitaciones</li>
+                                    </ul>
+
+                                    <div class="mt-3">
+                                        <h6 class="fw-bold">Obtén tu API Key:</h6>
+                                        <div class="d-flex flex-column gap-2">
+                                            <a href="https://aistudio.google.com/apikey" target="_blank" class="btn btn-sm btn-success" id="gemini_link">
+                                                <i class="bi bi-google"></i> Google Gemini (Gratis)
+                                            </a>
+                                            <a href="https://platform.openai.com/api-keys" target="_blank" class="btn btn-sm btn-primary" id="openai_link" style="display:none;">
+                                                <i class="bi bi-lightning-fill"></i> OpenAI Platform
+                                            </a>
+                                            <a href="https://build.nvidia.com/settings/api-keys" target="_blank" class="btn btn-sm btn-dark" id="nvidia_link" style="display:none;">
+                                                <i class="bi bi-gpu-card"></i> NVIDIA NIM
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+                        <script>
+                            // Cambiar el enlace de API key según el proveedor seleccionado
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const providerSelect = document.getElementById('llm_provider_select');
+
+                                function updateProviderInfo() {
+                                    const provider = providerSelect.value;
+                                    const geminiLink = document.getElementById('gemini_link');
+                                    const openaiLink = document.getElementById('openai_link');
+                                    const nvidiaLink = document.getElementById('nvidia_link');
+                                    const apiKeyInput = document.getElementById('llm_api_key_input');
+                                    const helpText = document.getElementById('api_key_help');
+
+                                    // Ocultar todos
+                                    geminiLink.style.display = 'none';
+                                    openaiLink.style.display = 'none';
+                                    nvidiaLink.style.display = 'none';
+
+                                    // Mostrar el correcto y actualizar placeholder
+                                    if (provider === 'gemini') {
+                                        geminiLink.style.display = 'block';
+                                        apiKeyInput.placeholder = 'AIza...';
+                                        helpText.textContent = 'Comienza con AIza (ej: AIzaSyA...)';
+                                    } else if (provider === 'openai') {
+                                        openaiLink.style.display = 'block';
+                                        apiKeyInput.placeholder = 'sk-...';
+                                        helpText.textContent = 'Comienza con sk- o sk-proj- (ej: sk-proj-...)';
+                                    } else if (provider === 'nvidia') {
+                                        nvidiaLink.style.display = 'block';
+                                        apiKeyInput.placeholder = 'nvapi-...';
+                                        helpText.textContent = 'Comienza con nvapi- (ej: nvapi-...)';
+                                    }
+                                }
+
+                                if (providerSelect) {
+                                    providerSelect.addEventListener('change', updateProviderInfo);
+                                    updateProviderInfo(); // Ejecutar al cargar
+                                }
+                            });
+                        </script>
 
                         <hr class="my-4">
                         <h5>Dirección de Envío</h5>

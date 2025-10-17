@@ -529,7 +529,8 @@ def download_and_save_tenders(
                     })
                 continue
 
-            # Guardar en BD
+            # Guardar en BD con el XML completo
+            tender_data['xml_content'] = xml_content.decode('utf-8') if isinstance(xml_content, bytes) else xml_content
             tender = Tender.objects.create(**tender_data)
             saved += 1
 

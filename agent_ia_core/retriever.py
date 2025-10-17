@@ -303,7 +303,10 @@ class HybridRetriever:
 
 def create_retriever(
     k: Optional[int] = None,
-    min_score: Optional[float] = None
+    min_score: Optional[float] = None,
+    provider: Optional[str] = None,
+    api_key: Optional[str] = None,
+    embedding_model: Optional[str] = None
 ) -> HybridRetriever:
     """
     Función de conveniencia para crear un retriever.
@@ -311,11 +314,15 @@ def create_retriever(
     Args:
         k: Número de documentos a recuperar
         min_score: Umbral mínimo de similaridad
+        provider: Provider name ('google', 'openai', 'nvidia')
+        api_key: API key for the provider
+        embedding_model: Model name
 
     Returns:
         Instancia de HybridRetriever
     """
-    return HybridRetriever(k=k, min_score=min_score)
+    vectorstore = get_vectorstore(provider=provider, api_key=api_key, embedding_model=embedding_model)
+    return HybridRetriever(vectorstore=vectorstore, k=k, min_score=min_score)
 
 
 if __name__ == "__main__":

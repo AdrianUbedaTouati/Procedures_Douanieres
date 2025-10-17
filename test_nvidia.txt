@@ -1,0 +1,264 @@
+INFO:chromadb.telemetry.product.posthog:Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+INFO:agent_ia_core.agent_graph:Inicializando LLM: google - gemini-2.0-flash-exp
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1760712761.588635   14028 alts_credentials.cc:93] ALTS creds ignored. Not running on GCP and untrusted ALTS is not enabled.
+INFO:index_build:Inicializando embeddings con google - Modelo: models/text-embedding-004
+E0000 00:00:1760712761.594056   14028 alts_credentials.cc:93] ALTS creds ignored. Not running on GCP and untrusted ALTS is not enabled.
+INFO:index_build:Cargando índice existente desde C:\Users\andri\Desktop\Proyectos\Pagina web Agent_IA\Pagina web Agent_IA\TenderAI_Platform\data\index\chroma
+INFO:chromadb.telemetry.product.posthog:Anonymized telemetry enabled. See                     https://docs.trychroma.com/telemetry for more information.
+WARNING:index_build:El índice está vacío
+INFO:index_build:Construyendo nuevo índice...
+INFO:index_build:Iniciando construcción del índice desde C:\Users\andri\Desktop\Proyectos\Pagina web Agent_IA\Pagina web Agent_IA\TenderAI_Platform\data\records
+WARNING:index_build:No se encontraron registros JSON en C:\Users\andri\Desktop\Proyectos\Pagina web Agent_IA\Pagina web Agent_IA\TenderAI_Platform\data\records
+INFO:agent_ia_core.agent_graph:
+============================================================
+INFO:agent_ia_core.agent_graph:CONSULTA: ¿Cuántas licitaciones hay disponibles?
+INFO:agent_ia_core.agent_graph:============================================================
+
+INFO:agent_ia_core.agent_graph:[ROUTE] Clasificando consulta: ¿Cuántas licitaciones hay disponibles?
+INFO:agent_ia_core.agent_graph:[ROUTE] Ruta decidida: vectorstore
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Cuántas licitaciones hay disponibles?
+INFO:retriever:Recuperando documentos: query='¿Cuántas licitaciones hay disponibles?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+ERROR:agent_ia_core.agent_graph:Error ejecutando grafo: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/GRAPH_RECURSION_LIMIT
+Traceback (most recent call last):
+  File "C:\Users\andri\Desktop\Proyectos\Pagina web Agent_IA\Pagina web Agent_IA\TenderAI_Platform\agent_ia_core\agent_graph.py", line 401, in query
+    final_state = self.graph.invoke(initial_state)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\andri\AppData\Local\Programs\Python\Python312\Lib\site-packages\langgraph\pregel\main.py", line 3085, in invoke
+    for chunk in self.stream(
+  File "C:\Users\andri\AppData\Local\Programs\Python\Python312\Lib\site-packages\langgraph\pregel\main.py", line 2702, in stream
+    raise GraphRecursionError(msg)
+langgraph.errors.GraphRecursionError: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/GRAPH_RECURSION_LIMIT
+INFO:agent_ia_core.agent_graph:
+============================================================
+INFO:agent_ia_core.agent_graph:CONSULTA: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:agent_ia_core.agent_graph:============================================================
+
+INFO:agent_ia_core.agent_graph:[ROUTE] Clasificando consulta: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:agent_ia_core.agent_graph:[ROUTE] Ruta decidida: vectorstore
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Buscando documentos para: ¿Qué licitaciones están relacionadas con software o tecnología?
+INFO:retriever:Recuperando documentos: query='¿Qué licitaciones están relacionadas con software o tecnología?', k=6, filters={}
+INFO:retriever:Recuperados 0 documentos (de 0 candidatos)
+INFO:agent_ia_core.agent_graph:[RETRIEVE] Recuperados 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] Evaluando 0 documentos
+INFO:agent_ia_core.agent_graph:[GRADE] 0/0 documentos relevantes
+INFO:agent_ia_core.agent_graph:[DECIDE] Sin documentos relevantes, reintentando...
+ERROR:agent_ia_core.agent_graph:Error ejecutando grafo: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/GRAPH_RECURSION_LIMIT
+Traceback (most recent call last):
+  File "C:\Users\andri\Desktop\Proyectos\Pagina web Agent_IA\Pagina web Agent_IA\TenderAI_Platform\agent_ia_core\agent_graph.py", line 401, in query
+    final_state = self.graph.invoke(initial_state)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\andri\AppData\Local\Programs\Python\Python312\Lib\site-packages\langgraph\pregel\main.py", line 3085, in invoke
+    for chunk in self.stream(
+  File "C:\Users\andri\AppData\Local\Programs\Python\Python312\Lib\site-packages\langgraph\pregel\main.py", line 2702, in stream
+    raise GraphRecursionError(msg)
+langgraph.errors.GraphRecursionError: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.
+For troubleshooting, visit: https://python.langchain.com/docs/troubleshooting/errors/GRAPH_RECURSION_LIMIT
+============================================================
+TEST COMPLETO: INDEXAR + CHAT CON RAG
+============================================================
+
+[OK] Usuario: pepe2012
+  API Key: nvapi-zHAEs9uK40nu-T...
+
+------------------------------------------------------------
+FASE 1: INDEXAR LICITACIONES EN CHROMADB
+------------------------------------------------------------
+
+Estado inicial:
+  - Chunks: 0
+
+Indexando...
+  [1/4] 666530-2025
+  [2/4] 666024-2025
+  [ERROR] 666024-2025: [###] Input length 1728 exceeds maximum allowed token size 512
+{'error': 'Input length 1728 exceeds maximum allowed token size 512'}
+  [3/4] 664784-2025
+  [4/4] 664780-2025
+  [ERROR] 664780-2025: [###] Input length 576 exceeds maximum allowed token size 512
+{'error': 'Input length 576 exceeds maximum allowed token size 512'}
+
+[OK] Indexacion completada!
+  - Licitaciones indexadas: 2
+  - Total chunks: 12
+  - Errores: 2
+
+------------------------------------------------------------
+FASE 2: PROBAR CHAT IA CON RAG
+------------------------------------------------------------
+
+[Q1] ¿Cuántas licitaciones hay disponibles?
+[A1] Lo siento, hubo un error procesando tu consulta....
+  - Documentos usados: 0
+  - Ruta: unknown
+
+[Q2] ¿Qué licitaciones están relacionadas con software o tecnología?
+[A2] Lo siento, hubo un error procesando tu consulta....
+  - Documentos usados: 0
+  - Ruta: unknown
+
+============================================================
+TEST COMPLETADO
+============================================================

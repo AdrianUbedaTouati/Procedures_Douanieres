@@ -42,13 +42,27 @@ class EditProfileForm(forms.ModelForm):
             'placeholder': 'Número de teléfono'
         })
     )
+    llm_provider = forms.ChoiceField(
+        required=False,
+        label='Proveedor de IA',
+        choices=[
+            ('gemini', 'Google Gemini'),
+            ('openai', 'OpenAI'),
+            ('nvidia', 'NVIDIA NIM'),
+        ],
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'id': 'llm_provider_select'
+        })
+    )
     llm_api_key = forms.CharField(
         required=False,
-        label='API Key del LLM',
+        label='API Key',
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Tu API key de Google Gemini',
-            'type': 'password'
+            'placeholder': 'Tu API key del proveedor seleccionado',
+            'type': 'password',
+            'id': 'llm_api_key_input'
         })
     )
 
@@ -104,7 +118,8 @@ class EditProfileForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'first_name', 'last_name', 'phone', 'llm_api_key',
+        fields = ('username', 'email', 'first_name', 'last_name', 'phone',
+                 'llm_provider', 'llm_api_key',
                  'address_line1', 'address_line2', 'city', 'state_province',
                  'postal_code', 'country')
 

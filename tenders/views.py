@@ -635,3 +635,190 @@ class DeleteXMLView(LoginRequiredMixin, View):
                 'success': False,
                 'error': str(e)
             }, status=500)
+
+
+# ============================================================================
+# VECTORIZACIÓN Y GESTIÓN DE CHROMADB
+# ============================================================================
+
+class VectorizationDashboardView(LoginRequiredMixin, TemplateView):
+    """Dashboard para gestionar la vectorización e indexación de licitaciones"""
+    template_name = 'tenders/vectorization_dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Verificar API key
+        if not self.request.user.llm_api_key:
+            context['has_api_key'] = False
+            context['status'] = {
+                'is_initialized': False,
+                'status': 'no_api_key',
+                'message': 'Por favor, configura tu API key de Google Gemini en tu perfil.'
+            }
+            return context
+
+        context['has_api_key'] = True
+
+        # Obtener estado del vectorstore
+        from .vectorization_service import VectorizationService
+        service = VectorizationService(user=self.request.user)
+        context['status'] = service.get_vectorstore_status()
+
+        # Contar licitaciones con XML disponibles
+        context['tenders_with_xml'] = Tender.objects.exclude(
+            xml_content=''
+        ).exclude(
+            xml_content__isnull=True
+        ).count()
+
+        context['total_tenders'] = Tender.objects.count()
+
+        return context
+
+
+class IndexAllTendersView(LoginRequiredMixin, View):
+    """Vista con SSE para indexar todas las licitaciones con progreso en tiempo real"""
+
+    def get(self, request):
+        import sys
+        from datetime import date, datetime
+
+        # Verificar API key
+        if not request.user.llm_api_key:
+            return JsonResponse({
+                'error': 'Por favor, configura tu API key de Google Gemini en tu perfil.'
+            }, status=400)
+
+        print(f"\n{'='*60}", file=sys.stderr)
+        print(f"[INDEXING START] Iniciando indexación de licitaciones", file=sys.stderr)
+        print(f"  - Usuario: {request.user.username}", file=sys.stderr)
+        print(f"{'='*60}\n", file=sys.stderr)
+
+        def json_serial(obj):
+            """JSON serializer para objetos date/datetime"""
+            if isinstance(obj, (datetime, date)):
+                return obj.isoformat()
+            raise TypeError(f"Type {type(obj)} not serializable")
+
+        def event_stream():
+            """Generador que envía eventos SSE"""
+            try:
+                # Enviar evento de inicio
+                yield f"data: {json.dumps({'type': 'start', 'message': 'Iniciando indexación...'})}\n\n"
+                print("[SSE] Evento START enviado", file=sys.stderr)
+
+                # Queue para comunicación entre el indexing y SSE
+                import queue
+                event_queue = queue.Queue()
+
+                # Función callback que pone eventos en la queue
+                def progress_callback(data):
+                    print(f"[CALLBACK] Recibido: {data}", file=sys.stderr)
+                    event_queue.put(data)
+
+                # Ejecutar indexación en thread separado
+                def run_indexing():
+                    try:
+                        from .vectorization_service import VectorizationService
+
+                        print("[THREAD] Iniciando indexación", file=sys.stderr)
+                        service = VectorizationService(user=request.user)
+                        result = service.index_all_tenders(progress_callback=progress_callback)
+
+                        print(f"[THREAD] Indexación completada: {result}", file=sys.stderr)
+                        event_queue.put({'type': 'complete', 'result': result})
+                    except Exception as e:
+                        print(f"[THREAD ERROR] {e}", file=sys.stderr)
+                        import traceback
+                        traceback.print_exc(file=sys.stderr)
+                        event_queue.put({'type': 'error', 'message': str(e)})
+                    finally:
+                        event_queue.put(None)  # Señal de fin
+
+                download_thread = threading.Thread(target=run_indexing)
+                download_thread.daemon = True
+                download_thread.start()
+                print("[THREAD] Thread de indexación iniciado", file=sys.stderr)
+
+                # Procesar eventos de la queue y enviarlos como SSE
+                while True:
+                    try:
+                        # Esperar evento con timeout
+                        event_data = event_queue.get(timeout=1.0)
+
+                        if event_data is None:
+                            # Fin de indexación
+                            print("[SSE] Fin de eventos", file=sys.stderr)
+                            break
+
+                        # Serializar y enviar
+                        print(f"[SSE] Enviando evento: {event_data.get('type', 'unknown')}", file=sys.stderr)
+                        json_data = json.dumps(event_data, default=json_serial)
+                        yield f"data: {json_data}\n\n"
+
+                    except queue.Empty:
+                        # Timeout - enviar heartbeat para mantener conexión viva
+                        yield f": heartbeat\n\n"
+                        continue
+
+                print("[SSE] Stream completado", file=sys.stderr)
+
+            except Exception as e:
+                print(f"[SSE ERROR] {e}", file=sys.stderr)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+        response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'  # Disable nginx buffering
+        return response
+
+
+class ClearVectorstoreView(LoginRequiredMixin, View):
+    """Vista para limpiar (borrar) el vectorstore completo"""
+
+    def post(self, request):
+        try:
+            from .vectorization_service import VectorizationService
+
+            service = VectorizationService(user=request.user)
+            result = service.clear_vectorstore()
+
+            if result['success']:
+                return JsonResponse({
+                    'success': True,
+                    'message': result['message']
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': result.get('error', 'Error desconocido')
+                }, status=500)
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+
+
+class VectorstoreStatusAPIView(LoginRequiredMixin, View):
+    """API JSON para obtener el estado actual del vectorstore"""
+
+    def get(self, request):
+        try:
+            from .vectorization_service import VectorizationService
+
+            service = VectorizationService(user=request.user)
+            status = service.get_vectorstore_status()
+
+            return JsonResponse(status)
+
+        except Exception as e:
+            return JsonResponse({
+                'is_initialized': False,
+                'status': 'error',
+                'error': str(e)
+            }, status=500)

@@ -22,8 +22,24 @@ class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     phone = models.CharField(max_length=20, blank=True)
 
-    # API Key for LLM (Google Gemini, OpenAI, etc.)
-    llm_api_key = models.CharField(max_length=255, blank=True, verbose_name='API Key del LLM', help_text='Tu API key de Google Gemini u otro proveedor LLM')
+    # API Key for LLM (Google Gemini, OpenAI, NVIDIA)
+    llm_provider = models.CharField(
+        max_length=20,
+        choices=[
+            ('gemini', 'Google Gemini'),
+            ('openai', 'OpenAI'),
+            ('nvidia', 'NVIDIA NIM'),
+        ],
+        default='gemini',
+        verbose_name='Proveedor de IA',
+        help_text='Selecciona tu proveedor de IA preferido'
+    )
+    llm_api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='API Key',
+        help_text='Tu API key del proveedor seleccionado'
+    )
 
     # Shipping address fields
     address_line1 = models.CharField(max_length=255, blank=True, verbose_name='Dirección (Línea 1)')

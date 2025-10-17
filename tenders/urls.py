@@ -26,6 +26,12 @@ urlpatterns = [
     path('delete-all-xmls/', views.DeleteAllXMLsView.as_view(), name='delete_all_xmls'),
     path('delete-xml/<str:ojs_notice_id>/', views.DeleteXMLView.as_view(), name='delete_xml'),
 
+    # Vectorización y gestión de ChromaDB
+    path('vectorizacion/', views.VectorizationDashboardView.as_view(), name='vectorization_dashboard'),
+    path('vectorizacion/indexar/', views.IndexAllTendersView.as_view(), name='index_all_tenders'),
+    path('vectorizacion/limpiar/', views.ClearVectorstoreView.as_view(), name='clear_vectorstore'),
+    path('vectorizacion/estado/', views.VectorstoreStatusAPIView.as_view(), name='vectorstore_status'),
+
     # Detalle de licitación (debe estar AL FINAL porque captura cualquier string)
     path('<str:ojs_notice_id>/', views.TenderDetailView.as_view(), name='detail'),
     path('<str:ojs_notice_id>/guardar/', views.SaveTenderView.as_view(), name='save'),

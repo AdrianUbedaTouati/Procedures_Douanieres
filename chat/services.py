@@ -20,10 +20,11 @@ class ChatAgentService:
         Initialize the chat agent service
 
         Args:
-            user: Django User instance with llm_api_key
+            user: Django User instance with llm_api_key and llm_provider
         """
         self.user = user
         self.api_key = user.llm_api_key
+        self.provider = user.llm_provider if hasattr(user, 'llm_provider') else 'gemini'
         self._agent = None
 
     def _get_agent(self):
@@ -42,30 +43,30 @@ class ChatAgentService:
             from agent_ia_core import agent_graph
             from agent_ia_core import config
 
-            # Temporarily set API key in config module
-            original_key = getattr(config, 'API_KEY', None)
-            config.API_KEY = self.api_key
+            # Map provider names to agent_graph format
+            provider_map = {
+                'gemini': ('google', 'gemini-2.0-flash-exp'),
+                'openai': ('openai', 'gpt-4o-mini'),
+                'nvidia': ('nvidia', 'meta/llama-3.1-8b-instruct')
+            }
 
-            # Also set in environment for fallback
-            os.environ['GOOGLE_API_KEY'] = self.api_key
+            agent_provider, model_name = provider_map.get(
+                self.provider,
+                ('google', 'gemini-2.0-flash-exp')
+            )
 
-            try:
-                # Create agent instance
-                self._agent = agent_graph.EFormsRAGAgent(
-                    llm_provider="google",
-                    llm_model="gemini-2.0-flash-exp",
-                    temperature=0.3,
-                    k_retrieve=6,
-                    use_grading=True,
-                    use_verification=False  # Disable verification for faster responses
-                )
+            # Create agent instance with user's API key and provider
+            self._agent = agent_graph.EFormsRAGAgent(
+                api_key=self.api_key,
+                llm_provider=agent_provider,
+                llm_model=model_name,
+                temperature=0.3,
+                k_retrieve=6,
+                use_grading=True,
+                use_verification=False  # Disable verification for faster responses
+            )
 
-                return self._agent
-
-            finally:
-                # Restore original config
-                if original_key:
-                    config.API_KEY = original_key
+            return self._agent
 
         except ImportError as e:
             raise Exception(f"Error importing agent modules: {e}")
@@ -102,7 +103,13 @@ class ChatAgentService:
             agent = self._get_agent()
 
             # Set API key in environment for this request
-            os.environ['GOOGLE_API_KEY'] = self.api_key
+            env_var_map = {
+                'gemini': 'GOOGLE_API_KEY',
+                'openai': 'OPENAI_API_KEY',
+                'nvidia': 'NVIDIA_API_KEY'
+            }
+            env_var = env_var_map.get(self.provider, 'GOOGLE_API_KEY')
+            os.environ[env_var] = self.api_key
 
             # Execute query through the agent
             result = agent.query(message)

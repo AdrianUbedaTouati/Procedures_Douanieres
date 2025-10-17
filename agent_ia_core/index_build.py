@@ -18,7 +18,7 @@ import sys
 sys.path.append(str(Path(__file__).parent))
 from config import (
     RECORDS_DIR, INDEX_DIR, CHROMA_PERSIST_DIRECTORY,
-    CHROMA_COLLECTION_NAME, EMBEDDING_MODEL, LLM_PROVIDER, API_KEY
+    CHROMA_COLLECTION_NAME, EMBEDDING_MODEL, LLM_PROVIDER
 )
 from chunking import chunk_eforms_record, Chunk
 
@@ -27,10 +27,13 @@ try:
     from langchain_core.documents import Document
     from langchain_chroma import Chroma
 
-    # Importar el embedding apropiado según el proveedor
+    # Importar embeddings según el proveedor
     if LLM_PROVIDER == "google":
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
         EMBEDDINGS_CLASS = GoogleGenerativeAIEmbeddings
+    elif LLM_PROVIDER == "nvidia":
+        from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
+        EMBEDDINGS_CLASS = NVIDIAEmbeddings
     else:  # openai
         from langchain_openai import OpenAIEmbeddings
         EMBEDDINGS_CLASS = OpenAIEmbeddings
@@ -84,14 +87,14 @@ class IndexBuilder:
         self.persist_directory = persist_directory or CHROMA_PERSIST_DIRECTORY
         self.collection_name = collection_name or CHROMA_COLLECTION_NAME
         self.embedding_model = embedding_model or EMBEDDING_MODEL
-        self.api_key = api_key or API_KEY
+        self.api_key = api_key
         self.provider = provider or LLM_PROVIDER
 
         # Verificar API key
         if not self.api_key:
             raise ValueError(
                 f"API key no configurada para {self.provider}. "
-                f"Por favor, configura {'GOOGLE_API_KEY' if self.provider == 'google' else 'OPENAI_API_KEY'} en .env"
+                f"Por favor, configura tu API key en tu perfil de usuario."
             )
 
         # Crear directorio de persistencia
@@ -99,14 +102,28 @@ class IndexBuilder:
 
         # Inicializar embeddings según el proveedor
         logger.info(f"Inicializando embeddings con {self.provider} - Modelo: {self.embedding_model}")
+        logger.info(f"API Key (primeros 20 chars): {self.api_key[:20] if self.api_key else 'None'}...")
 
         try:
+            import os
             if self.provider == "google":
+                from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                os.environ['GOOGLE_API_KEY'] = self.api_key
                 self.embeddings = GoogleGenerativeAIEmbeddings(
                     model=self.embedding_model,
                     google_api_key=self.api_key
                 )
+            elif self.provider == "nvidia":
+                from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
+                os.environ['NVIDIA_API_KEY'] = self.api_key
+                logger.info(f"Setting NVIDIA_API_KEY environment variable")
+                self.embeddings = NVIDIAEmbeddings(
+                    model=self.embedding_model,
+                    nvidia_api_key=self.api_key
+                )
             else:  # openai
+                from langchain_openai import OpenAIEmbeddings
+                os.environ['OPENAI_API_KEY'] = self.api_key
                 self.embeddings = OpenAIEmbeddings(
                     model=self.embedding_model,
                     openai_api_key=self.api_key
@@ -329,15 +346,20 @@ def build_index(
     return builder.build(force_rebuild=force_rebuild)
 
 
-def get_vectorstore() -> Chroma:
+def get_vectorstore(provider: str = None, api_key: str = None, embedding_model: str = None) -> Chroma:
     """
     Función de conveniencia para obtener el vectorstore.
     Carga existente o construye nuevo si no existe.
 
+    Args:
+        provider: Provider name ('google', 'openai', 'nvidia'). If None, uses config default.
+        api_key: API key for the provider. If None, uses config default.
+        embedding_model: Model name. If None, uses config default.
+
     Returns:
         Instancia de Chroma vectorstore
     """
-    builder = IndexBuilder()
+    builder = IndexBuilder(provider=provider, api_key=api_key, embedding_model=embedding_model)
     return builder.get_vectorstore()
 
 

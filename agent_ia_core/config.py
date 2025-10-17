@@ -26,14 +26,16 @@ LOGS_DIR = PROJECT_ROOT / "logs"
 # ================================================
 # CREDENCIALES Y API KEYS
 # ================================================
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+# IMPORTANTE: Las API keys se configuran por usuario en su perfil
+# No se usan API keys globales del .env
+# Cada usuario debe tener su propia API key configurada en su perfil
 
 # ================================================
 # CONFIGURACIÓN DE PROVEEDOR DE LLM/EMBEDDINGS
 # ================================================
-# Proveedor: "openai" o "google" (Gemini)
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "google")  # Cambiar a "openai" si usas OpenAI
+# Proveedor por defecto (se usa solo para valores por defecto de modelos)
+# El proveedor real se obtiene del perfil del usuario
+LLM_PROVIDER = "google"  # Valor por defecto, no se usa directamente
 
 # ================================================
 # CONFIGURACIÓN DE MODELOS - OPENAI
@@ -50,18 +52,19 @@ GOOGLE_EMBEDDING_DIMENSIONS = 768
 GOOGLE_LLM_MODEL = "gemini-2.5-flash"  # o "gemini-2.5-pro" para mayor calidad
 
 # ================================================
-# CONFIGURACIÓN ACTIVA (según proveedor seleccionado)
+# CONFIGURACIÓN DE MODELOS - NVIDIA NIM
 # ================================================
-if LLM_PROVIDER == "google":
-    EMBEDDING_MODEL = GOOGLE_EMBEDDING_MODEL
-    EMBEDDING_DIMENSIONS = GOOGLE_EMBEDDING_DIMENSIONS
-    LLM_MODEL = GOOGLE_LLM_MODEL
-    API_KEY = GOOGLE_API_KEY
-else:  # openai
-    EMBEDDING_MODEL = OPENAI_EMBEDDING_MODEL
-    EMBEDDING_DIMENSIONS = OPENAI_EMBEDDING_DIMENSIONS
-    LLM_MODEL = OPENAI_LLM_MODEL
-    API_KEY = OPENAI_API_KEY
+NVIDIA_EMBEDDING_MODEL = "nvidia/nv-embedqa-e5-v5"
+NVIDIA_EMBEDDING_DIMENSIONS = 1024
+NVIDIA_LLM_MODEL = "meta/llama-3.1-8b-instruct"
+
+# ================================================
+# CONFIGURACIÓN ACTIVA POR DEFECTO
+# ================================================
+# Valores por defecto - el agente recibe el proveedor y API key del usuario
+EMBEDDING_MODEL = GOOGLE_EMBEDDING_MODEL
+EMBEDDING_DIMENSIONS = GOOGLE_EMBEDDING_DIMENSIONS
+LLM_MODEL = GOOGLE_LLM_MODEL
 
 # Temperatura para respuestas (0.0 = determinista)
 LLM_TEMPERATURE = 0.0

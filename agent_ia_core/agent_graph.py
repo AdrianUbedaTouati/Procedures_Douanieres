@@ -18,7 +18,8 @@ from langchain_core.documents import Document
 
 # Importar módulos propios
 sys.path.append(str(Path(__file__).parent))
-from config import LLM_PROVIDER, LLM_MODEL, LLM_TEMPERATURE, API_KEY
+import config  # Import module instead of specific values to allow dynamic updates
+from config import LLM_PROVIDER, LLM_MODEL, LLM_TEMPERATURE
 from retriever import create_retriever
 from prompts import (
     SYSTEM_PROMPT, create_answer_prompt, create_grading_prompt,
@@ -26,12 +27,29 @@ from prompts import (
 )
 from tools_xml import XmlLookupTool
 
-# Importar LLM según proveedor
-if LLM_PROVIDER == "google":
+# Importar todos los LLMs (lazy import)
+# Esto permite que el agente pueda cambiar entre proveedores dinámicamente
+try:
     from langchain_google_genai import ChatGoogleGenerativeAI
-    LLM_CLASS = ChatGoogleGenerativeAI
-else:
+except ImportError:
+    ChatGoogleGenerativeAI = None
+
+try:
+    from langchain_nvidia_ai_endpoints import ChatNVIDIA
+except ImportError:
+    ChatNVIDIA = None
+
+try:
     from langchain_openai import ChatOpenAI
+except ImportError:
+    ChatOpenAI = None
+
+# Determinar LLM_CLASS por defecto según configuración
+if LLM_PROVIDER == "google":
+    LLM_CLASS = ChatGoogleGenerativeAI
+elif LLM_PROVIDER == "nvidia":
+    LLM_CLASS = ChatNVIDIA
+else:  # openai
     LLM_CLASS = ChatOpenAI
 
 # Configurar logging
@@ -70,7 +88,8 @@ class EFormsRAGAgent:
 
     def __init__(
         self,
-        llm_provider: str = None,
+        api_key: str,
+        llm_provider: str,
         llm_model: str = None,
         temperature: float = None,
         k_retrieve: int = 6,
@@ -81,14 +100,21 @@ class EFormsRAGAgent:
         Inicializa el agente.
 
         Args:
-            llm_provider: Proveedor de LLM ("google" o "openai")
+            api_key: API key del usuario (REQUERIDO)
+            llm_provider: Proveedor de LLM ("google", "nvidia", "openai") (REQUERIDO)
             llm_model: Modelo de LLM
             temperature: Temperatura del LLM
             k_retrieve: Número de documentos a recuperar
             use_grading: Activar nodo de grading
             use_verification: Activar nodo de verificación
         """
-        self.llm_provider = llm_provider or LLM_PROVIDER
+        if not api_key:
+            raise ValueError("API key es requerida. Configura tu API key en tu perfil de usuario.")
+        if not llm_provider:
+            raise ValueError("llm_provider es requerido ('google', 'nvidia', 'openai')")
+
+        self.api_key = api_key
+        self.llm_provider = llm_provider
         self.llm_model = llm_model or LLM_MODEL
         self.temperature = temperature if temperature is not None else LLM_TEMPERATURE
         self.k_retrieve = k_retrieve
@@ -97,23 +123,45 @@ class EFormsRAGAgent:
 
         # Inicializar LLM
         logger.info(f"Inicializando LLM: {self.llm_provider} - {self.llm_model}")
+        logger.info(f"Using API Key: {self.api_key[:20]}...")
+
         if self.llm_provider == "google":
             # Para Gemini, usar el nombre sin el prefijo "models/"
             model_name = self.llm_model.replace("models/", "") if self.llm_model.startswith("models/") else self.llm_model
             self.llm = ChatGoogleGenerativeAI(
                 model=model_name,
                 temperature=self.temperature,
-                google_api_key=API_KEY
+                google_api_key=self.api_key
             )
-        else:
+        elif self.llm_provider == "nvidia":
+            self.llm = ChatNVIDIA(
+                model=self.llm_model,
+                temperature=self.temperature,
+                nvidia_api_key=self.api_key
+            )
+        else:  # openai
             self.llm = ChatOpenAI(
                 model=self.llm_model,
                 temperature=self.temperature,
-                openai_api_key=API_KEY
+                openai_api_key=self.api_key
             )
 
-        # Inicializar retriever y tools
-        self.retriever = create_retriever(k=self.k_retrieve)
+        # Inicializar retriever y tools con el mismo proveedor y API key
+        embedding_model = None
+        if self.llm_provider == "google":
+            embedding_model = "models/embedding-001"
+        elif self.llm_provider == "nvidia":
+            embedding_model = "nvidia/nv-embedqa-e5-v5"
+        elif self.llm_provider == "openai":
+            embedding_model = "text-embedding-3-small"
+
+        logger.info(f"Creating retriever with provider={self.llm_provider}, embedding_model={embedding_model}")
+        self.retriever = create_retriever(
+            k=self.k_retrieve,
+            provider=self.llm_provider,
+            api_key=self.api_key,
+            embedding_model=embedding_model
+        )
         self.xml_lookup = XmlLookupTool()
 
         # Construir grafo
