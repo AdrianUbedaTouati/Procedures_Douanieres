@@ -397,17 +397,22 @@ class EFormsRAGAgent:
         relevant_docs = state.get("relevant_documents", [])
         iteration = state.get("iteration", 1)
 
-        # Si no hay documentos relevantes y es la primera iteración, reintentar
-        if not relevant_docs and iteration < 2:
+        # Si no hay documentos relevantes y no hemos reintentado, reintentar UNA vez
+        if not relevant_docs and iteration == 1:
             logger.info("[DECIDE] Sin documentos relevantes, reintentando...")
             return "retrieve"
 
-        # Si hay pocos documentos y es primera iteración, reintentar
-        if len(relevant_docs) < 2 and iteration < 2:
-            logger.info("[DECIDE] Pocos documentos relevantes, reintentando...")
-            return "retrieve"
+        # Si hay al menos 1 documento relevante, es suficiente para intentar responder
+        # Esto evita reintentar indefinidamente cuando el grading es estricto
+        if len(relevant_docs) >= 1:
+            logger.info(f"[DECIDE] {len(relevant_docs)} documentos relevantes, continuando a respuesta")
+            if self.use_verification:
+                return "verify"
+            else:
+                return "answer"
 
-        # Si hay documentos relevantes, continuar
+        # Si después de reintentar sigue sin documentos, responder con lo que hay
+        logger.info("[DECIDE] Sin suficientes documentos después de reintentar, continuando a respuesta")
         if self.use_verification:
             return "verify"
         else:

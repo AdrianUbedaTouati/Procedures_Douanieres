@@ -62,7 +62,7 @@ class ChatAgentService:
                 llm_model=model_name,
                 temperature=0.3,
                 k_retrieve=6,
-                use_grading=True,
+                use_grading=False,  # Disabled: grading too strict with NVIDIA
                 use_verification=False  # Disable verification for faster responses
             )
 
