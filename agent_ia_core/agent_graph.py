@@ -274,23 +274,40 @@ class EFormsRAGAgent:
         question_lower = question.lower().strip()
 
         # Palabras clave que indican que REALMENTE pregunta por licitaciones específicas
-        # Solo en estos casos buscaremos en documentos
+        # IMPORTANTE: Incluir versiones CON y SIN acentos (usuarios a menudo omiten acentos)
         licitacion_keywords = [
-            # Búsqueda de licitaciones
-            'licitación', 'licitaciones', 'aviso', 'avisos', 'contrato', 'contratos',
+            # Búsqueda de licitaciones (con y sin acento)
+            'licitacion', 'licitación', 'licitaciones',
+            'aviso', 'avisos', 'contrato', 'contratos',
             'convocatoria', 'convocatorias', 'tender', 'tenders',
             # Acciones específicas sobre licitaciones
-            'cuántas licitaciones', 'qué licitaciones', 'busca licitación', 'buscar licitación',
-            'muéstrame licitaciones', 'dame licitaciones', 'hay licitaciones',
-            'encuentra licitación', 'busco licitación',
+            'cuantas licitaciones', 'cuántas licitaciones',
+            'que licitaciones', 'qué licitaciones',
+            'busca licitacion', 'busca licitación',
+            'buscar licitacion', 'buscar licitación',
+            'muestrame licitaciones', 'muéstrame licitaciones',
+            'dame licitaciones', 'hay licitaciones',
+            'encuentra licitacion', 'encuentra licitación',
+            'busco licitacion', 'busco licitación',
+            'mejor licitacion', 'mejor licitación',
+            'cual licitacion', 'cuál licitación',
+            'mas interesante', 'más interesante',
             # Referencias a ofertas/propuestas
-            'oferta pública', 'ofertas públicas', 'concurso público', 'proceso de contratación',
+            'oferta publica', 'oferta pública',
+            'ofertas publicas', 'ofertas públicas',
+            'concurso publico', 'concurso público',
+            'proceso de contratacion', 'proceso de contratación',
             # IDs o referencias específicas
-            'id:', 'referencia:', 'expediente:', 'número de licitación'
+            'id:', 'referencia:', 'expediente:', 'numero de licitacion', 'número de licitación'
         ]
 
         # Verificar si está preguntando específicamente por licitaciones
         asks_about_tenders = any(keyword in question_lower for keyword in licitacion_keywords)
+
+        # DEBUG: Log para ver qué keyword coincidió (o no)
+        if asks_about_tenders:
+            matched = [kw for kw in licitacion_keywords if kw in question_lower]
+            logger.info(f"[ROUTE DEBUG] Keywords detectadas: {matched}")
 
         if asks_about_tenders:
             # Solo si pregunta explícitamente por licitaciones, buscar en documentos
