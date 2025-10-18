@@ -123,15 +123,46 @@ OLLAMA_CONTEXT_LENGTH=4096
 
 ### Cómo Funciona el Routing
 
-El sistema utiliza **routing 100% LLM** para clasificar automáticamente cada conversación por tema e intención. Esto significa que el agente:
+El sistema utiliza **routing 100% LLM per-message** para clasificar automáticamente **CADA MENSAJE de forma INDEPENDIENTE**. Esto significa que el agente:
 
-1. **Analiza cada mensaje** con el LLM para entender la intención
+1. **Analiza SOLO el mensaje actual** (sin influencia del historial previo)
 2. **Clasifica automáticamente** en una de dos categorías:
    - `vectorstore`: Necesita buscar en documentos de licitaciones
    - `general`: Conversación general sin necesidad de documentos
-3. **Decide la ruta** según la clasificación
+3. **Decide la ruta** según la clasificación del mensaje actual
+4. **Cambia dinámicamente** entre rutas según cada nuevo mensaje
 
-**Ventajas:**
+### Routing Per-Message (Independiente)
+
+**Característica clave:** El routing clasifica cada mensaje individual, NO toda la conversación.
+
+**Ejemplo de flujo multi-turno:**
+
+```
+Usuario: "hola"
+→ Clasificación: general (sin documentos)
+→ Respuesta: saludo cordial
+
+Usuario: "cual es la mejor oferta en software"
+→ Clasificación: vectorstore (busca documentos)
+→ Respuesta: análisis de 6 licitaciones de software
+
+Usuario: "gracias"
+→ Clasificación: general (sin documentos)
+→ Respuesta: despedida cordial
+
+Usuario: "busca ofertas de construcción"
+→ Clasificación: vectorstore (busca documentos)
+→ Respuesta: análisis de licitaciones de construcción
+```
+
+**Ventajas del routing per-message:**
+- ✅ **Cada mensaje se clasifica independientemente** - no hay sesgo del historial
+- ✅ **Cambio dinámico de rutas** - puede alternar entre general/vectorstore libremente
+- ✅ **Mucho más preciso** - "gracias" siempre es general, aunque el mensaje anterior fuera sobre licitaciones
+- ✅ **Efectividad máxima** - cada pregunta obtiene el tratamiento correcto
+
+**Ventajas del LLM routing:**
 - ✅ Entiende **sinónimos automáticamente** ("licitaciones", "ofertas", "propuestas", "contratos")
 - ✅ Detecta **intención** sin necesidad de keywords exactas
 - ✅ Se **adapta a lenguaje natural** sin rigidez
@@ -141,7 +172,17 @@ El sistema utiliza **routing 100% LLM** para clasificar automáticamente cada co
 - "cual es la mejor oferta en software" → `vectorstore` (busca documentos)
 - "busca propuestas de desarrollo web" → `vectorstore` (sinónimo detectado)
 - "hola que tal" → `general` (saludo)
+- "gracias" → `general` (despedida)
 - "qué es una licitación pública" → `general` (pregunta conceptual)
+
+### Uso del Historial
+
+**Importante:** El historial de conversación se usa SOLO para generar respuestas contextua les, NO para clasificar.
+
+- **Routing:** Clasifica solo el mensaje actual (sin historial)
+- **Answer:** Usa el historial para dar respuestas con contexto conversacional
+
+Esto garantiza que cada mensaje se clasifique correctamente mientras las respuestas mantienen coherencia conversacional.
 
 **Configuración relacionada:**
 El routing utiliza `LLM_TEMPERATURE` y `LLM_TIMEOUT` del `.env` para la clasificación.
