@@ -258,15 +258,33 @@ class IndexBuilder:
 
     def get_vectorstore(self) -> Chroma:
         """
-        Obtiene el vectorstore (carga si existe, construye si no).
+        Obtiene el vectorstore (carga si existe, lanza error si no).
+
+        IMPORTANTE: Este método SOLO CARGA índices existentes, NO construye nuevos.
+        Para indexar licitaciones, usa la UI de Django en /licitaciones/vectorizacion/
 
         Returns:
             Instancia de Chroma vectorstore
+
+        Raises:
+            RuntimeError: Si el índice no existe o está vacío
         """
         if self.vectorstore is None:
             if not self.load_existing():
-                logger.info("Construyendo nuevo índice...")
-                self.build()
+                # NO intentar construir automáticamente desde data/records/
+                # En su lugar, lanzar un error claro indicando qué hacer
+                raise RuntimeError(
+                    f"❌ El índice vectorial no existe o está vacío.\n\n"
+                    f"📁 Ubicación esperada: {self.persist_directory}\n"
+                    f"📦 Colección: {self.collection_name}\n\n"
+                    f"🔧 SOLUCIÓN:\n"
+                    f"1. Ve a http://localhost:8001/licitaciones/obtener/\n"
+                    f"2. Descarga algunas licitaciones desde TED\n"
+                    f"3. Ve a http://localhost:8001/licitaciones/vectorizacion/\n"
+                    f"4. Haz clic en 'Indexar Todas las Licitaciones'\n"
+                    f"5. Espera a que termine la indexación\n\n"
+                    f"Después de indexar, el chat podrá consultar documentos."
+                )
         return self.vectorstore
 
     def _chunks_to_documents(self, chunks: List[Chunk]) -> List[Document]:
@@ -357,15 +375,20 @@ def build_index(
 def get_vectorstore(provider: str = None, api_key: str = None, embedding_model: str = None) -> Chroma:
     """
     Función de conveniencia para obtener el vectorstore.
-    Carga existente o construye nuevo si no existe.
+    SOLO CARGA índices existentes, NO construye nuevos.
+
+    IMPORTANTE: Para indexar licitaciones en Django, usa la UI en /licitaciones/vectorizacion/
 
     Args:
-        provider: Provider name ('google', 'openai', 'nvidia'). If None, uses config default.
-        api_key: API key for the provider. If None, uses config default.
+        provider: Provider name ('google', 'openai', 'nvidia', 'ollama'). If None, uses config default.
+        api_key: API key for the provider. If None, uses config default (not needed for ollama).
         embedding_model: Model name. If None, uses config default.
 
     Returns:
         Instancia de Chroma vectorstore
+
+    Raises:
+        RuntimeError: Si el índice no existe o está vacío
     """
     builder = IndexBuilder(provider=provider, api_key=api_key, embedding_model=embedding_model)
     return builder.get_vectorstore()

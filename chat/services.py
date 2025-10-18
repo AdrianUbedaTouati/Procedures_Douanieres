@@ -119,6 +119,14 @@ class ChatAgentService:
 
         except ImportError as e:
             raise Exception(f"Error importing agent modules: {e}")
+        except RuntimeError as e:
+            # RuntimeError específico del índice vectorial vacío
+            error_msg = str(e)
+            if "índice vectorial no existe" in error_msg or "vectorstore" in error_msg.lower():
+                # Extraer el mensaje formateado del error
+                raise Exception(f"Índice no inicializado:\n\n{error_msg}")
+            else:
+                raise Exception(f"Error de runtime: {e}")
         except Exception as e:
             raise Exception(f"Error creating agent: {e}")
 
