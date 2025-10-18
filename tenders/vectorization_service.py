@@ -147,21 +147,16 @@ class VectorizationService:
             persist_dir = getattr(config, 'CHROMA_PERSIST_DIRECTORY', str(config.INDEX_DIR / 'chroma'))
             collection_name = getattr(config, 'CHROMA_COLLECTION_NAME', 'eforms_notices')
 
-            # Create TEMPORARY collection name with timestamp
-            temp_collection_name = f"{collection_name}_temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
             # Create ChromaDB client
             client = chromadb.PersistentClient(path=persist_dir)
 
-            # Check if old collection exists (to preserve it during indexing)
-            old_collection_exists = False
+            # Delete old collection if exists
             try:
-                old_collection = client.get_collection(name=collection_name)
-                old_collection_exists = True
+                client.delete_collection(name=collection_name)
                 if progress_callback:
                     progress_callback({
                         'type': 'info',
-                        'message': f'✓ Colección anterior detectada ({old_collection.count()} chunks). Se mantendrá activa durante la indexación.'
+                        'message': '✓ Colección anterior eliminada. Creando nueva indexación...'
                     })
             except:
                 if progress_callback:
@@ -183,16 +178,16 @@ class VectorizationService:
                     api_key=self.api_key
                 )
 
-            # Create new TEMPORARY collection
+            # Create new collection directly
             if progress_callback:
                 progress_callback({
                     'type': 'info',
-                    'message': f'Creando colección temporal: {temp_collection_name}'
+                    'message': f'Creando colección: {collection_name}'
                 })
 
-            temp_collection = client.create_collection(
-                name=temp_collection_name,
-                metadata={"description": "Indexación temporal de licitaciones eForms"}
+            collection = client.create_collection(
+                name=collection_name,
+                metadata={"description": "Licitaciones eForms indexadas"}
             )
 
             indexed_count = 0
@@ -213,9 +208,9 @@ class VectorizationService:
                             'message': '⚠️ Indexación cancelada por el usuario. Limpiando colección temporal...'
                         })
 
-                    # Delete temporary collection
+                    # Delete collection on cancellation
                     try:
-                        client.delete_collection(name=temp_collection_name)
+                        client.delete_collection(name=collection_name)
                     except:
                         pass
 
@@ -226,7 +221,7 @@ class VectorizationService:
                         'total_chunks': total_chunks,
                         'total_tokens': total_tokens,
                         'total_cost_eur': total_cost_eur,
-                        'message': 'Indexación cancelada. La colección anterior sigue activa.'
+                        'message': 'Indexación cancelada.'
                     }
 
                 try:
@@ -291,15 +286,15 @@ class VectorizationService:
                             else:
                                 raise
 
-                        # Add to TEMPORARY collection
-                        temp_collection.add(
+                        # Add to collection
+                        collection.add(
                             ids=[chunk.chunk_id],
                             embeddings=[embedding],
                             documents=[chunk_text],
                             metadatas=[{
                                 'ojs_notice_id': chunk.ojs_notice_id,
                                 'section': chunk.section,
-                                'chunk_index': chunk.chunk_index,
+                                'chunk_index': str(chunk.chunk_index),
                                 'source_path': chunk.source_path,
                                 'buyer_name': chunk.buyer_name,
                                 'cpv_codes': ','.join(chunk.cpv_codes),
@@ -335,101 +330,12 @@ class VectorizationService:
                             'message': f'✗ Error en {tender.ojs_notice_id}: {str(e)}'
                         })
 
-            # SWAP: Replace old collection with new one (atomic operation)
+            # Indexing complete
             if progress_callback:
                 progress_callback({
                     'type': 'info',
-                    'message': '🔄 Finalizando indexación. Activando nueva colección...'
+                    'message': f'✓ Indexación finalizada: {total_chunks} chunks guardados'
                 })
-
-            # Delete old collection if it exists
-            if old_collection_exists:
-                try:
-                    client.delete_collection(name=collection_name)
-                    if progress_callback:
-                        progress_callback({
-                            'type': 'info',
-                            'message': '✓ Colección anterior eliminada'
-                        })
-                except Exception as e:
-                    if progress_callback:
-                        progress_callback({
-                            'type': 'warning',
-                            'message': f'⚠️ No se pudo eliminar colección anterior: {str(e)}'
-                        })
-
-            # Rename temporary collection to main collection name
-            # Note: ChromaDB doesn't support rename, so we need to recreate
-            try:
-                # Create final collection
-                final_collection = client.create_collection(
-                    name=collection_name,
-                    metadata={"description": "Licitaciones eForms indexadas"}
-                )
-
-                # Copy all data from temp to final in batches (to avoid memory issues)
-                batch_size = 1000  # Process 1000 chunks at a time
-                temp_count = temp_collection.count()
-
-                if progress_callback:
-                    progress_callback({
-                        'type': 'info',
-                        'message': f'Copiando {temp_count} chunks a la colección final (en lotes de {batch_size})...'
-                    })
-
-                # Get all IDs first
-                all_ids = temp_collection.get()['ids']
-
-                # Process in batches
-                for i in range(0, len(all_ids), batch_size):
-                    batch_ids = all_ids[i:i+batch_size]
-                    temp_data = temp_collection.get(
-                        ids=batch_ids,
-                        include=['embeddings', 'documents', 'metadatas']
-                    )
-
-                    if temp_data['ids']:
-                        # Clean metadatas: remove None values and ensure all values are strings
-                        cleaned_metadatas = []
-                        for metadata in temp_data['metadatas']:
-                            cleaned_metadata = {}
-                            for key, value in metadata.items():
-                                if value is not None:
-                                    # Convert all values to strings to avoid type issues
-                                    cleaned_metadata[key] = str(value) if not isinstance(value, str) else value
-                            cleaned_metadatas.append(cleaned_metadata)
-
-                        final_collection.add(
-                            ids=temp_data['ids'],
-                            embeddings=temp_data['embeddings'],
-                            documents=temp_data['documents'],
-                            metadatas=cleaned_metadatas
-                        )
-
-                    if progress_callback:
-                        progress_callback({
-                            'type': 'info',
-                            'message': f'   Copiados {min(i+batch_size, len(all_ids))}/{len(all_ids)} chunks...'
-                        })
-
-                # Delete temporary collection
-                client.delete_collection(name=temp_collection_name)
-
-                if progress_callback:
-                    progress_callback({
-                        'type': 'info',
-                        'message': '✓ Nueva colección activada correctamente'
-                    })
-
-            except Exception as e:
-                if progress_callback:
-                    progress_callback({
-                        'type': 'error',
-                        'message': f'✗ Error al activar colección: {str(e)}',
-                        'error': str(e)
-                    })
-                # Don't fail the whole operation - the temp collection has all the data
-                # User can manually rename it if needed
 
             if progress_callback:
                 progress_callback({
@@ -456,10 +362,10 @@ class VectorizationService:
             import traceback
             error_trace = traceback.format_exc()
 
-            # Clean up temporary collection on fatal error
+            # Clean up collection on fatal error
             try:
-                if 'temp_collection_name' in locals():
-                    client.delete_collection(name=temp_collection_name)
+                if 'collection' in locals():
+                    client.delete_collection(name=collection_name)
             except:
                 pass
 
@@ -467,7 +373,7 @@ class VectorizationService:
                 progress_callback({
                     'type': 'fatal_error',
                     'error': str(e),
-                    'message': f'❌ Error fatal: {str(e)}. La colección anterior se mantiene intacta.'
+                    'message': f'❌ Error fatal: {str(e)}.'
                 })
 
             return {
