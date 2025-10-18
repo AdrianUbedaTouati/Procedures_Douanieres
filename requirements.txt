@@ -97,6 +97,7 @@ daphne==4.1.2
 python-dotenv==1.0.1
 tqdm==4.67.1
 PyYAML==6.0.2
+markdown>=3.4.1         # Markdown to HTML conversion for chat
 
 # ------------------------------------------------
 # Monitoring & Logging
