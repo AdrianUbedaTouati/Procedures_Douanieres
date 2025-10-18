@@ -104,6 +104,13 @@ class ChatAgentService:
             # Get the agent
             agent = self._get_agent()
 
+            # Verify agent was created successfully
+            if agent is None:
+                raise ValueError("El agente no pudo ser inicializado correctamente")
+
+            if not hasattr(agent, 'query') or not callable(agent.query):
+                raise AttributeError(f"El agente no tiene un método 'query' válido. Tipo: {type(agent)}")
+
             # Set API key in environment for this request
             env_var_map = {
                 'gemini': 'GOOGLE_API_KEY',
