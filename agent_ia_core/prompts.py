@@ -52,16 +52,42 @@ def create_answer_prompt(question: str, context_docs: List[Document]) -> str:
     context_parts = []
     for i, doc in enumerate(context_docs, 1):
         metadata = doc.metadata
-        context_parts.append(
-            f"[Documento {i}]\n"
-            f"ID: {metadata.get('ojs_notice_id', 'N/A')}\n"
-            f"Sección: {metadata.get('section', 'N/A')}\n"
-            f"Archivo: {metadata.get('source_path', 'N/A')}\n"
-            f"Comprador: {metadata.get('buyer_name', 'N/A')}\n"
-            f"CPV: {metadata.get('cpv_codes', 'N/A')}\n"
-            f"Presupuesto: {metadata.get('budget_eur', 'N/A')} EUR\n"
-            f"Contenido:\n{doc.page_content}\n"
-        )
+
+        # Build metadata section dynamically
+        meta_lines = [
+            f"[Documento {i}]",
+            f"ID: {metadata.get('ojs_notice_id', 'N/A')}",
+            f"Sección: {metadata.get('section', 'N/A')}",
+            f"Comprador: {metadata.get('buyer_name', 'N/A')}",
+        ]
+
+        # Add optional fields if available
+        if metadata.get('cpv_codes'):
+            meta_lines.append(f"CPV: {metadata.get('cpv_codes')}")
+        if metadata.get('budget_eur'):
+            meta_lines.append(f"Presupuesto: {metadata.get('budget_eur')} EUR")
+        if metadata.get('tender_deadline_date'):
+            meta_lines.append(f"Plazo: {metadata.get('tender_deadline_date')}")
+        if metadata.get('contract_type'):
+            meta_lines.append(f"Tipo: {metadata.get('contract_type')}")
+        if metadata.get('publication_date'):
+            meta_lines.append(f"Publicado: {metadata.get('publication_date')}")
+
+        # Add contact information if available
+        contact_info = []
+        if metadata.get('contact_email'):
+            contact_info.append(f"Email: {metadata.get('contact_email')}")
+        if metadata.get('contact_phone'):
+            contact_info.append(f"Tel: {metadata.get('contact_phone')}")
+        if metadata.get('contact_url'):
+            contact_info.append(f"URL: {metadata.get('contact_url')}")
+        if contact_info:
+            meta_lines.append(f"Contacto: {', '.join(contact_info)}")
+
+        # Add content
+        meta_lines.append(f"Contenido:\n{doc.page_content}")
+
+        context_parts.append('\n'.join(meta_lines))
 
     context_text = "\n---\n".join(context_parts)
 

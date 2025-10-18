@@ -286,21 +286,43 @@ class VectorizationService:
                             else:
                                 raise
 
+                        # Prepare metadata with all available fields
+                        metadata = {
+                            'ojs_notice_id': chunk.ojs_notice_id,
+                            'section': chunk.section,
+                            'chunk_index': str(chunk.chunk_index),
+                            'source_path': chunk.source_path,
+                            'buyer_name': chunk.buyer_name,
+                            'cpv_codes': ','.join(chunk.cpv_codes),
+                            'nuts_regions': ','.join(chunk.nuts_regions),
+                            'publication_date': chunk.publication_date
+                        }
+
+                        # Add optional fields if available from chunk
+                        if chunk.budget_eur is not None:
+                            metadata['budget_eur'] = str(chunk.budget_eur)
+                        if chunk.tender_deadline_date:
+                            metadata['tender_deadline_date'] = chunk.tender_deadline_date
+                        if chunk.contract_type:
+                            metadata['contract_type'] = chunk.contract_type
+                        if chunk.procedure_type:
+                            metadata['procedure_type'] = chunk.procedure_type
+
+                        # Add contact information from Django model if this is a contact section
+                        if chunk.section in ['contact', 'buyer', 'description', 'title']:
+                            if tender.contact_email:
+                                metadata['contact_email'] = tender.contact_email
+                            if tender.contact_phone:
+                                metadata['contact_phone'] = tender.contact_phone
+                            if tender.contact_url:
+                                metadata['contact_url'] = tender.contact_url
+
                         # Add to collection
                         collection.add(
                             ids=[chunk.chunk_id],
                             embeddings=[embedding],
                             documents=[chunk_text],
-                            metadatas=[{
-                                'ojs_notice_id': chunk.ojs_notice_id,
-                                'section': chunk.section,
-                                'chunk_index': str(chunk.chunk_index),
-                                'source_path': chunk.source_path,
-                                'buyer_name': chunk.buyer_name,
-                                'cpv_codes': ','.join(chunk.cpv_codes),
-                                'nuts_regions': ','.join(chunk.nuts_regions),
-                                'publication_date': chunk.publication_date
-                            }]
+                            metadatas=[metadata]
                         )
 
                     total_chunks += len(chunks)
