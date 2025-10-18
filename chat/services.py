@@ -249,35 +249,39 @@ class ChatAgentService:
                 env_var = env_var_map.get(self.provider, 'GOOGLE_API_KEY')
                 os.environ[env_var] = self.api_key
 
-            # Build context with conversation history
-            context_message = message
-
-            # Add conversation history if available
-            if conversation_history and len(conversation_history) > 0:
-                # Get max history from settings
-                max_history = int(os.getenv('MAX_CONVERSATION_HISTORY', '10'))
-
-                print(f"[SERVICE] Añadiendo historial de conversación ({len(conversation_history)} mensajes, límite: {max_history})...", file=sys.stderr)
-
-                # Format history for context (limit to avoid token overflow)
-                recent_history = conversation_history[-max_history:] if len(conversation_history) > max_history else conversation_history
-                history_text = "Historial de la conversación:\n"
-                for msg in recent_history:
-                    role_label = "Usuario" if msg['role'] == 'user' else "Asistente"
-                    history_text += f"{role_label}: {msg['content']}\n"
-
-                context_message = f"{history_text}\n---\n\nMensaje actual:\n{message}"
+            # IMPORTANTE: Para routing efectivo, pasamos SOLO el mensaje actual (sin historial)
+            # Esto permite que el LLM clasifique cada pregunta de forma independiente
+            # El historial se añadirá después en el nodo de respuesta (answer_node)
 
             # Enrich message with company profile context if asking for recommendations
-            enriched_message = context_message
+            enriched_message = message
             recommendation_keywords = ['adecua', 'recomend', 'mejor', 'apropiada', 'conveniente', 'ideal', 'mi empresa']
             if any(keyword in message.lower() for keyword in recommendation_keywords):
                 print(f"[SERVICE] Enriqueciendo mensaje con contexto de empresa...", file=sys.stderr)
-                enriched_message = self._enrich_with_company_context(context_message)
+                enriched_message = self._enrich_with_company_context(message)
+
+            # Prepare conversation history for the agent
+            formatted_history = []
+            if conversation_history and len(conversation_history) > 0:
+                # Get max history from settings
+                max_history = int(os.getenv('MAX_CONVERSATION_HISTORY', '10'))
+                print(f"[SERVICE] Añadiendo historial de conversación ({len(conversation_history)} mensajes, límite: {max_history})...", file=sys.stderr)
+
+                # Format history (limit to avoid token overflow)
+                recent_history = conversation_history[-max_history:] if len(conversation_history) > max_history else conversation_history
+                for msg in recent_history:
+                    formatted_history.append({
+                        'role': msg['role'],
+                        'content': msg['content']
+                    })
 
             # Execute query through the agent
+            # Pasamos el mensaje actual PURO (sin historial) para routing correcto
+            # El historial se pasa por separado
             print(f"[SERVICE] Ejecutando query en el agente...", file=sys.stderr)
-            result = agent.query(enriched_message)
+            print(f"[SERVICE] Mensaje puro (para routing): {enriched_message[:60]}...", file=sys.stderr)
+            print(f"[SERVICE] Historial: {len(formatted_history)} mensajes", file=sys.stderr)
+            result = agent.query(enriched_message, conversation_history=formatted_history)
             print(f"[SERVICE] ✓ Query ejecutado correctamente", file=sys.stderr)
 
             # Extract response content

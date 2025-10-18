@@ -75,7 +75,7 @@ class AgentState(TypedDict):
     Estado del agente RAG.
     Maneja el flujo de mensajes y documentos a través del grafo.
     """
-    question: str  # Pregunta original del usuario
+    question: str  # Pregunta actual del usuario (SOLO la pregunta, sin historial)
     messages: List[HumanMessage | AIMessage | SystemMessage]  # Historial de mensajes
     documents: List[Document]  # Documentos recuperados
     relevant_documents: List[Document]  # Documentos relevantes tras grading
@@ -83,6 +83,7 @@ class AgentState(TypedDict):
     route: str  # Ruta decidida (vectorstore/specific_lookup/general)
     verified_fields: List[Dict[str, Any]]  # Campos verificados con XmlLookup
     iteration: int  # Contador de iteraciones
+    conversation_history: List[Dict[str, Any]]  # Historial de conversación previo
 
 
 # ============================================================================
@@ -260,16 +261,23 @@ class EFormsRAGAgent:
 
     def _route_node(self, state: AgentState) -> AgentState:
         """
-        Nodo de routing: clasifica la consulta usando el LLM.
+        Nodo de routing: clasifica SOLO el mensaje actual usando el LLM.
 
-        ESTRATEGIA: El LLM SIEMPRE clasifica cada conversación por tema,
-        decidiendo automáticamente si necesita buscar en documentos.
+        ESTRATEGIA CRÍTICA:
+        - Clasifica CADA MENSAJE de forma INDEPENDIENTE (no toda la conversación)
+        - Usa SOLO la pregunta actual (state["question"]) sin historial
+        - Esto permite cambiar dinámicamente entre rutas según cada mensaje
+        - El LLM decide automáticamente si necesita buscar en documentos
 
-        Esto permite máxima flexibilidad y adaptabilidad sin depender
-        de keywords rígidas.
+        Ejemplo de flujo multi-turno:
+        1. Usuario: "hola" → clasificado como "general" (sin docs)
+        2. Usuario: "cual es la mejor licitación en software" → "vectorstore" (con docs)
+        3. Usuario: "gracias" → "general" (sin docs)
+
+        Esto permite máxima flexibilidad y efectividad sin depender de keywords rígidas.
         """
-        question = state["question"]
-        logger.info(f"[ROUTE] Clasificando consulta con LLM: {question}")
+        question = state["question"]  # SOLO la pregunta actual, sin historial
+        logger.info(f"[ROUTE] Clasificando SOLO mensaje actual (sin historial): {question}")
 
         try:
             # Crear prompt de routing para el LLM
@@ -409,20 +417,41 @@ class EFormsRAGAgent:
         """
         Nodo de respuesta: genera la respuesta final.
         Maneja tanto respuestas con documentos como conversación general.
+        Usa el historial de conversación para contexto (si está disponible).
         """
         question = state["question"]
         route = state.get("route", "vectorstore")
         relevant_docs = state.get("relevant_documents", state.get("documents", []))
+        conversation_history = state.get("conversation_history", [])
 
         logger.info(f"[ANSWER] Generando respuesta")
+        if conversation_history:
+            logger.info(f"[ANSWER] Usando historial de {len(conversation_history)} mensajes para contexto")
+
+        # Construir contexto con historial si está disponible
+        def build_context_with_history(current_question: str) -> str:
+            """Construye el contexto incluyendo historial de conversación"""
+            if not conversation_history:
+                return current_question
+
+            # Formatear historial
+            history_text = "Historial de la conversación:\n"
+            for msg in conversation_history:
+                role_label = "Usuario" if msg['role'] == 'user' else "Asistente"
+                history_text += f"{role_label}: {msg['content']}\n"
+
+            return f"{history_text}\n---\n\nPregunta actual del usuario:\n{current_question}"
 
         # Si la ruta es "general", responder sin documentos
         if route == "general":
             logger.info("[ANSWER] Conversación general (sin documentos)")
             try:
+                # Construir contexto con historial
+                context_question = build_context_with_history(question)
+
                 messages = [
                     SystemMessage(content=SYSTEM_PROMPT),
-                    HumanMessage(content=f"""Pregunta del usuario: {question}
+                    HumanMessage(content=f"""{context_question}
 
 Responde de forma amigable y natural. Esta es una conversación general, NO tienes documentos específicos disponibles.
 
@@ -452,7 +481,10 @@ Respuesta:""")
 
         # Respuesta con documentos
         logger.info(f"[ANSWER] Respuesta con {len(relevant_docs)} documentos")
-        answer_prompt = create_answer_prompt(question, relevant_docs)
+
+        # Construir el prompt con el historial incluido
+        context_question = build_context_with_history(question)
+        answer_prompt = create_answer_prompt(context_question, relevant_docs)
 
         try:
             messages = [
@@ -526,31 +558,35 @@ Respuesta:""")
     # MÉTODO PRINCIPAL
     # ========================================================================
 
-    def query(self, question: str, filters: Dict[str, Any] = None) -> Dict[str, Any]:
+    def query(self, question: str, filters: Dict[str, Any] = None, conversation_history: List[Dict] = None) -> Dict[str, Any]:
         """
         Ejecuta una consulta en el agente.
 
         Args:
-            question: Pregunta del usuario
+            question: Pregunta del usuario (SOLO la pregunta actual, sin historial)
             filters: Filtros estructurados opcionales
+            conversation_history: Historial de conversación previo (lista de dicts con 'role' y 'content')
 
         Returns:
             Diccionario con respuesta y metadatos
         """
         logger.info(f"\n{'='*60}")
         logger.info(f"CONSULTA: {question}")
+        if conversation_history:
+            logger.info(f"HISTORIAL: {len(conversation_history)} mensajes previos")
         logger.info(f"{'='*60}\n")
 
         # Estado inicial
         initial_state = {
-            "question": question,
+            "question": question,  # Solo la pregunta actual (para routing correcto)
             "messages": [],
             "documents": [],
             "relevant_documents": [],
             "answer": "",
             "route": "",
             "verified_fields": [],
-            "iteration": 0
+            "iteration": 0,
+            "conversation_history": conversation_history or []  # Historial separado
         }
 
         # Ejecutar grafo
