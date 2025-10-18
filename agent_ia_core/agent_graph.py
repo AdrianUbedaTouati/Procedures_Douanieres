@@ -160,10 +160,11 @@ class EFormsRAGAgent:
                 model=self.llm_model,
                 temperature=self.temperature,
                 base_url="http://localhost:11434",
-                # Reducir context length para usar menos RAM con modelos grandes
-                # num_ctx=2048 usa ~50% menos RAM que 4096 (default)
-                # Para modelos 72B: 2048 permite ~25GB RAM, 1024 permite ~18GB RAM
-                num_ctx=2048  # Ajusta a 1024 si sigues teniendo problemas de memoria
+                # Context length configurable desde .env (OLLAMA_CONTEXT_LENGTH)
+                # Valores típicos: 1024, 2048, 4096
+                # Mayor valor = más contexto pero más RAM
+                # 2048 usa ~50% menos RAM que 4096 (default)
+                num_ctx=config.OLLAMA_CONTEXT_LENGTH
             )
         else:  # openai
             self.llm = ChatOpenAI(
@@ -259,10 +260,12 @@ class EFormsRAGAgent:
 
     def _route_node(self, state: AgentState) -> AgentState:
         """
-        Nodo de routing: clasifica la consulta usando detección de palabras clave.
-        Decide si es: conversación general o consulta vectorstore.
+        Nodo de routing: clasifica la consulta.
 
-        Esta implementación NO usa el LLM para evitar problemas de memoria con modelos grandes.
+        ESTRATEGIA: Por defecto, conversación general y fluida.
+        Solo busca en documentos cuando detecta que pregunta específicamente por licitaciones.
+
+        Esto permite conversación natural sin restricciones, y solo cita cuando es necesario.
         """
         question = state["question"]
         logger.info(f"[ROUTE] Clasificando consulta: {question}")
@@ -270,36 +273,34 @@ class EFormsRAGAgent:
         # Normalizar la pregunta para análisis
         question_lower = question.lower().strip()
 
-        # Palabras clave que indican conversación general/casual
-        general_keywords = [
-            # Saludos
-            'hola', 'hi', 'hello', 'hey', 'buenos días', 'buenas tardes', 'buenas noches',
-            'qué tal', 'cómo estás', 'cómo va',
-            # Despedidas
-            'adiós', 'hasta luego', 'chao', 'bye', 'nos vemos',
-            # Agradecimientos
-            'gracias', 'muchas gracias', 'te agradezco', 'thanks',
-            # Preguntas generales (sin especificidad)
-            'qué es', 'qué son', 'explica', 'explícame', 'ayuda', 'ayúdame',
-            'cómo funciona', 'para qué sirve', 'cuál es', 'dime',
-            # Conversación casual
-            'amigo', 'colega', 'tío', 'tía'
+        # Palabras clave que indican que REALMENTE pregunta por licitaciones específicas
+        # Solo en estos casos buscaremos en documentos
+        licitacion_keywords = [
+            # Búsqueda de licitaciones
+            'licitación', 'licitaciones', 'aviso', 'avisos', 'contrato', 'contratos',
+            'convocatoria', 'convocatorias', 'tender', 'tenders',
+            # Acciones específicas sobre licitaciones
+            'cuántas licitaciones', 'qué licitaciones', 'busca licitación', 'buscar licitación',
+            'muéstrame licitaciones', 'dame licitaciones', 'hay licitaciones',
+            'encuentra licitación', 'busco licitación',
+            # Referencias a ofertas/propuestas
+            'oferta pública', 'ofertas públicas', 'concurso público', 'proceso de contratación',
+            # IDs o referencias específicas
+            'id:', 'referencia:', 'expediente:', 'número de licitación'
         ]
 
-        # Verificar si contiene palabras clave generales
-        has_general_keyword = any(keyword in question_lower for keyword in general_keywords)
+        # Verificar si está preguntando específicamente por licitaciones
+        asks_about_tenders = any(keyword in question_lower for keyword in licitacion_keywords)
 
-        # Si es corto (< 30 caracteres) Y tiene palabra clave general -> conversación general
-        # Esto captura: "hola", "hola amigo :)", "gracias", "qué es una licitación?"
-        is_short = len(question_lower) < 30
-
-        if has_general_keyword and is_short:
-            state["route"] = "general"
-            logger.info(f"[ROUTE] Detectada conversación GENERAL (keyword: general, corta)")
-        else:
-            # Para preguntas específicas, largas o que buscan datos concretos -> vectorstore
+        if asks_about_tenders:
+            # Solo si pregunta explícitamente por licitaciones, buscar en documentos
             state["route"] = "vectorstore"
-            logger.info(f"[ROUTE] Detectada consulta VECTORSTORE (específica o larga)")
+            logger.info(f"[ROUTE] Detectada consulta sobre LICITACIONES → Buscar en documentos")
+        else:
+            # TODO LO DEMÁS: conversación general, natural y fluida
+            # Incluye: saludos, charla casual, preguntas generales, explicaciones, etc.
+            state["route"] = "general"
+            logger.info(f"[ROUTE] Conversación GENERAL → Respuesta libre y natural")
 
         state["iteration"] = state.get("iteration", 0) + 1
         logger.info(f"[ROUTE] Ruta decidida: {state['route']}")

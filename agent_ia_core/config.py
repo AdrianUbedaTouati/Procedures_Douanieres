@@ -66,17 +66,23 @@ EMBEDDING_MODEL = GOOGLE_EMBEDDING_MODEL
 EMBEDDING_DIMENSIONS = GOOGLE_EMBEDDING_DIMENSIONS
 LLM_MODEL = GOOGLE_LLM_MODEL
 
-# Temperatura para respuestas (0.0 = determinista)
-LLM_TEMPERATURE = 0.0
+# Temperatura para respuestas (0.0 = determinista, 1.0 = creativo)
+LLM_TEMPERATURE = float(os.getenv('LLM_TEMPERATURE', '0.3'))
+
+# Longitud de contexto para Ollama (tokens)
+OLLAMA_CONTEXT_LENGTH = int(os.getenv('OLLAMA_CONTEXT_LENGTH', '2048'))
+
+# Timeout para llamadas al LLM (segundos)
+LLM_TIMEOUT = int(os.getenv('LLM_TIMEOUT', '120'))
 
 # ================================================
 # PARÁMETROS DE RECUPERACIÓN (RETRIEVER)
 # ================================================
 # Número de chunks a recuperar (top-k)
-DEFAULT_K = 6
+DEFAULT_K = int(os.getenv('DEFAULT_K_RETRIEVE', '6'))
 
 # Umbral de similitud mínima para considerar un chunk relevante
-MIN_SIMILARITY_SCORE = 0.5
+MIN_SIMILARITY_SCORE = float(os.getenv('MIN_SIMILARITY_SCORE', '0.5'))
 
 # Re-ranking: aplicar un re-ranker después de la búsqueda vectorial
 USE_RERANKING = False
@@ -120,8 +126,8 @@ CHUNK_SECTIONS = [
 INDEX_TYPE = "chromadb"
 
 # Configuración para ChromaDB
-CHROMA_COLLECTION_NAME = "eforms_notices"
-CHROMA_PERSIST_DIRECTORY = str(INDEX_DIR / "chroma")
+CHROMA_COLLECTION_NAME = os.getenv('CHROMA_COLLECTION_NAME', 'eforms_chunks')
+CHROMA_PERSIST_DIRECTORY = os.getenv('CHROMA_PERSIST_DIRECTORY', str(INDEX_DIR / "chroma"))
 
 # Configuración para FAISS (si se usa)
 FAISS_INDEX_PATH = str(INDEX_DIR / "faiss_index.bin")
@@ -145,13 +151,13 @@ CRITICAL_FIELDS = [
 AGENT_NODES = ["route", "retrieve", "grade", "verify", "answer"]
 
 # Activar/desactivar nodo de grading (validación de relevancia del contexto)
-USE_GRADING = True
+USE_GRADING = os.getenv('USE_GRADING', 'True').lower() in ('true', '1', 'yes')
 
 # Activar/desactivar nodo de verificación XML (XmlLookup para campos críticos)
-USE_XML_VERIFICATION = True
+USE_XML_VERIFICATION = os.getenv('USE_XML_VERIFICATION', 'True').lower() in ('true', '1', 'yes')
 
 # Número máximo de iteraciones del agente (para evitar loops)
-MAX_AGENT_ITERATIONS = 5
+MAX_AGENT_ITERATIONS = int(os.getenv('MAX_AGENT_ITERATIONS', '5'))
 
 # ================================================
 # CONFIGURACIÓN DE LOGGING Y AUDITORÍA

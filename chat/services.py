@@ -185,7 +185,7 @@ class ChatAgentService:
         Args:
             message: User's question/message
             conversation_history: Previous messages in the conversation (list of dicts with 'role' and 'content')
-                                  Limited to last 10 messages to avoid token overflow
+                                  Limited by MAX_CONVERSATION_HISTORY env var (default: 10) to avoid token overflow
 
         Returns:
             Dict with:
@@ -246,10 +246,13 @@ class ChatAgentService:
 
             # Add conversation history if available
             if conversation_history and len(conversation_history) > 0:
-                print(f"[SERVICE] Añadiendo historial de conversación ({len(conversation_history)} mensajes)...", file=sys.stderr)
+                # Get max history from settings
+                max_history = int(os.getenv('MAX_CONVERSATION_HISTORY', '10'))
 
-                # Format history for context (limit to last 10 messages to avoid token overflow)
-                recent_history = conversation_history[-10:] if len(conversation_history) > 10 else conversation_history
+                print(f"[SERVICE] Añadiendo historial de conversación ({len(conversation_history)} mensajes, límite: {max_history})...", file=sys.stderr)
+
+                # Format history for context (limit to avoid token overflow)
+                recent_history = conversation_history[-max_history:] if len(conversation_history) > max_history else conversation_history
                 history_text = "Historial de la conversación:\n"
                 for msg in recent_history:
                     role_label = "Usuario" if msg['role'] == 'user' else "Asistente"
