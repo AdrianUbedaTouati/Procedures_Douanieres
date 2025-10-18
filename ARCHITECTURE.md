@@ -1522,5 +1522,191 @@ Próximos pasos se enfocan en analytics (tokens, costos) y optimizaciones (gradi
 
 ---
 
+## Integración de Ollama (Modelos LLM Locales)
+
+### Visión General
+
+TenderAI Platform ahora soporta **Ollama** para ejecutar modelos de IA localmente, ofreciendo:
+- ✅ **Privacidad total** - Datos nunca salen de tu máquina
+- ✅ **Costo cero** - Sin cargos por API calls
+- ✅ **Uso ilimitado** - Sin cuotas ni límites
+- ✅ **Funcionamiento offline** - No requiere internet
+- ✅ **Alta calidad** - Modelos 70B comparables a GPT-4
+
+### Modelo Recomendado: Qwen2.5 72B
+
+**Por qué Qwen2.5 72B es ideal para análisis de licitaciones**:
+- Razonamiento analítico superior
+- Excelente en español técnico
+- Sobresale en análisis de datos estructurados
+- Contexto de 128K tokens
+- Comparable a GPT-4 en calidad
+
+### Arquitectura con Ollama
+
+```
+Usuario configura Ollama en perfil:
+  - llm_provider: "ollama"
+  - ollama_model: "qwen2.5:72b"
+  - ollama_embedding_model: "nomic-embed-text"
+  - llm_api_key: (vacío - no necesita)
+            ↓
+ChatAgentService detecta provider=ollama
+            ↓
+EFormsRAGAgent(
+    api_key=None,  # No necesita
+    llm_provider="ollama",
+    ollama_embedding_model="nomic-embed-text"
+)
+            ↓
+ChatOllama(
+    model="qwen2.5:72b",
+    base_url="http://localhost:11434"
+)
+            ↓
+OllamaEmbeddings(
+    model="nomic-embed-text",
+    base_url="http://localhost:11434"
+)
+            ↓
+Servidor Ollama local (puerto 11434)
+```
+
+### Archivos Modificados para Ollama
+
+1. **authentication/models.py**:
+   - Añadidos campos `ollama_model` y `ollama_embedding_model`
+   - Actualizado choices de `llm_provider` con `('ollama', 'Ollama (Local)')`
+
+2. **core/forms.py**:
+   - Añadidos campos de configuración Ollama
+   - Ayuda contextual para modelos
+
+3. **agent_ia_core/agent_graph.py**:
+   - Soporte para `ChatOllama` y `OllamaEmbeddings`
+   - API key opcional para Ollama
+
+4. **agent_ia_core/index_build.py**:
+   - Inicialización de embeddings Ollama locales
+
+5. **core/llm_providers.py**:
+   - Factory methods para Ollama
+   - Información de modelos disponibles
+
+6. **core/token_pricing.py**:
+   - Costo €0.00 para Ollama
+   - Nota: "Completamente GRATIS - Modelo local sin límites"
+
+### Sistema de Instalación Automática
+
+**Script**: `instalar_ollama.bat`
+
+Instalación con un click que:
+1. Descarga e instala Ollama para Windows
+2. Descarga Qwen2.5 72B (~41GB)
+3. Descarga nomic-embed-text (~274MB)
+4. Inicia servidor automáticamente
+5. Verifica instalación completa
+
+**Uso**:
+```cmd
+# Clic derecho → "Ejecutar como administrador"
+instalar_ollama.bat
+```
+
+### Sistema de Verificación
+
+**Página**: http://127.0.0.1:8001/ollama/check/
+
+**Servicio**: `core/ollama_checker.py`
+
+**Funciones de Health Check**:
+- `check_ollama_installed()` - Verifica instalación y versión
+- `check_ollama_running()` - Verifica servidor en puerto 11434
+- `get_installed_models()` - Lista modelos descargados
+- `test_model()` - Prueba modelo en tiempo real
+- `full_health_check()` - Verificación completa automática
+
+**UI de Verificación**:
+- Estado visual (verde/amarillo/rojo)
+- Lista de modelos instalados con tamaños
+- Tu configuración actual
+- Instrucciones contextuales de solución
+- Recomendaciones de modelos
+
+### Modelos Soportados
+
+**Chat Models** (en orden de calidad):
+1. `qwen2.5:72b` - ⭐ Recomendado (41GB, máxima calidad)
+2. `llama3.3:70b` - Alta calidad (40GB)
+3. `llama3.1:70b` - Muy buena (40GB)
+4. `deepseek-r1:14b` - Especializado en razonamiento (9GB)
+5. `mistral:7b` - Rápido (4.1GB)
+
+**Embedding Models**:
+1. `nomic-embed-text` - ⭐ Recomendado (274MB, 8192 tokens contexto)
+2. `mxbai-embed-large` - Mejor en español (669MB)
+
+### Comparativa: Ollama vs Cloud
+
+| Aspecto | Ollama Local | Gemini/OpenAI/NVIDIA |
+|---------|--------------|----------------------|
+| **Privacidad** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| **Costo** | €0.00 Gratis | De pago |
+| **Calidad (72B)** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Velocidad** | Depende HW | Consistente |
+| **Disponibilidad** | Offline | Requiere internet |
+| **Límites** | Ilimitado | Cuotas/Rate limits |
+
+### Requisitos de Hardware
+
+**Para Qwen2.5 72B (recomendado)**:
+- RAM: 32GB+
+- GPU: NVIDIA RTX 5080 (16GB VRAM) o superior
+- Disco: 50GB libres
+- CPU: Cualquier moderno
+
+**Rendimiento esperado** (RTX 5080):
+- Velocidad: 15-25 tokens/segundo
+- Carga primera consulta: ~10 segundos
+- Consultas posteriores: ~2-3 segundos
+
+### Documentación
+
+Ver guía completa en: `GUIA_INSTALACION_OLLAMA.md`
+
+Incluye:
+- Instalación paso a paso (Windows/Linux/macOS)
+- Recomendaciones según hardware
+- Troubleshooting completo
+- Comparativas de modelos
+
+---
+
+## Conclusión
+
+TenderAI Platform es una aplicación Django completa que integra IA avanzada para análisis de licitaciones públicas. Su arquitectura modular separa claramente:
+
+1. **Capa Web (Django)**: Autenticación, CRUD, UX
+2. **Capa IA (Agent_IA Core)**: RAG, LangGraph, multi-provider LLM
+3. **Capa Datos**: SQLite + ChromaDB + Filesystem
+
+**Principio fundamental**: API keys por usuario, sin claves globales en .env.
+
+**Soporte LLM**: Google Gemini, OpenAI, NVIDIA NIM, **Ollama (Local)**
+
+El sistema está producción-ready con funcionalidades core completadas:
+- ✅ Autenticación y perfiles
+- ✅ Descarga desde TED API
+- ✅ Vectorización y búsqueda semántica
+- ✅ Chat RAG funcional
+- ✅ Recomendaciones IA multicriteria
+- ✅ **Soporte Ollama con instalación automática**
+- ✅ **Sistema de verificación y health check**
+
+Próximos pasos se enfocan en analytics (tokens, costos) y optimizaciones (grading, streaming).
+
+---
+
 **Última actualización**: Octubre 2024
-**Versión**: 1.3.1
+**Versión**: 1.4.0 (Ollama Integration)

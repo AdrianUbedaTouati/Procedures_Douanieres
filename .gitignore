@@ -87,3 +87,51 @@ celerybeat.pid
 tests/*.log
 tests/*.txt
 tests/__pycache__/
+
+# ------------------------------------------------
+# Ollama Models (NO SUBIR - Son muy grandes)
+# ------------------------------------------------
+# Directorio de modelos locales de Ollama
+ollama_models/
+*.gguf
+*.bin
+*.safetensors
+
+# Modelos específicos (por nombre)
+models/qwen*
+models/llama*
+models/mistral*
+models/deepseek*
+models/nomic*
+models/mxbai*
+
+# ------------------------------------------------
+# ChromaDB Vector Index (puede ser grande)
+# ------------------------------------------------
+data/index/chroma/
+data/index/*.chroma
+
+# ------------------------------------------------
+# Licitaciones XML (mantener estructura, no archivos)
+# ------------------------------------------------
+data/xml/*.xml
+data/records/*.json
+!data/xml/.gitkeep
+!data/records/.gitkeep
+
+# ------------------------------------------------
+# Archivos de instalación
+# ------------------------------------------------
+*.exe
+OllamaSetup.exe
+
+# ------------------------------------------------
+# Windows específicos
+# ------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
