@@ -120,10 +120,11 @@ class CustomAuthenticationForm(AuthenticationForm):
                         code='not_verified',
                     )
 
-                # Attempt authentication with the actual username from the database
+                # Attempt authentication with the value entered by user (email or username)
+                # The EmailOrUsernameBackend will handle finding the user
                 self.user_cache = authenticate(
                     self.request,
-                    username=user.username,  # Use the actual username from DB
+                    username=username,  # Use what user typed (email or username)
                     password=password
                 )
 
