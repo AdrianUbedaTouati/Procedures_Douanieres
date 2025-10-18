@@ -5,9 +5,47 @@ Todas las cambios notables en TenderAI Platform serán documentados en este arch
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
-## [1.4.0] - 2025-10-18
+## [1.4.0] - 2025-10-19
 
 ### Añadido
+
+- **Sistema de Routing Per-Message (100% LLM)**
+  - Clasifica CADA mensaje de forma independiente (no toda la conversación)
+  - Elimina dependencia de keywords rígidas
+  - Usa solo el mensaje actual para routing, historial solo para respuestas
+  - Permite cambio dinámico entre rutas (general ↔ vectorstore)
+  - Testing completo: 4/4 tests pasando en flujos multi-turno
+  - Archivo: `agent_ia_core/agent_graph.py` - Método `_route_node()`
+  - Prompts mejorados en `agent_ia_core/prompts.py`
+
+- **Configuración avanzada del agente vía .env**
+  - `MAX_CONVERSATION_HISTORY`: Límite de mensajes en contexto (default: 10)
+  - `LLM_TEMPERATURE`: Creatividad del LLM (default: 0.3)
+  - `LLM_TIMEOUT`: Timeout para clasificación (default: 120s)
+  - `DEFAULT_K_RETRIEVE`: Documentos a recuperar (default: 6)
+  - `MIN_SIMILARITY_SCORE`: Umbral de similitud (default: 0.5)
+  - `USE_GRADING`: Activar validación de relevancia (default: True)
+  - `USE_XML_VERIFICATION`: Verificar campos críticos (default: True)
+  - `OLLAMA_CONTEXT_LENGTH`: Context length para Ollama (default: 2048)
+  - Documentación completa en `CONFIGURACION_AGENTE.md`
+
+- **Settings de usuario para grading y verification**
+  - Nuevos campos en modelo User: `use_grading`, `use_verification`
+  - UI en perfil de usuario para configurar el agente
+  - Cada usuario puede personalizar el comportamiento del agente
+  - Archivo: `authentication/models.py`, `authentication/migrations/`
+
+- **UI Premium para Chat**
+  - Diseño ultra-moderno con gradientes púrpura
+  - Burbujas de mensaje con efectos de luz y sombra
+  - Avatares con halo animado al hover
+  - Área de input con borde gradient y glow effect
+  - Botón de enviar con animación de rotación y scale
+  - Badges de citación con efecto shimmer
+  - Paneles de costos diferenciados: verde (Ollama gratis) vs morado (pago)
+  - Versión CSS/JS: 3.0 para forzar recarga
+  - Archivo: `static/chat/css/chat.css`
+
 - **Integración completa de Ollama para modelos LLM locales**
   - Soporte para ejecutar modelos de IA 100% locales sin API keys
   - Modelo recomendado: Qwen2.5 72B (calidad comparable a GPT-4)
@@ -57,6 +95,45 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
   - Actualización de `INSTALACION.md` con opción Ollama
 
 ### Mejorado
+
+- **Arquitectura del Agente RAG completamente reescrita**
+  - `chat/services.py`: Mensaje puro para routing + historial separado
+  - Logs descriptivos: "Mensaje puro (para routing)" vs "Historial: X mensajes"
+  - El agente recibe `conversation_history` como parámetro independiente
+  - Método `query()` actualizado con parámetro `conversation_history`
+
+- **AgentState expandido** (`agent_ia_core/agent_graph.py`)
+  - Nuevo campo: `conversation_history` para historial separado
+  - Documentación mejorada: `question` es SOLO la pregunta actual
+  - Función interna `build_context_with_history()` en answer node
+  - Historial usado SOLO en respuestas, NO en routing
+
+- **Prompts del sistema optimizados** (`agent_ia_core/prompts.py`)
+  - `SYSTEM_PROMPT`: Conversación natural sin forzar temas
+  - Reglas explícitas: "NO menciones licitaciones si no es relevante"
+  - Ejemplos de uso correcto vs incorrecto
+  - Adaptación al contexto conversacional
+
+- **Sistema de indexación corregido** (`agent_ia_core/index_build.py`)
+  - `get_vectorstore()` solo carga índices, NO construye automáticamente
+  - RuntimeError descriptivo si el índice no existe
+  - Mensaje con pasos claros para indexar desde UI Django
+  - Elimina auto-construcción desde `data/records/` inexistente
+
+- **Markdown rendering en chat** (`chat/templates/chat/session_detail.html`)
+  - Librería `markdown` para formateo de respuestas
+  - Syntax highlighting para bloques de código
+  - Listas, negritas, cursivas renderizadas correctamente
+  - Template tag personalizado: `{% load chat_extras %}`
+  - Filtro `markdown_format` para conversión automática
+
+- **Lista de conversaciones mejorada** (`chat/templates/chat/session_list.html`)
+  - Cards con borde izquierdo gradient
+  - Preview del último mensaje en cada card
+  - Botón de eliminar con confirmación
+  - Empty state con diseño elegante
+  - Hover effects y animaciones suaves
+
 - **Soporte multi-provider mejorado**
   - `agent_ia_core/agent_graph.py`: ChatOllama y OllamaEmbeddings
   - `agent_ia_core/llm_factory.py`: Factory methods para Ollama

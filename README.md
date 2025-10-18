@@ -1,22 +1,29 @@
-# TenderAI Platform v1.3.0
+# TenderAI Platform v1.4.0
 
-Plataforma inteligente de análisis de licitaciones públicas con IA integrada.
+Plataforma inteligente de análisis de licitaciones públicas con IA integrada y soporte para LLMs locales.
 
 ## 🚀 Características Principales
 
+- **Chat Inteligente con Routing Per-Message**: Asistente conversacional con RAG (Retrieval-Augmented Generation)
+  - **Sistema de routing 100% LLM** que clasifica cada mensaje de forma independiente
+  - **Soporte multi-proveedor**: Google Gemini, OpenAI, NVIDIA, y **Ollama (100% local y gratis)**
+  - **ChromaDB vectorstore** con 235+ documentos indexados
+  - Cambio dinámico entre conversación general y consulta de documentos
 - **Recomendaciones IA**: Sistema de recomendaciones multicriteria usando Google Gemini
-- **Chat Inteligente**: Asistente conversacional con RAG (Retrieval-Augmented Generation)
 - **Gestión de Licitaciones**: Búsqueda, filtrado y seguimiento de ofertas públicas
 - **Descarga TED API**: Obtención automatizada de licitaciones europeas con progreso en tiempo real
 - **Perfiles Empresariales**: Personalización completa para recomendaciones precisas
 - **Análisis Multicriteria**: Evaluación técnica, presupuestaria, geográfica, de experiencia y competencia
+- **100% Privado con Ollama**: Opción de usar modelos locales sin enviar datos a la nube
 
 ## 📋 Requisitos
 
 - Python 3.10+
 - Django 5.2.6
-- Google Gemini API Key
+- **Opción 1 (Recomendado para privacidad)**: Ollama instalado localmente (100% gratis, sin API key)
+- **Opción 2**: Google Gemini API Key / OpenAI API Key / NVIDIA API Key
 - ChromaDB para vectorización
+- 16GB+ RAM para usar Ollama con modelos grandes
 
 ## 🛠️ Instalación
 
@@ -183,12 +190,91 @@ TenderAI_Platform/
 - **tenders**: CRUD de licitaciones, recomendaciones, búsqueda, descarga desde TED API
 - **chat**: Sesiones de chat, integración con Agent_IA
 
-## 🤖 Integración Agent_IA
+## 🤖 Sistema de Chat Inteligente
 
-### Chat Service
-- Ubicación: `chat/services.py`
-- Funcionalidad: RAG con LangChain + LangGraph
-- Componentes: Route → Retrieve → Grade → Verify → Answer
+### Arquitectura RAG con Routing Per-Message
+
+El chat utiliza un **sistema de routing 100% LLM** que analiza cada mensaje de forma independiente para decidir cómo responder.
+
+#### Componentes Principales
+
+**1. Routing Node (agent_ia_core/agent_graph.py)**
+- Clasifica CADA mensaje individualmente (no toda la conversación)
+- Usa solo el mensaje actual (sin influencia del historial)
+- Decide entre dos rutas:
+  - `vectorstore`: Consultar documentos de licitaciones
+  - `general`: Conversación general sin documentos
+
+**2. Retriever (agent_ia_core/retriever.py)**
+- Recupera documentos relevantes de ChromaDB
+- Embeddings con modelos específicos por proveedor:
+  - **Ollama**: `nomic-embed-text` (local)
+  - **Google**: `models/embedding-001`
+  - **OpenAI**: `text-embedding-3-small`
+  - **NVIDIA**: `nvidia/nv-embedqa-e5-v5`
+
+**3. Answer Node (agent_ia_core/agent_graph.py)**
+- Genera respuestas con contexto conversacional
+- Usa el historial de conversación SOLO para respuestas, NO para routing
+- Combina documentos recuperados + historial para respuestas coherentes
+
+#### Flujo de una Conversación Multi-Turno
+
+```
+Usuario: "hola"
+→ Routing: general (sin historial)
+→ Respuesta: Saludo cordial
+
+Usuario: "cual es la mejor licitación en software"
+→ Routing: vectorstore (analiza SOLO este mensaje)
+→ Recupera: 6 documentos relevantes de ChromaDB
+→ Respuesta: Análisis detallado con datos de las licitaciones
+
+Usuario: "gracias"
+→ Routing: general (NO se confunde con el mensaje anterior!)
+→ Respuesta: Despedida cordial
+```
+
+### Configuración del Agente
+
+El agente es totalmente configurable vía `.env`:
+
+```env
+# Sistema de Routing (LLM-based)
+LLM_TEMPERATURE=0.3              # Creatividad del LLM (0.0-1.0)
+LLM_TIMEOUT=120                  # Timeout en segundos
+
+# Recuperación de Documentos
+DEFAULT_K_RETRIEVE=6             # Documentos a recuperar
+MIN_SIMILARITY_SCORE=0.5         # Umbral de similitud (0.0-1.0)
+
+# Características del Agente
+USE_GRADING=True                 # Validar relevancia de docs
+USE_XML_VERIFICATION=True        # Verificar campos críticos en XML
+
+# Ollama Settings (local)
+OLLAMA_CONTEXT_LENGTH=2048       # Contexto en tokens (1024/2048/4096)
+
+# ChromaDB
+CHROMA_COLLECTION_NAME=eforms_chunks
+CHROMA_PERSIST_DIRECTORY=data/index/chroma
+
+# Historial
+MAX_CONVERSATION_HISTORY=10      # Límite de mensajes en contexto
+```
+
+Consulta [CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md) para detalles completos.
+
+### Proveedores de LLM Soportados
+
+| Proveedor | Modelos | API Key | Costo | Privacidad |
+|-----------|---------|---------|-------|------------|
+| **Ollama** | qwen2.5:7b, llama3.1, etc. | ❌ No necesita | 🆓 Gratis | ✅ 100% Local |
+| Google Gemini | gemini-2.0-flash-exp | ✅ Sí | 💰 Pago | ⚠️ Cloud |
+| OpenAI | gpt-4, gpt-3.5-turbo | ✅ Sí | 💰 Pago | ⚠️ Cloud |
+| NVIDIA | mixtral-8x7b, etc. | ✅ Sí | 💰 Pago | ⚠️ Cloud |
+
+**Recomendación**: Usa Ollama para máxima privacidad y costo cero.
 
 ### Recommendation Service
 - Ubicación: `tenders/services.py`
@@ -276,14 +362,43 @@ static/
     └── js/main.js         # Utilidades generales
 ```
 
-## 📝 Notas de la Versión 1.3.0
+## 📝 Notas de la Versión 1.4.0
 
-### ✅ Nuevo en v1.3.0
+### ✨ Nuevo en v1.4.0 - Sistema de Chat Inteligente Completado
+
+**Sistema de Routing Per-Message:**
+- **Routing 100% LLM** que clasifica cada mensaje de forma independiente
+- **Sin keywords rígidas**: El LLM entiende sinónimos e intención automáticamente
+- **Cambio dinámico**: Alterna entre general/vectorstore según cada mensaje
+- **Historial contextual**: Usado solo para respuestas, NO para clasificación
+- **Testing completo**: 4/4 tests pasando en flujos multi-turno
+
+**Integración Ollama (100% Local y Gratis):**
+- Soporte completo para modelos Ollama (qwen2.5:7b, llama3.1, etc.)
+- **Sin costos**: No se requiere API key ni pagos
+- **100% Privado**: Todos los datos quedan en tu máquina
+- ChromaDB con 235+ documentos indexados de 37 licitaciones
+- Embeddings locales con `nomic-embed-text`
+
+**Configuración Avanzada:**
+- Sistema completamente configurable vía `.env`
+- Archivo [CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md) con guía completa
+- Settings de grading y verificación por usuario
+- Control de context length, temperatura, timeout, etc.
+
+**UI/UX Mejorada:**
+- Diseño premium ultra-moderno para chat
+- Gradientes vibrantes y animaciones suaves
+- Markdown rendering con sintaxis highlight
+- Citation badges con efectos de brillo
+- Paneles de costos diferenciados (Ollama vs Cloud)
+
+### ✅ Incluido en v1.3.0
 - **Cancelación de descargas en tiempo real** con botón dedicado
 - **Precarga automática de datos** del perfil en formularios
 - **Corrección de filtros CPV múltiples** con paréntesis correctos
 - **Solución error HTTP 406** en descarga de XMLs
-- **Persistencia de datos** en perfil de empresa (nombre, descripción, empleados)
+- **Persistencia de datos** en perfil de empresa
 - Sistema de flags de cancelación por usuario thread-safe
 - Headers anti-caché para datos siempre actualizados
 - Logging mejorado con queries completas de TED API
@@ -312,24 +427,65 @@ static/
 - Exportación de recomendaciones a PDF
 - API REST para integraciones
 - Sistema de suscripciones
-- Mejoras en chunking y embeddings
 - Indexación automática post-descarga
 - Programación de descargas periódicas
+- Soporte para más modelos Ollama (llama3.1, phi-3, etc.)
+- Cache de embeddings para mayor velocidad
+- Modo multi-agente para tareas complejas
 
 ## 🐛 Solución de Problemas
 
-### Error: "No API key configurada"
-- Verifica que hayas añadido tu API key en **Mi Perfil**
+### Chat con Ollama
 
-### Error al generar recomendaciones
+**Error: "No se puede conectar con Ollama"**
+1. Verifica que Ollama esté ejecutándose: `ollama serve`
+2. Comprueba que esté en http://localhost:11434
+3. Descarga el modelo: `ollama pull qwen2.5:7b`
+
+**Error: "model requires more system memory"**
+1. Usa un modelo más pequeño (ej: qwen2.5:7b en lugar de qwen2.5:72b)
+2. Reduce `OLLAMA_CONTEXT_LENGTH` en `.env` (de 2048 a 1024)
+3. Cierra otras aplicaciones para liberar RAM
+
+**Chat muy lento con Ollama**
+- Normal en la primera consulta (carga del modelo)
+- Subsecuentes consultas son más rápidas (modelo en caché)
+- Considera usar GPU si está disponible
+
+### Chat con Proveedores Cloud
+
+**Error: "No API key configurada"**
+- Verifica que hayas añadido tu API key en **Mi Perfil** → **Editar Perfil**
+- Selecciona el proveedor correcto (Google/OpenAI/NVIDIA)
+
+**Error al generar recomendaciones**
 - Asegúrate de que tu perfil de empresa esté completo
 - Verifica que la API key sea válida
 
-### Chat no responde
-- Revisa que haya licitaciones indexadas en ChromaDB
-- Verifica la conexión a internet
+### Chat General
 
-### CSS/JS no se cargan (imágenes vacías)
+**Chat no responde o no consulta documentos**
+1. Verifica que haya licitaciones indexadas:
+   - Ve a **/licitaciones/vectorizacion/**
+   - Haz clic en "Indexar Todas las Licitaciones"
+   - Espera a que termine (aparecerá mensaje de éxito)
+2. Comprueba que ChromaDB tenga documentos:
+   ```python
+   python manage.py shell
+   >>> import chromadb
+   >>> client = chromadb.PersistentClient(path='data/index/chroma')
+   >>> collection = client.get_collection('eforms_chunks')
+   >>> print(collection.count())  # Debe mostrar 235+
+   ```
+
+**El routing no funciona correctamente**
+- Verifica los logs del servidor (stderr)
+- Busca líneas con `[ROUTE] Clasificando SOLO mensaje actual`
+- Si usa keywords en lugar de LLM, el servidor no recargó los cambios
+
+### Problemas Generales
+
+**CSS/JS no se cargan (imágenes vacías)**
 1. Verifica que `DEBUG=True` en `.env`
 2. Asegúrate de que Django esté instalado: `pip install django`
 3. Los archivos estáticos deben estar en `static/chat/` y `static/core/`
@@ -342,8 +498,25 @@ Proyecto privado - Todos los derechos reservados
 
 ## 👥 Equipo
 
-Desarrollado con Django 5.2 + LangChain 0.3 + Google Gemini 2.5 Flash
+Desarrollado con:
+- **Backend**: Django 5.2.6 + Python 3.10+
+- **IA/ML**: LangChain 0.3 + LangGraph + ChromaDB
+- **LLMs**: Ollama (local) | Google Gemini 2.5 Flash | OpenAI | NVIDIA
+- **Frontend**: Bootstrap 5 + JavaScript (AJAX)
+- **Database**: SQLite (desarrollo) | PostgreSQL (producción)
 
 ---
 
-**TenderAI Platform v1.3.0** - Encuentra las mejores oportunidades de licitación con IA
+## 📚 Documentación Adicional
+
+- **[CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md)** - Guía completa de configuración del agente RAG
+- **[GUIA_INSTALACION_OLLAMA.md](GUIA_INSTALACION_OLLAMA.md)** - Instalación y configuración de Ollama
+- **[ESTRUCTURA_PROYECTO.md](ESTRUCTURA_PROYECTO.md)** - Arquitectura y estructura del proyecto
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detalles técnicos de arquitectura
+- **[CHANGELOG.md](CHANGELOG.md)** - Historial completo de cambios
+
+---
+
+**TenderAI Platform v1.4.0** - Encuentra las mejores oportunidades de licitación con IA
+
+*Now with 100% local and free AI support via Ollama* 🚀
