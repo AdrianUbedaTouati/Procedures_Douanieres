@@ -389,11 +389,21 @@ class VectorizationService:
                     )
 
                     if temp_data['ids']:
+                        # Clean metadatas: remove None values and ensure all values are strings
+                        cleaned_metadatas = []
+                        for metadata in temp_data['metadatas']:
+                            cleaned_metadata = {}
+                            for key, value in metadata.items():
+                                if value is not None:
+                                    # Convert all values to strings to avoid type issues
+                                    cleaned_metadata[key] = str(value) if not isinstance(value, str) else value
+                            cleaned_metadatas.append(cleaned_metadata)
+
                         final_collection.add(
                             ids=temp_data['ids'],
                             embeddings=temp_data['embeddings'],
                             documents=temp_data['documents'],
-                            metadatas=temp_data['metadatas']
+                            metadatas=cleaned_metadatas
                         )
 
                     if progress_callback:
