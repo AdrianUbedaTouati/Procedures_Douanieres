@@ -237,8 +237,21 @@ class OllamaHealthChecker:
 
         if models_info["success"]:
             for model in models_info["models"]:
-                if model["name"] == model_name:
+                installed_name = model["name"]
+
+                # Exact match
+                if installed_name == model_name:
                     return True
+
+                # Match without :tag (e.g., "nomic-embed-text" matches "nomic-embed-text:latest")
+                if installed_name.startswith(model_name + ":"):
+                    return True
+
+                # Match model_name with :tag against installed without tag
+                if ":" in model_name:
+                    base_name = model_name.split(":")[0]
+                    if installed_name.startswith(base_name + ":"):
+                        return True
 
         return False
 
