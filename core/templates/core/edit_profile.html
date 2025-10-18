@@ -130,20 +130,35 @@
 
                                 <!-- Sección de modelos Ollama -->
                                 <div class="mb-3" id="ollama_models_section" style="display:none;">
-                                    <label for="{{ form.ollama_model.id_for_label }}" class="form-label fw-bold text-white">
+                                    <!-- Mensaje de recomendación -->
+                                    <div class="alert alert-success mb-3">
+                                        <h6 class="alert-heading">
+                                            <i class="bi bi-star-fill"></i> Modelo Recomendado
+                                        </h6>
+                                        <p class="mb-0">
+                                            <strong>qwen2.5:72b</strong> es el mejor modelo para análisis de licitaciones.
+                                            Ofrece calidad comparable a GPT-4 con 100% privacidad y sin costes.
+                                        </p>
+                                    </div>
+
+                                    <label for="ollama_chat_select" class="form-label fw-bold text-white">
                                         <i class="bi bi-cpu"></i> Modelo de Chat
                                     </label>
-                                    {{ form.ollama_model }}
-                                    <small class="form-text text-white-50 d-block mt-1">
-                                        Modelo local para conversaciones (ej: qwen2.5:72b, llama3.3:70b)
+                                    <select name="ollama_model" class="form-select" id="ollama_chat_select">
+                                        <option value="">Cargando modelos...</option>
+                                    </select>
+                                    <small class="form-text text-white-50 d-block mt-1" id="chat_model_info">
+                                        Selecciona un modelo instalado o instala uno nuevo con: ollama pull qwen2.5:72b
                                     </small>
 
-                                    <label for="{{ form.ollama_embedding_model.id_for_label }}" class="form-label fw-bold text-white mt-3">
+                                    <label for="ollama_embed_select" class="form-label fw-bold text-white mt-3">
                                         <i class="bi bi-diagram-3"></i> Modelo de Embeddings
                                     </label>
-                                    {{ form.ollama_embedding_model }}
-                                    <small class="form-text text-white-50 d-block mt-1">
-                                        Modelo para vectorización (ej: nomic-embed-text, mxbai-embed-large)
+                                    <select name="ollama_embedding_model" class="form-select" id="ollama_embed_select">
+                                        <option value="">Cargando modelos...</option>
+                                    </select>
+                                    <small class="form-text text-white-50 d-block mt-1" id="embed_model_info">
+                                        Modelo para vectorización. Recomendado: nomic-embed-text
                                     </small>
 
                                     <!-- Botón de verificación -->
@@ -205,6 +220,74 @@
                             // Cambiar la UI según el proveedor seleccionado
                             document.addEventListener('DOMContentLoaded', function() {
                                 const providerSelect = document.getElementById('llm_provider_select');
+                                const chatSelect = document.getElementById('ollama_chat_select');
+                                const embedSelect = document.getElementById('ollama_embed_select');
+
+                                // Guardar valores actuales del usuario
+                                const currentChatModel = '{{ user.ollama_model|default:"qwen2.5:72b" }}';
+                                const currentEmbedModel = '{{ user.ollama_embedding_model|default:"nomic-embed-text" }}';
+
+                                // Función para cargar modelos de Ollama desde la API
+                                async function loadOllamaModels() {
+                                    try {
+                                        const response = await fetch('{% url "core:ollama_models" %}');
+                                        const data = await response.json();
+
+                                        if (data.success) {
+                                            // Poblar select de modelos de chat
+                                            chatSelect.innerHTML = '';
+                                            if (data.chat_models.length > 0) {
+                                                data.chat_models.forEach(model => {
+                                                    const option = document.createElement('option');
+                                                    option.value = model.name;
+                                                    option.textContent = `${model.name} (${model.size})`;
+                                                    if (model.name === data.recommended_chat) {
+                                                        option.textContent += ' ⭐ Recomendado';
+                                                    }
+                                                    if (model.name === currentChatModel) {
+                                                        option.selected = true;
+                                                    }
+                                                    chatSelect.appendChild(option);
+                                                });
+                                            } else {
+                                                const option = document.createElement('option');
+                                                option.value = '';
+                                                option.textContent = 'No hay modelos de chat instalados';
+                                                chatSelect.appendChild(option);
+                                            }
+
+                                            // Poblar select de modelos de embeddings
+                                            embedSelect.innerHTML = '';
+                                            if (data.embedding_models.length > 0) {
+                                                data.embedding_models.forEach(model => {
+                                                    const option = document.createElement('option');
+                                                    option.value = model.name;
+                                                    option.textContent = `${model.name} (${model.size})`;
+                                                    if (model.name === data.recommended_embedding) {
+                                                        option.textContent += ' ⭐ Recomendado';
+                                                    }
+                                                    if (model.name === currentEmbedModel) {
+                                                        option.selected = true;
+                                                    }
+                                                    embedSelect.appendChild(option);
+                                                });
+                                            } else {
+                                                const option = document.createElement('option');
+                                                option.value = '';
+                                                option.textContent = 'No hay modelos de embeddings instalados';
+                                                embedSelect.appendChild(option);
+                                            }
+                                        } else {
+                                            // Error cargando modelos
+                                            chatSelect.innerHTML = '<option value="">Error: ' + data.message + '</option>';
+                                            embedSelect.innerHTML = '<option value="">Error: ' + data.message + '</option>';
+                                        }
+                                    } catch (error) {
+                                        console.error('Error loading Ollama models:', error);
+                                        chatSelect.innerHTML = '<option value="">Error conectando con Ollama</option>';
+                                        embedSelect.innerHTML = '<option value="">Error conectando con Ollama</option>';
+                                    }
+                                }
 
                                 function updateProviderInfo() {
                                     const provider = providerSelect.value;
@@ -232,6 +315,9 @@
                                         ollamaModelsSection.style.display = 'block';
                                         cloudProviderInfo.style.display = 'none';
                                         ollamaInfo.style.display = 'block';
+
+                                        // Cargar modelos de Ollama
+                                        loadOllamaModels();
                                     } else {
                                         // Proveedores cloud: mostrar API key, ocultar modelos Ollama
                                         apiKeySection.style.display = 'block';

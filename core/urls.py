@@ -13,4 +13,5 @@ urlpatterns = [
     # Ollama verification
     path('ollama/check/', views.ollama_check_view, name='ollama_check'),
     path('ollama/test/', views.ollama_test_api, name='ollama_test'),
+    path('ollama/models/', views.ollama_models_api, name='ollama_models'),
 ]

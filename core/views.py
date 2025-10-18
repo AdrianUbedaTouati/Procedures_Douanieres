@@ -136,3 +136,60 @@ def ollama_test_api(request):
         return JsonResponse(test_result)
 
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
+def ollama_models_api(request):
+    """
+    API endpoint to get installed Ollama models
+    Returns list of available models for dropdowns
+    """
+    try:
+        models_info = OllamaHealthChecker.get_installed_models()
+
+        if models_info["success"]:
+            # Separate models into chat and embedding categories
+            chat_models = []
+            embedding_models = []
+
+            for model in models_info["models"]:
+                model_name = model["name"]
+
+                # Check if it's an embedding model (usually contains 'embed' in name)
+                if 'embed' in model_name.lower():
+                    embedding_models.append({
+                        'name': model_name,
+                        'size': model.get('size', ''),
+                        'modified': model.get('modified', '')
+                    })
+                else:
+                    chat_models.append({
+                        'name': model_name,
+                        'size': model.get('size', ''),
+                        'modified': model.get('modified', '')
+                    })
+
+            return JsonResponse({
+                'success': True,
+                'chat_models': chat_models,
+                'embedding_models': embedding_models,
+                'total_count': models_info['count'],
+                'recommended_chat': 'qwen2.5:72b',
+                'recommended_embedding': 'nomic-embed-text',
+                'message': models_info['message']
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'chat_models': [],
+                'embedding_models': [],
+                'message': models_info['message']
+            })
+
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'chat_models': [],
+            'embedding_models': [],
+            'message': f'Error obteniendo modelos: {str(e)}'
+        })
