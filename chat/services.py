@@ -184,7 +184,8 @@ class ChatAgentService:
 
         Args:
             message: User's question/message
-            conversation_history: Previous messages in the conversation (not used yet)
+            conversation_history: Previous messages in the conversation (list of dicts with 'role' and 'content')
+                                  Limited to last 10 messages to avoid token overflow
 
         Returns:
             Dict with:
@@ -240,12 +241,28 @@ class ChatAgentService:
                 env_var = env_var_map.get(self.provider, 'GOOGLE_API_KEY')
                 os.environ[env_var] = self.api_key
 
+            # Build context with conversation history
+            context_message = message
+
+            # Add conversation history if available
+            if conversation_history and len(conversation_history) > 0:
+                print(f"[SERVICE] Añadiendo historial de conversación ({len(conversation_history)} mensajes)...", file=sys.stderr)
+
+                # Format history for context (limit to last 10 messages to avoid token overflow)
+                recent_history = conversation_history[-10:] if len(conversation_history) > 10 else conversation_history
+                history_text = "Historial de la conversación:\n"
+                for msg in recent_history:
+                    role_label = "Usuario" if msg['role'] == 'user' else "Asistente"
+                    history_text += f"{role_label}: {msg['content']}\n"
+
+                context_message = f"{history_text}\n---\n\nMensaje actual:\n{message}"
+
             # Enrich message with company profile context if asking for recommendations
-            enriched_message = message
+            enriched_message = context_message
             recommendation_keywords = ['adecua', 'recomend', 'mejor', 'apropiada', 'conveniente', 'ideal', 'mi empresa']
             if any(keyword in message.lower() for keyword in recommendation_keywords):
                 print(f"[SERVICE] Enriqueciendo mensaje con contexto de empresa...", file=sys.stderr)
-                enriched_message = self._enrich_with_company_context(message)
+                enriched_message = self._enrich_with_company_context(context_message)
 
             # Execute query through the agent
             print(f"[SERVICE] Ejecutando query en el agente...", file=sys.stderr)
