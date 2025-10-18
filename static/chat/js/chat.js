@@ -68,27 +68,50 @@
     }
 
     // ============================================
-    // Typing Indicator
+    // Typing Indicator with rotating messages
     // ============================================
+    const thinkingMessages = [
+        'Pensando',
+        'Analizando',
+        'Procesando',
+        'Buscando',
+        'Consultando',
+        'Investigando',
+        'Examinando'
+    ];
+
+    let thinkingInterval = null;
+
     function showTypingIndicator() {
         if (!elements.chatMessages) return;
 
         const wasNearBottom = isNearBottom();
+        const randomMessage = thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
 
         const typingHTML = `
             <div class="typing-indicator" id="typingIndicator">
                 <div class="message-avatar avatar-assistant">
                     <i class="bi bi-robot"></i>
                 </div>
-                <div class="typing-dots">
-                    <span class="typing-dot"></span>
-                    <span class="typing-dot"></span>
-                    <span class="typing-dot"></span>
+                <div class="message-content-wrapper">
+                    <div class="typing-message" id="typingMessage" style="color: #6c757d; font-style: italic; padding: 8px 12px;">
+                        <span id="thinkingText">${randomMessage}</span><span class="typing-dots-text">...</span>
+                    </div>
                 </div>
             </div>
         `;
 
         elements.chatMessages.insertAdjacentHTML('beforeend', typingHTML);
+
+        // Rotate thinking messages every 2 seconds
+        let currentIndex = thinkingMessages.indexOf(randomMessage);
+        thinkingInterval = setInterval(() => {
+            const thinkingText = document.getElementById('thinkingText');
+            if (thinkingText) {
+                currentIndex = (currentIndex + 1) % thinkingMessages.length;
+                thinkingText.textContent = thinkingMessages[currentIndex];
+            }
+        }, 2000);
 
         if (wasNearBottom) {
             setTimeout(() => scrollToBottom(), 50);
@@ -96,6 +119,12 @@
     }
 
     function hideTypingIndicator() {
+        // Clear the thinking message interval
+        if (thinkingInterval) {
+            clearInterval(thinkingInterval);
+            thinkingInterval = null;
+        }
+
         const indicator = document.getElementById('typingIndicator');
         if (indicator) {
             indicator.remove();
