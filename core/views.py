@@ -5,7 +5,9 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.http import JsonResponse
 from .forms import EditProfileForm
+from .ollama_checker import OllamaHealthChecker
 import uuid
 
 
@@ -87,3 +89,50 @@ def edit_profile_view(request):
         form = EditProfileForm(instance=request.user)
 
     return render(request, 'core/edit_profile.html', {'form': form})
+
+
+@login_required
+def ollama_check_view(request):
+    """
+    Página de verificación de Ollama
+    Muestra el estado de instalación, servidor y modelos
+    """
+    # Get user's configured models
+    user_chat_model = request.user.ollama_model or "qwen2.5:72b"
+    user_embedding_model = request.user.ollama_embedding_model or "nomic-embed-text"
+
+    # Perform full health check
+    health_status = OllamaHealthChecker.full_health_check(
+        user_chat_model=user_chat_model,
+        user_embedding_model=user_embedding_model
+    )
+
+    # Get recommendations
+    recommendations = OllamaHealthChecker.get_recommendations()
+
+    context = {
+        'health_status': health_status,
+        'recommendations': recommendations,
+        'user_chat_model': user_chat_model,
+        'user_embedding_model': user_embedding_model,
+        'user': request.user,
+    }
+
+    return render(request, 'core/ollama_check.html', context)
+
+
+@login_required
+def ollama_test_api(request):
+    """
+    API endpoint to test Ollama model
+    """
+    if request.method == 'POST':
+        model_name = request.POST.get('model', 'qwen2.5:72b')
+        test_prompt = request.POST.get('prompt', '¿Cuál es la capital de España?')
+
+        # Test the model
+        test_result = OllamaHealthChecker.test_model(model_name, test_prompt)
+
+        return JsonResponse(test_result)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)

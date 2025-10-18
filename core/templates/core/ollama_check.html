@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Verificación de Ollama - TenderAI{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Verificación de Ollama</h1>
+
+    <div class="row">
+        <div class="col-md-12">
+            {% if health_status.overall_status == 'healthy' %}
+                <div class="alert alert-success">
+                    <h4><i class="bi bi-check-circle-fill"></i> Ollama está configurado correctamente</h4>
+                    <p>{{ health_status.message }}</p>
+                </div>
+            {% elif health_status.overall_status == 'not_installed' %}
+                <div class="alert alert-danger">
+                    <h4><i class="bi bi-x-circle-fill"></i> Ollama no está instalado</h4>
+                    <p>{{ health_status.message }}</p>
+                    <p><strong>Solución:</strong> Ejecuta el script <code>instalar_ollama.bat</code> en la carpeta del proyecto</p>
+                </div>
+            {% elif health_status.overall_status == 'server_not_running' %}
+                <div class="alert alert-warning">
+                    <h4><i class="bi bi-exclamation-triangle-fill"></i> Servidor no está corriendo</h4>
+                    <p>{{ health_status.message }}</p>
+                    <p><strong>Solución:</strong> Ejecuta <code>ollama serve</code> en una terminal</p>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <h4><i class="bi bi-exclamation-triangle-fill"></i> Problemas detectados</h4>
+                    <p>{{ health_status.message }}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5>Tu Configuración</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Modelo de Chat:</strong> {{ user_chat_model }}</p>
+                    <p><strong>Modelo de Embeddings:</strong> {{ user_embedding_model }}</p>
+                    <a href="{% url 'core:edit_profile' %}" class="btn btn-sm btn-outline-primary">Cambiar Configuración</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5>Estado del Servidor</h5>
+                </div>
+                <div class="card-body">
+                    {% if health_status.checks.server %}
+                        {% if health_status.checks.server.running %}
+                            <p class="text-success"><i class="bi bi-check-circle-fill"></i> Servidor corriendo</p>
+                            <p><small>URL: {{ health_status.checks.server.url }}</small></p>
+                        {% else %}
+                            <p class="text-danger"><i class="bi bi-x-circle-fill"></i> Servidor detenido</p>
+                            <code>ollama serve</code>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5>Modelos Instalados</h5>
+                </div>
+                <div class="card-body">
+                    {% if health_status.checks.models.models %}
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Modelo</th>
+                                    <th>ID</th>
+                                    <th>Tamaño</th>
+                                    <th>Modificado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for model in health_status.checks.models.models %}
+                                <tr>
+                                    <td>{{ model.name }}</td>
+                                    <td><small>{{ model.id }}</small></td>
+                                    <td>{{ model.size }}</td>
+                                    <td>{{ model.modified }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted">No hay modelos instalados</p>
+                        <p><strong>Descarga el modelo recomendado:</strong></p>
+                        <code>ollama pull qwen2.5:72b</code>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <a href="{% url 'core:dashboard' %}" class="btn btn-secondary">Volver al Dashboard</a>
+            <a href="https://ollama.com/library" target="_blank" class="btn btn-outline-info">Ver Modelos Disponibles</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
