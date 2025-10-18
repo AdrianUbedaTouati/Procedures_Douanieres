@@ -159,7 +159,11 @@ class EFormsRAGAgent:
             self.llm = ChatOllama(
                 model=self.llm_model,
                 temperature=self.temperature,
-                base_url="http://localhost:11434"
+                base_url="http://localhost:11434",
+                # Reducir context length para usar menos RAM con modelos grandes
+                # num_ctx=2048 usa ~50% menos RAM que 4096 (default)
+                # Para modelos 72B: 2048 permite ~25GB RAM, 1024 permite ~18GB RAM
+                num_ctx=2048  # Ajusta a 1024 si sigues teniendo problemas de memoria
             )
         else:  # openai
             self.llm = ChatOpenAI(
