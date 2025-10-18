@@ -260,70 +260,49 @@ class EFormsRAGAgent:
 
     def _route_node(self, state: AgentState) -> AgentState:
         """
-        Nodo de routing: clasifica la consulta.
+        Nodo de routing: clasifica la consulta usando el LLM.
 
-        ESTRATEGIA: Por defecto, conversación general y fluida.
-        Solo busca en documentos cuando detecta que pregunta específicamente por licitaciones.
+        ESTRATEGIA: El LLM SIEMPRE clasifica cada conversación por tema,
+        decidiendo automáticamente si necesita buscar en documentos.
 
-        Esto permite conversación natural sin restricciones, y solo cita cuando es necesario.
+        Esto permite máxima flexibilidad y adaptabilidad sin depender
+        de keywords rígidas.
         """
         question = state["question"]
-        logger.info(f"[ROUTE] Clasificando consulta: {question}")
+        logger.info(f"[ROUTE] Clasificando consulta con LLM: {question}")
 
-        # Normalizar la pregunta para análisis
-        question_lower = question.lower().strip()
+        try:
+            # Crear prompt de routing para el LLM
+            routing_prompt = create_routing_prompt(question)
+            messages = [
+                SystemMessage(content=ROUTING_SYSTEM_PROMPT),
+                HumanMessage(content=routing_prompt)
+            ]
 
-        # Palabras clave que indican que REALMENTE pregunta por licitaciones específicas
-        # IMPORTANTE: Incluir versiones CON y SIN acentos (usuarios a menudo omiten acentos)
-        licitacion_keywords = [
-            # Búsqueda de licitaciones (con y sin acento)
-            'licitacion', 'licitación', 'licitaciones',
-            'aviso', 'avisos', 'contrato', 'contratos',
-            'convocatoria', 'convocatorias', 'tender', 'tenders',
-            # Acciones específicas sobre licitaciones
-            'cuantas licitaciones', 'cuántas licitaciones',
-            'que licitaciones', 'qué licitaciones',
-            'busca licitacion', 'busca licitación',
-            'buscar licitacion', 'buscar licitación',
-            'muestrame licitaciones', 'muéstrame licitaciones',
-            'dame licitaciones', 'hay licitaciones',
-            'encuentra licitacion', 'encuentra licitación',
-            'busco licitacion', 'busco licitación',
-            'mejor licitacion', 'mejor licitación',
-            'cual licitacion', 'cuál licitación',
-            'mas interesante', 'más interesante',
-            'mas interensate',  # typo común
-            # Referencias a ofertas/propuestas
-            'oferta', 'ofertas',  # Palabra clave simple
-            'oferta publica', 'oferta pública',
-            'ofertas publicas', 'ofertas públicas',
-            'mejor oferta', 'cual oferta', 'cuál oferta',
-            'concurso publico', 'concurso público',
-            'proceso de contratacion', 'proceso de contratación',
-            # IDs o referencias específicas
-            'id:', 'referencia:', 'expediente:', 'numero de licitacion', 'número de licitación'
-        ]
+            # El LLM decide la ruta basándose en el tema/intención
+            response = self.llm.invoke(messages)
+            route_decision = response.content.strip().lower()
 
-        # Verificar si está preguntando específicamente por licitaciones
-        asks_about_tenders = any(keyword in question_lower for keyword in licitacion_keywords)
+            # Parse la respuesta del LLM
+            if 'vectorstore' in route_decision or 'specific_lookup' in route_decision:
+                state["route"] = "vectorstore"
+                logger.info(f"[ROUTE] LLM clasificó como DOCUMENTOS (respuesta: {route_decision})")
+            elif 'conversational_procurement' in route_decision:
+                # Charla sobre licitaciones pero sin necesitar documentos específicos
+                state["route"] = "general"
+                logger.info(f"[ROUTE] LLM clasificó como CHARLA GENERAL sobre licitaciones (respuesta: {route_decision})")
+            else:
+                state["route"] = "general"
+                logger.info(f"[ROUTE] LLM clasificó como CONVERSACIÓN GENERAL (respuesta: {route_decision})")
 
-        # DEBUG: Log para ver qué keyword coincidió (o no)
-        if asks_about_tenders:
-            matched = [kw for kw in licitacion_keywords if kw in question_lower]
-            logger.info(f"[ROUTE DEBUG] Keywords detectadas: {matched}")
-
-        if asks_about_tenders:
-            # Solo si pregunta explícitamente por licitaciones, buscar en documentos
-            state["route"] = "vectorstore"
-            logger.info(f"[ROUTE] Detectada consulta sobre LICITACIONES → Buscar en documentos")
-        else:
-            # TODO LO DEMÁS: conversación general, natural y fluida
-            # Incluye: saludos, charla casual, preguntas generales, explicaciones, etc.
+        except Exception as e:
+            # Fallback seguro: si falla el LLM, default a general
+            logger.error(f"[ROUTE] Error en clasificación LLM: {e}")
             state["route"] = "general"
-            logger.info(f"[ROUTE] Conversación GENERAL → Respuesta libre y natural")
+            logger.info(f"[ROUTE] Fallback por error → general")
 
         state["iteration"] = state.get("iteration", 0) + 1
-        logger.info(f"[ROUTE] Ruta decidida: {state['route']}")
+        logger.info(f"[ROUTE] Ruta final decidida: {state['route']}")
         return state
 
     def _retrieve_node(self, state: AgentState) -> AgentState:
