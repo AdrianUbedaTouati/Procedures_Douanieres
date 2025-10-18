@@ -369,7 +369,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         break;
 
                     case 'error':
-                        addLog(`✗ Error en ${data.tender_id}: ${data.error}`, 'error');
+                        const errorContext = data.tender_id || 'indexación';
+                        const errorMsg = data.error || data.message || 'Error desconocido';
+                        addLog(`✗ Error en ${errorContext}: ${errorMsg}`, 'error');
                         break;
 
                     case 'cancelled':

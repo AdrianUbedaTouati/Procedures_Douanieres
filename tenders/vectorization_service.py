@@ -367,15 +367,40 @@ class VectorizationService:
                     metadata={"description": "Licitaciones eForms indexadas"}
                 )
 
-                # Copy all data from temp to final
-                temp_data = temp_collection.get(include=['embeddings', 'documents', 'metadatas'])
-                if temp_data['ids']:
-                    final_collection.add(
-                        ids=temp_data['ids'],
-                        embeddings=temp_data['embeddings'],
-                        documents=temp_data['documents'],
-                        metadatas=temp_data['metadatas']
+                # Copy all data from temp to final in batches (to avoid memory issues)
+                batch_size = 1000  # Process 1000 chunks at a time
+                temp_count = temp_collection.count()
+
+                if progress_callback:
+                    progress_callback({
+                        'type': 'info',
+                        'message': f'Copiando {temp_count} chunks a la colección final (en lotes de {batch_size})...'
+                    })
+
+                # Get all IDs first
+                all_ids = temp_collection.get()['ids']
+
+                # Process in batches
+                for i in range(0, len(all_ids), batch_size):
+                    batch_ids = all_ids[i:i+batch_size]
+                    temp_data = temp_collection.get(
+                        ids=batch_ids,
+                        include=['embeddings', 'documents', 'metadatas']
                     )
+
+                    if temp_data['ids']:
+                        final_collection.add(
+                            ids=temp_data['ids'],
+                            embeddings=temp_data['embeddings'],
+                            documents=temp_data['documents'],
+                            metadatas=temp_data['metadatas']
+                        )
+
+                    if progress_callback:
+                        progress_callback({
+                            'type': 'info',
+                            'message': f'   Copiados {min(i+batch_size, len(all_ids))}/{len(all_ids)} chunks...'
+                        })
 
                 # Delete temporary collection
                 client.delete_collection(name=temp_collection_name)
@@ -390,8 +415,11 @@ class VectorizationService:
                 if progress_callback:
                     progress_callback({
                         'type': 'error',
-                        'message': f'✗ Error al activar colección: {str(e)}'
+                        'message': f'✗ Error al activar colección: {str(e)}',
+                        'error': str(e)
                     })
+                # Don't fail the whole operation - the temp collection has all the data
+                # User can manually rename it if needed
 
             if progress_callback:
                 progress_callback({
