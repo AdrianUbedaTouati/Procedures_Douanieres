@@ -1,5 +1,7 @@
 # ================================================
 # TENDERAI PLATFORM - DEPENDENCIAS
+# Actualizado: Octubre 2024
+# Version: 1.1.0 (Ollama Integration)
 # ================================================
 
 # ------------------------------------------------
@@ -15,48 +17,57 @@ whitenoise==6.10.0
 # ------------------------------------------------
 # Database
 # ------------------------------------------------
-psycopg2-binary==2.9.9  # PostgreSQL
+psycopg2-binary==2.9.9  # PostgreSQL adapter
 dj-database-url==2.2.0   # Database URL parsing
 
 # ------------------------------------------------
 # Authentication & Security
 # ------------------------------------------------
 django-allauth==0.63.3   # Enhanced authentication
-argon2-cffi==23.1.0      # Stronger password hashing
+argon2-cffi==23.1.0      # Strong password hashing
 
 # ------------------------------------------------
 # Agent_IA Core - LangChain & LangGraph
+# IMPORTANTE: Versiones compatibles con Ollama
 # ------------------------------------------------
-langchain>=0.3.27
-langchain-core>=1.0.0
-langchain-openai>=0.3.35
-langchain-google-genai>=2.0.10
-langchain-nvidia-ai-endpoints>=0.3.18
-langchain-ollama>=1.0.0
-langchain-community>=0.3.0
-langgraph>=0.2.63
-langchain-chroma>=0.2.0
+# LangChain Core (version 1.x necesaria para Ollama)
+langchain==0.3.27
+langchain-core==1.0.0
+langchain-community==0.3.0
+langgraph==0.2.63
+
+# LangChain Providers
+langchain-openai==0.3.35           # OpenAI GPT-4
+langchain-google-genai==2.0.10     # Google Gemini
+langchain-nvidia-ai-endpoints==0.3.18  # NVIDIA NIM
+langchain-ollama==1.0.0            # Ollama (Local) - NUEVO
+
+# Vector Store
+langchain-chroma==0.2.0
 
 # ------------------------------------------------
 # LLM APIs
 # ------------------------------------------------
-openai>=1.0.0
-google-generativeai>=0.8.0
-tiktoken>=0.7.0
+openai==1.61.0          # OpenAI API client
+google-generativeai==0.8.3  # Google Gemini API
+tiktoken==0.8.0         # OpenAI tokenizer
+httpx>=0.28.0           # Required by Ollama
 
 # ------------------------------------------------
 # Vector Database
 # ------------------------------------------------
 chromadb==0.5.23
+hnswlib==0.8.0          # Fast ANN search (used by ChromaDB)
+sentence-transformers>=3.3.1  # For embeddings
 
 # ------------------------------------------------
 # XML Processing & Data Validation
 # ------------------------------------------------
-lxml>=5.0.0
-requests>=2.32.3
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-python-dateutil>=2.8.2
+lxml==5.3.0
+requests==2.32.3
+pydantic==2.12.2
+pydantic-settings==2.7.0
+python-dateutil==2.9.0.post0
 
 # ------------------------------------------------
 # Async Tasks & Background Jobs
@@ -69,7 +80,7 @@ django-celery-results==2.5.1
 # ------------------------------------------------
 # Media & File Processing
 # ------------------------------------------------
-pillow==11.3.0
+Pillow==11.3.0
 
 # ------------------------------------------------
 # API & WebSockets
@@ -81,9 +92,9 @@ daphne==4.1.2
 # ------------------------------------------------
 # Utilities
 # ------------------------------------------------
-python-dotenv>=1.0.0
-tqdm>=4.65.0
-PyYAML>=6.0
+python-dotenv==1.0.1
+tqdm==4.67.1
+PyYAML==6.0.2
 
 # ------------------------------------------------
 # Monitoring & Logging
@@ -113,3 +124,44 @@ mypy==1.13.0
 # ------------------------------------------------
 django-storages==1.14.4  # S3 storage
 boto3==1.35.77           # AWS SDK
+
+# ------------------------------------------------
+# Additional Dependencies
+# ------------------------------------------------
+# JSON handling
+orjson==3.11.3
+
+# HTTP client
+httpcore==1.0.9
+
+# Type checking
+typing-extensions==4.15.0
+annotated-types==0.7.0
+
+# Compression
+zstandard==0.25.0
+
+# ================================================
+# NOTAS DE INSTALACION
+# ================================================
+#
+# Para instalar todas las dependencias:
+#   pip install -r requirements.txt
+#
+# Para instalar solo las dependencias core (sin testing/dev):
+#   pip install Django langchain langchain-ollama chromadb
+#
+# Para actualizar todas las dependencias:
+#   pip install -U -r requirements.txt
+#
+# OLLAMA:
+#   Ollama NO requiere instalacion via pip.
+#   Ejecutar: instalar_ollama.bat (Windows)
+#   O descargar desde: https://ollama.com
+#
+# COMPATIBILIDAD:
+#   Python: 3.10, 3.11, 3.12
+#   Sistema Operativo: Windows, Linux, macOS
+#   Base de Datos: SQLite (dev), PostgreSQL (prod)
+#
+# ================================================
