@@ -82,9 +82,32 @@
                                 <div class="message-metadata mt-1">
                                     <i class="bi bi-diagram-3"></i>
                                     <span>Ruta: {{ msg.metadata.route }}</span>
-                                    {% if msg.metadata.tokens_used %}
-                                        <span class="text-muted">• {{ msg.metadata.tokens_used }} tokens</span>
-                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                <!-- Token and Cost Info -->
+                                {% if msg.metadata.total_tokens %}
+                                <div class="message-cost-info" style="margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white; font-size: 12px;">
+                                    <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-coin" style="font-size: 14px;"></i>
+                                            <span><strong>Tokens:</strong> {{ msg.metadata.input_tokens|default:0 }} entrada + {{ msg.metadata.output_tokens|default:0 }} salida = {{ msg.metadata.total_tokens }}</span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <i class="bi bi-cash" style="font-size: 14px;"></i>
+                                            <span><strong>Coste:</strong>
+                                                {% if msg.metadata.cost_eur == 0 %}
+                                                    €0.00 (Gratis)
+                                                {% elif msg.metadata.cost_eur < 0.01 %}
+                                                    €{{ msg.metadata.cost_eur|stringformat:".4f" }}
+                                                {% elif msg.metadata.cost_eur < 1 %}
+                                                    €{{ msg.metadata.cost_eur|stringformat:".3f" }}
+                                                {% else %}
+                                                    €{{ msg.metadata.cost_eur|stringformat:".2f" }}
+                                                {% endif %}
+                                                <small style="opacity: 0.8;">(aprox.)</small>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                                 {% endif %}
                             {% endif %}
@@ -104,6 +127,46 @@
                 </div>
                 {% endif %}
             </div>
+
+            <!-- Total Cost Summary Panel (if there are messages) -->
+            {% if messages %}
+            {% load chat_extras %}
+            {% calculate_session_totals messages as totals %}
+            {% if totals.total_tokens > 0 %}
+            <div style="margin: 16px 20px; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                <div style="text-align: center; margin-bottom: 12px;">
+                    <h4 style="margin: 0; font-size: 14px; font-weight: 600; opacity: 0.9;">💰 Total de la conversación</h4>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                    <div style="text-align: center; background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+                        <div style="font-size: 10px; opacity: 0.9; margin-bottom: 4px;">TOTAL TOKENS</div>
+                        <div style="font-size: 18px; font-weight: 700;">{{ totals.total_tokens|floatformat:0 }}</div>
+                    </div>
+                    <div style="text-align: center; background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+                        <div style="font-size: 10px; opacity: 0.9; margin-bottom: 4px;">MENSAJES</div>
+                        <div style="font-size: 18px; font-weight: 700;">{{ totals.message_count }}</div>
+                    </div>
+                    <div style="text-align: center; background: rgba(255,255,255,0.15); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px);">
+                        <div style="font-size: 10px; opacity: 0.9; margin-bottom: 4px;">COSTE TOTAL</div>
+                        <div style="font-size: 18px; font-weight: 700;">
+                            {% if totals.total_cost == 0 %}
+                                €0.00
+                            {% elif totals.total_cost < 0.01 %}
+                                €{{ totals.total_cost|stringformat:".4f" }}
+                            {% elif totals.total_cost < 1 %}
+                                €{{ totals.total_cost|stringformat:".3f" }}
+                            {% else %}
+                                €{{ totals.total_cost|stringformat:".2f" %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 8px;">
+                    <small style="opacity: 0.8; font-size: 11px;">(Costes aproximados con conversión USD→EUR fija)</small>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
 
             <!-- Chat Input -->
             <div class="chat-input-container">
