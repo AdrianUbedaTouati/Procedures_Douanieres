@@ -316,7 +316,7 @@ class EFormsRAGAgent:
             state["route"] = "general"
             logger.info(f"[ROUTE] Fallback por error → general")
 
-        state["iteration"] = state.get("iteration", 0) + 1
+        # No incrementar iteration aquí - se incrementará solo en retrieve cuando sea necesario
         logger.info(f"[ROUTE] Ruta final decidida: {state['route']}")
         return state
 
@@ -325,7 +325,12 @@ class EFormsRAGAgent:
         Nodo de recuperación: busca documentos relevantes.
         """
         question = state["question"]
-        logger.info(f"[RETRIEVE] Buscando documentos para: {question}")
+
+        # Incrementar contador de iteraciones solo cuando recuperamos
+        current_iteration = state.get("iteration", 0)
+        state["iteration"] = current_iteration + 1
+
+        logger.info(f"[RETRIEVE] Buscando documentos para: {question} (intento #{state['iteration']})")
 
         # Recuperar documentos
         documents = self.retriever.retrieve(question, k=self.k_retrieve)
@@ -529,11 +534,17 @@ class EFormsRAGAgent:
     def _decide_after_grade(self, state: AgentState) -> Literal["verify", "answer", "retrieve"]:
         """Decide qué hacer después del grading."""
         relevant_docs = state.get("relevant_documents", [])
+        all_docs = state.get("documents", [])
         iteration = state.get("iteration", 1)
 
-        # Si no hay documentos relevantes y no hemos reintentado, reintentar UNA vez
+        # Si no hay documentos EN ABSOLUTO (ChromaDB vacío), NO reintentar
+        if not all_docs:
+            logger.warning("[DECIDE] No se recuperaron documentos. ChromaDB puede estar vacío. Pasando a respuesta general.")
+            return "answer"
+
+        # Si no hay documentos relevantes y no hemos reintentado, reintentar SOLO UNA vez
         if not relevant_docs and iteration == 1:
-            logger.info("[DECIDE] Sin documentos relevantes, reintentando...")
+            logger.info("[DECIDE] Sin documentos relevantes, reintentando UNA vez...")
             return "retrieve"
 
         # Si hay al menos 1 documento relevante, es suficiente para intentar responder
@@ -545,12 +556,9 @@ class EFormsRAGAgent:
             else:
                 return "answer"
 
-        # Si después de reintentar sigue sin documentos, responder con lo que hay
-        logger.info("[DECIDE] Sin suficientes documentos después de reintentar, continuando a respuesta")
-        if self.use_verification:
-            return "verify"
-        else:
-            return "answer"
+        # Si después de reintentar sigue sin documentos relevantes, responder igualmente
+        logger.info(f"[DECIDE] Sin suficientes documentos después de {iteration} intentos, continuando a respuesta")
+        return "answer"
 
     # ========================================================================
     # MÉTODO PRINCIPAL
