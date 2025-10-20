@@ -13,6 +13,16 @@ import uuid
 
 def home_view(request):
     """Vista principal de la aplicación"""
+    print(f"[HOME DEBUG] Usuario autenticado: {request.user.is_authenticated}")
+    if request.user.is_authenticated:
+        print(f"[HOME DEBUG] Usuario: {request.user.username} (ID: {request.user.id})")
+        print(f"[HOME DEBUG] Session key: {request.session.session_key}")
+        print(f"[HOME DEBUG] User ID en sesión: {request.session.get('_auth_user_id')}")
+    else:
+        print(f"[HOME DEBUG] Usuario NO autenticado (AnonymousUser)")
+        print(f"[HOME DEBUG] Session key: {request.session.session_key}")
+        print(f"[HOME DEBUG] Contenido de sesión: {dict(request.session.items())}")
+
     context = {
         'total_users': 0,  # Placeholder for future statistics
     }

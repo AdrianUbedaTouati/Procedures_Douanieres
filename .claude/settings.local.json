@@ -1,8 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout 5 bash -c 'sleep 2')",
-      "Bash(timeout 3 bash -c 'sleep 2')"
+      "Bash(cat .env)"
     ],
     "deny": [],
     "ask": []

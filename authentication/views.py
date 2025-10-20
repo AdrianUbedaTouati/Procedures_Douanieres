@@ -71,28 +71,46 @@ def register_view(request):
 
 def login_view(request):
     if request.user.is_authenticated:
+        print(f"[LOGIN DEBUG] Usuario ya autenticado: {request.user.username}")
         return redirect('core:home')
 
     if request.method == 'POST':
+        print(f"[LOGIN DEBUG] POST recibido. Username: {request.POST.get('username')}")
         form = CustomAuthenticationForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
+            print(f"[LOGIN DEBUG] Formulario válido. Usuario: {user.username} (ID: {user.id})")
+
+            # Imprimir sesión ANTES de login
+            print(f"[LOGIN DEBUG] Session key ANTES de login: {request.session.session_key}")
+
             login(request, user)
+
+            # Imprimir sesión DESPUÉS de login
+            print(f"[LOGIN DEBUG] Session key DESPUÉS de login: {request.session.session_key}")
+            print(f"[LOGIN DEBUG] User ID en sesión: {request.session.get('_auth_user_id')}")
+            print(f"[LOGIN DEBUG] User autenticado: {request.user.is_authenticated}")
 
             # Handle remember me
             if not form.cleaned_data.get('remember_me'):
                 request.session.set_expiry(0)
+                print(f"[LOGIN DEBUG] Remember me: NO (sesión expira al cerrar navegador)")
             else:
                 request.session.set_expiry(1209600)  # 2 weeks
+                print(f"[LOGIN DEBUG] Remember me: SÍ (sesión dura 2 semanas)")
 
             # Forzar guardado de sesión
             request.session.modified = True
             request.session.save()
+            print(f"[LOGIN DEBUG] Sesión guardada forzadamente")
+            print(f"[LOGIN DEBUG] Session key FINAL: {request.session.session_key}")
 
             messages.success(request, f'Bienvenido, {user.username}!')
             next_url = request.GET.get('next', 'core:home')
+            print(f"[LOGIN DEBUG] Redirigiendo a: {next_url}")
             return redirect(next_url)
         else:
+            print(f"[LOGIN DEBUG] Formulario NO válido. Errores: {form.errors}")
             # Verificar si hay un error de verificación de email
             if form.non_field_errors():
                 for error in form.non_field_errors():
