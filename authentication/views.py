@@ -110,20 +110,23 @@ def login_view(request):
             print(f"[LOGIN DEBUG] Sesión guardada forzadamente")
             print(f"[LOGIN DEBUG] Session key FINAL: {request.session.session_key}")
 
-            # IMPORTANTE: Forzar que Django marque la sesión como accedida
-            # para que envíe la cookie Set-Cookie en la respuesta
-            _ = request.session.session_key  # Acceder a session_key
-
+            # SOLUCIÓN: Renderizar template con redirect JavaScript
+            # Esto da tiempo al navegador para guardar la cookie
             messages.success(request, f'Bienvenido, {user.username}!')
-            next_url = request.GET.get('next', 'core:home')
-            print(f"[LOGIN DEBUG] Redirigiendo a: {next_url}")
+            next_url = request.GET.get('next', '/')
 
-            # Crear respuesta y verificar
-            response = redirect(next_url)
-            print(f"[LOGIN DEBUG] Response status: {response.status_code}")
-            print(f"[LOGIN DEBUG] Response tiene cookies: {hasattr(response, 'cookies')}")
+            print(f"[LOGIN DEBUG] Renderizando template de éxito con redirect a: {next_url}")
 
-            return response
+            # Renderizar página intermedia que redirige con JavaScript
+            from django.shortcuts import render
+            from django.urls import reverse
+
+            context = {
+                'next_url': next_url if next_url.startswith('/') else reverse('core:home'),
+                'user': user
+            }
+
+            return render(request, 'authentication/login_success.html', context)
         else:
             print(f"[LOGIN DEBUG] Formulario NO válido. Errores: {form.errors}")
             # Verificar si hay un error de verificación de email
