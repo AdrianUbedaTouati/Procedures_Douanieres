@@ -2,6 +2,85 @@
 
 ---
 
+## [3.1.0] - 2025-10-20
+
+### 🛠️ **Correcciones Críticas de ChromaDB y Sistema de Vectorización**
+
+#### Problema 1: Error de telemetría ChromaDB
+**Síntoma**: Ruido en logs con `ERROR:chromadb.telemetry.product.posthog`
+**Solución**:
+- Añadido `ANONYMIZED_TELEMETRY=False` al archivo `.env`
+- Deshabilita completamente la telemetría de ChromaDB
+- Elimina el ruido en los logs del servidor
+
+#### Problema 2: WinError 32 al indexar desde la interfaz web
+**Síntoma**: `[WinError 32] El proceso no tiene acceso al archivo porque está siendo utilizado por otro proceso`
+**Causa raíz**:
+- `get_vectorstore_status()` no daba suficiente tiempo a Windows para liberar el archivo
+- El archivo `chroma.sqlite3` quedaba bloqueado entre la carga de página y la indexación
+
+**Solución**:
+- Aumentado el sleep de 0.3s a 1.0s en `get_vectorstore_status()` (línea 123)
+- Windows ahora tiene tiempo suficiente para liberar los handles de archivos
+- Archivo: `tenders/vectorization_service.py`
+
+#### Problema 3: Botón "Limpiar Vectorstore" no funcional
+**Síntoma**: El botón no eliminaba las vectorizaciones
+**Causa raíz**:
+- `clear_vectorstore()` intentaba usar `delete_collection()` que falla con metadatos corruptos
+- No puede eliminar lo que no puede leer (KeyError '_type')
+
+**Solución**:
+- Simplificado `clear_vectorstore()` para SIEMPRE eliminar el directorio completo
+- Ya no depende del parámetro `force` (mantenido por compatibilidad)
+- Añade `gc.collect()` + `sleep(0.5s)` antes de eliminar (Windows)
+- Elimina directorio con `shutil.rmtree()` sin intentar leer metadatos
+- Archivo: `tenders/vectorization_service.py` (líneas 499-545)
+
+#### Problema 4: KeyError '_type' en ChromaDB corrupto
+**Síntoma**: Error al intentar indexar cuando ChromaDB tiene metadatos corruptos
+**Causa raíz**:
+- ChromaDB intenta LEER metadatos existentes antes de crear/eliminar colecciones
+- Si metadatos están corruptos → KeyError '_type' antes de poder limpiar
+
+**Solución DEFINITIVA**:
+- Eliminar directorio COMPLETO ANTES de crear cliente ChromaDB
+- `shutil.rmtree()` no necesita leer metadatos de ChromaDB
+- Cliente nuevo encuentra directorio vacío → crea todo limpio
+- Archivo: `tenders/vectorization_service.py` (líneas 172-213)
+
+**Flujo de indexación ahora**:
+1. Usuario hace clic en "Indexar"
+2. Sistema elimina directorio `data/index/chroma` completo (si existe)
+3. `gc.collect()` + `sleep(0.5s)` → Windows libera handles
+4. Crea nuevo cliente ChromaDB con directorio limpio
+5. Indexa todas las licitaciones desde cero
+6. Si se cancela o hay error → elimina directorio completo (no queda basura)
+
+#### Mejoras adicionales
+- Detección específica de corrupción en `get_vectorstore_status()`
+- Nuevo status `'corrupted'` con mensaje claro al usuario
+- Handlers de cancelación y error también eliminan directorio completo
+- Sistema 100% robusto ante corrupciones de ChromaDB
+
+#### Archivos Modificados
+- `.env` - Añadido `ANONYMIZED_TELEMETRY=False`
+- `tenders/vectorization_service.py`:
+  - `get_vectorstore_status()` - Detección de corrupción + sleep aumentado
+  - `index_all_tenders()` - Elimina directorio ANTES de crear cliente
+  - `clear_vectorstore()` - Simplificado, siempre elimina directorio
+  - Handlers de cancelación y error actualizados
+
+#### Resultado Final
+- ✅ NO MÁS errores de telemetría en logs
+- ✅ NO MÁS WinError 32 al indexar desde la web
+- ✅ NO MÁS KeyError '_type' por ChromaDB corrupto
+- ✅ Botón "Limpiar Vectorstore" funciona correctamente
+- ✅ Sistema completamente estable y robusto en Windows
+- ✅ Código más simple y mantenible
+
+---
+
 ## [3.0.0] - 2025-01-20
 
 ### ✨ **MAYOR: Sistema Function Calling Multi-Proveedor**

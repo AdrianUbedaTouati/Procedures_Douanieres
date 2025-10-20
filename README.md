@@ -61,7 +61,10 @@ EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 # Agent_IA Configuration
 LLM_PROVIDER=google
 DEFAULT_K_RETRIEVE=5
-CHROMA_COLLECTION_NAME=licitaciones
+CHROMA_COLLECTION_NAME=eforms_chunks
+
+# ChromaDB Configuration
+ANONYMIZED_TELEMETRY=False  # Deshabilita telemetría para evitar errores en logs
 ```
 
 5. **Aplicar migraciones**
