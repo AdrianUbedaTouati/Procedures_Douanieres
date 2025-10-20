@@ -149,6 +149,8 @@ class VectorizationService:
 
             # SIEMPRE eliminar ChromaDB completo al inicio para evitar corrupciones
             import shutil
+            import gc
+            import time
             chroma_path = Path(persist_dir)
 
             if progress_callback:
@@ -157,24 +159,74 @@ class VectorizationService:
                     'message': 'Limpiando índice anterior...'
                 })
 
-            try:
-                if chroma_path.exists():
-                    shutil.rmtree(chroma_path)
+            # Intentar cerrar cualquier cliente ChromaDB existente
+            if chroma_path.exists():
+                try:
+                    # Intentar crear y cerrar un cliente temporal para liberar archivos
+                    temp_client = chromadb.PersistentClient(path=persist_dir)
+
+                    # Intentar obtener y eliminar colección para liberar recursos
+                    try:
+                        collection = temp_client.get_collection(name=collection_name)
+                        temp_client.delete_collection(name=collection_name)
+                    except:
+                        pass
+
+                    # Eliminar referencia y forzar garbage collection
+                    del temp_client
+                    gc.collect()
+
+                    # Pequeña pausa para que Windows libere los archivos
+                    time.sleep(0.5)
+
+                except Exception as e:
+                    # No importa si falla, continuamos
+                    pass
+
+            # Intentar eliminar el directorio completo
+            retry_count = 0
+            max_retries = 3
+            deleted = False
+
+            while retry_count < max_retries and not deleted:
+                try:
+                    if chroma_path.exists():
+                        shutil.rmtree(chroma_path)
+                        deleted = True
+                        if progress_callback:
+                            progress_callback({
+                                'type': 'info',
+                                'message': '✓ Índice anterior eliminado. Creando nuevo índice desde cero...'
+                            })
+                except Exception as clean_error:
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        # Esperar un poco más y reintentar
+                        time.sleep(1)
+                        gc.collect()
+                    else:
+                        # Último intento falló
+                        if progress_callback:
+                            progress_callback({
+                                'type': 'error',
+                                'message': f'⚠️ No se pudo eliminar índice anterior. Continuando...'
+                            })
+
+            # Create ChromaDB client (directorio limpio o existente)
+            client = chromadb.PersistentClient(path=persist_dir)
+
+            # Si no se pudo eliminar el directorio, al menos eliminar la colección
+            if not deleted:
+                try:
+                    client.delete_collection(name=collection_name)
                     if progress_callback:
                         progress_callback({
                             'type': 'info',
-                            'message': '✓ Índice anterior eliminado. Creando nuevo índice desde cero...'
+                            'message': '✓ Colección anterior eliminada. Creando nueva...'
                         })
-            except Exception as clean_error:
-                if progress_callback:
-                    progress_callback({
-                        'type': 'error',
-                        'message': f'⚠️ Advertencia: No se pudo eliminar índice anterior: {str(clean_error)}'
-                    })
-                # Continuar de todas formas
-
-            # Create ChromaDB client (directorio limpio)
-            client = chromadb.PersistentClient(path=persist_dir)
+                except:
+                    # La colección no existe o ya fue eliminada
+                    pass
 
             # Create embeddings using the selected provider
             if self.provider == 'ollama':
