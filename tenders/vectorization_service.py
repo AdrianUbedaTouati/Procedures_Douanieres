@@ -91,9 +91,21 @@ class VectorizationService:
             finally:
                 # IMPORTANTE: Cerrar cliente para liberar archivos en Windows
                 if client is not None:
+                    try:
+                        # Forzar cierre de conexiones SQLite
+                        if hasattr(client, '_server') and hasattr(client._server, '_sysdb'):
+                            # Intentar cerrar la base de datos
+                            if hasattr(client._server._sysdb, 'reset_state'):
+                                client._server._sysdb.reset_state()
+                    except:
+                        pass
+
                     del client
                     import gc
+                    import time
                     gc.collect()
+                    # Pausa breve para que Windows libere el archivo
+                    time.sleep(0.3)
 
             return result
 
