@@ -150,15 +150,58 @@ class VectorizationService:
             # Create ChromaDB client
             client = chromadb.PersistentClient(path=persist_dir)
 
-            # Delete old collection if exists
+            # Delete old collection if exists (with robust error handling)
+            collection_deleted = False
             try:
                 client.delete_collection(name=collection_name)
+                collection_deleted = True
                 if progress_callback:
                     progress_callback({
                         'type': 'info',
                         'message': '✓ Colección anterior eliminada. Creando nueva indexación...'
                     })
-            except:
+            except KeyError as ke:
+                # ChromaDB metadata corruption - force clean
+                if progress_callback:
+                    progress_callback({
+                        'type': 'info',
+                        'message': '⚠️ Detectada corrupción en ChromaDB. Limpiando forzadamente...'
+                    })
+
+                # Force clean by deleting the entire ChromaDB directory
+                import shutil
+                try:
+                    # Close client first
+                    del client
+
+                    # Delete directory
+                    chroma_path = Path(persist_dir)
+                    if chroma_path.exists():
+                        shutil.rmtree(chroma_path)
+                        if progress_callback:
+                            progress_callback({
+                                'type': 'info',
+                                'message': '✓ ChromaDB limpiado. Creando nueva base de datos...'
+                            })
+
+                    # Recreate client with clean directory
+                    client = chromadb.PersistentClient(path=persist_dir)
+                    collection_deleted = True
+
+                except Exception as clean_error:
+                    if progress_callback:
+                        progress_callback({
+                            'type': 'fatal_error',
+                            'error': str(clean_error),
+                            'message': f'❌ Error en limpieza forzada: {str(clean_error)}'
+                        })
+                    return {
+                        'success': False,
+                        'error': f'No se pudo limpiar ChromaDB corrupto: {str(clean_error)}'
+                    }
+
+            except Exception as e:
+                # Collection doesn't exist or other error
                 if progress_callback:
                     progress_callback({
                         'type': 'info',
@@ -404,9 +447,12 @@ class VectorizationService:
                 'traceback': error_trace
             }
 
-    def clear_vectorstore(self) -> Dict[str, Any]:
+    def clear_vectorstore(self, force: bool = False) -> Dict[str, Any]:
         """
-        Clear the entire vectorstore (delete collection)
+        Clear the entire vectorstore (delete collection or entire database)
+
+        Args:
+            force: If True, deletes the entire ChromaDB directory (for corruption recovery)
 
         Returns:
             Dict with operation results
@@ -414,23 +460,53 @@ class VectorizationService:
         try:
             from agent_ia_core import config
             import chromadb
+            import shutil
 
-            persist_dir = getattr(config, 'CHROMA_PERSIST_DIR', './chroma_db')
-            collection_name = getattr(config, 'CHROMA_COLLECTION_NAME', 'licitaciones')
+            persist_dir = getattr(config, 'CHROMA_PERSIST_DIRECTORY', str(config.INDEX_DIR / 'chroma'))
+            collection_name = getattr(config, 'CHROMA_COLLECTION_NAME', 'eforms_chunks')
 
-            client = chromadb.PersistentClient(path=persist_dir)
+            if force:
+                # Force delete entire ChromaDB directory (for corruption recovery)
+                try:
+                    chroma_path = Path(persist_dir)
+                    if chroma_path.exists():
+                        shutil.rmtree(chroma_path)
+                        return {
+                            'success': True,
+                            'message': f'ChromaDB completamente eliminado (forzado). Directorio: {persist_dir}'
+                        }
+                    else:
+                        return {
+                            'success': True,
+                            'message': 'ChromaDB ya no existe'
+                        }
+                except Exception as e:
+                    return {
+                        'success': False,
+                        'error': f'Error en limpieza forzada: {str(e)}'
+                    }
+            else:
+                # Normal delete (just the collection)
+                client = chromadb.PersistentClient(path=persist_dir)
 
-            try:
-                client.delete_collection(name=collection_name)
-                return {
-                    'success': True,
-                    'message': f'Colección "{collection_name}" eliminada exitosamente'
-                }
-            except Exception as e:
-                return {
-                    'success': False,
-                    'error': f'Error eliminando colección: {str(e)}'
-                }
+                try:
+                    client.delete_collection(name=collection_name)
+                    return {
+                        'success': True,
+                        'message': f'Colección "{collection_name}" eliminada exitosamente'
+                    }
+                except KeyError:
+                    # Corruption detected - suggest force delete
+                    return {
+                        'success': False,
+                        'error': 'ChromaDB corrupto detectado. Usa force=True para limpieza completa.',
+                        'suggestion': 'Ejecuta: service.clear_vectorstore(force=True)'
+                    }
+                except Exception as e:
+                    return {
+                        'success': False,
+                        'error': f'Error eliminando colección: {str(e)}'
+                    }
 
         except Exception as e:
             return {
