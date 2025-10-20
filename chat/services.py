@@ -15,14 +15,12 @@ if agent_ia_path not in sys.path:
 class ChatAgentService:
     """Service to interact with the Agent_IA RAG system"""
 
-    def __init__(self, user, use_function_calling=None):
+    def __init__(self, user):
         """
         Initialize the chat agent service
 
         Args:
             user: Django User instance with llm_api_key, llm_provider, ollama_model, ollama_embedding_model
-            use_function_calling: If True, use FunctionCallingAgent. If False, use EFormsRAGAgent.
-                                  If None, check user.use_function_calling attribute or env var USE_FUNCTION_CALLING
         """
         self.user = user
         self.api_key = user.llm_api_key if hasattr(user, 'llm_api_key') else None
@@ -31,19 +29,9 @@ class ChatAgentService:
         self.ollama_embedding_model = user.ollama_embedding_model if hasattr(user, 'ollama_embedding_model') else 'nomic-embed-text'
         self._agent = None
 
-        # Determine if we should use Function Calling
-        if use_function_calling is None:
-            # Check user attribute first, then env var, default to False for backward compatibility
-            if hasattr(user, 'use_function_calling'):
-                self.use_function_calling = user.use_function_calling
-            else:
-                self.use_function_calling = os.getenv('USE_FUNCTION_CALLING', 'false').lower() == 'true'
-        else:
-            self.use_function_calling = use_function_calling
-
     def _get_agent(self):
         """
-        Initialize and return the appropriate agent (FunctionCallingAgent or EFormsRAGAgent)
+        Initialize and return FunctionCallingAgent
         Cached per service instance
         """
         if self._agent is not None:
@@ -53,11 +41,8 @@ class ChatAgentService:
         if not self.api_key and self.provider != 'ollama':
             raise ValueError("No API key configured for user")
 
-        # Route to appropriate agent type
-        if self.use_function_calling:
-            return self._create_function_calling_agent()
-        else:
-            return self._create_legacy_agent()
+        # Always use Function Calling Agent (modern implementation)
+        return self._create_function_calling_agent()
 
     def _create_function_calling_agent(self):
         """
@@ -137,100 +122,6 @@ class ChatAgentService:
         except requests.exceptions.Timeout:
             raise ValueError("Timeout al conectar con Ollama. Verifica que esté funcionando correctamente.")
 
-    def _create_legacy_agent(self):
-        """
-        Create and return the legacy EFormsRAGAgent (original implementation)
-        """
-        try:
-            # Import agent_graph module
-            from agent_ia_core import agent_graph
-            from agent_ia_core import config
-
-            print(f"[SERVICE] Creando EFormsRAGAgent (legacy)...", file=sys.stderr)
-
-            # Map provider names to agent_graph format
-            provider_map = {
-                'gemini': ('google', 'gemini-2.0-flash-exp'),
-                'openai': ('openai', 'gpt-4o-mini'),
-                'nvidia': ('nvidia', 'meta/llama-3.1-8b-instruct'),
-                'ollama': ('ollama', self.ollama_model)  # Use user's configured model
-            }
-
-            # IMPORTANTE: NO usar fallback. Si el provider no está en el map, es un error.
-            # Esto asegura que siempre se use la configuración del perfil del usuario.
-            if self.provider not in provider_map:
-                raise ValueError(
-                    f"Proveedor LLM no válido: '{self.provider}'. "
-                    f"Por favor, ve a tu perfil y selecciona un proveedor válido: "
-                    f"{', '.join(provider_map.keys())}"
-                )
-
-            agent_provider, model_name = provider_map[self.provider]
-
-            # Create agent instance with user's API key and provider
-            if self.provider == 'ollama':
-                # Verificar que Ollama está disponible antes de crear el agente
-                import requests
-                try:
-                    response = requests.get('http://localhost:11434/api/tags', timeout=2)
-                    if response.status_code != 200:
-                        raise ValueError("Ollama no está respondiendo correctamente en http://localhost:11434")
-
-                    # Verificar que el modelo está descargado
-                    models = response.json().get('models', [])
-                    model_names = [m['name'] for m in models]
-                    if model_name not in model_names:
-                        available = ', '.join(model_names[:5]) if model_names else 'ninguno'
-                        raise ValueError(
-                            f"El modelo '{model_name}' no está descargado en Ollama. "
-                            f"Modelos disponibles: {available}. "
-                            f"Descárgalo con: ollama pull {model_name}"
-                        )
-                except requests.exceptions.ConnectionError:
-                    raise ValueError(
-                        "No se puede conectar con Ollama. "
-                        "Verifica que Ollama esté ejecutándose: ollama serve"
-                    )
-                except requests.exceptions.Timeout:
-                    raise ValueError("Timeout al conectar con Ollama. Verifica que esté funcionando correctamente.")
-
-                # Ollama doesn't need API key
-                self._agent = agent_graph.EFormsRAGAgent(
-                    api_key=None,  # No API key for Ollama
-                    llm_provider=agent_provider,
-                    llm_model=model_name,
-                    ollama_embedding_model=self.ollama_embedding_model,
-                    temperature=0.3,
-                    k_retrieve=6,
-                    use_grading=self.user.use_grading if hasattr(self.user, 'use_grading') else False,
-                    use_verification=self.user.use_verification if hasattr(self.user, 'use_verification') else False
-                )
-            else:
-                # Cloud providers need API key
-                self._agent = agent_graph.EFormsRAGAgent(
-                    api_key=self.api_key,
-                    llm_provider=agent_provider,
-                    llm_model=model_name,
-                    temperature=0.3,
-                    k_retrieve=6,
-                    use_grading=self.user.use_grading if hasattr(self.user, 'use_grading') else False,
-                    use_verification=self.user.use_verification if hasattr(self.user, 'use_verification') else False
-                )
-
-            return self._agent
-
-        except ImportError as e:
-            raise Exception(f"Error importing agent modules: {e}")
-        except RuntimeError as e:
-            # RuntimeError específico del índice vectorial vacío
-            error_msg = str(e)
-            if "índice vectorial no existe" in error_msg or "vectorstore" in error_msg.lower():
-                # Extraer el mensaje formateado del error
-                raise Exception(f"Índice no inicializado:\n\n{error_msg}")
-            else:
-                raise Exception(f"Error de runtime: {e}")
-        except Exception as e:
-            raise Exception(f"Error creating agent: {e}")
 
     def _enrich_with_company_context(self, message: str) -> str:
         """
