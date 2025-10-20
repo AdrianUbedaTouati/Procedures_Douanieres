@@ -252,34 +252,40 @@ class FunctionCallingAgent:
         """Prepara los mensajes para el LLM."""
         messages = []
 
-        # Añadir system prompt para instruir al modelo a usar tools
+        # Determinar si es el primer mensaje (sin historial)
+        is_first_message = not conversation_history or len(conversation_history) == 0
+
+        # System prompt base (siempre presente)
         system_prompt_parts = [
             "Eres un asistente experto en licitaciones públicas europeas. Tienes acceso a herramientas especializadas para consultar información sobre licitaciones.",
             ""
         ]
 
-        # Añadir resumen de licitaciones disponibles si existe
-        if self.tenders_summary:
-            system_prompt_parts.append("=" * 60)
-            system_prompt_parts.append(self.tenders_summary)
-            system_prompt_parts.append("=" * 60)
-            system_prompt_parts.append("")
-            system_prompt_parts.append("Usa este listado para tener una idea general de las licitaciones disponibles.")
-            system_prompt_parts.append("Para consultas específicas, SIEMPRE usa las herramientas de búsqueda.")
-            system_prompt_parts.append("")
+        # SOLO en el primer mensaje: Añadir contextos completos
+        if is_first_message:
+            # Añadir resumen de licitaciones disponibles si existe
+            if self.tenders_summary:
+                system_prompt_parts.append("=" * 60)
+                system_prompt_parts.append(self.tenders_summary)
+                system_prompt_parts.append("=" * 60)
+                system_prompt_parts.append("")
+                system_prompt_parts.append("Usa este listado para tener una idea general de las licitaciones disponibles.")
+                system_prompt_parts.append("Para consultas específicas, SIEMPRE usa las herramientas de búsqueda.")
+                system_prompt_parts.append("")
 
-        # Añadir contexto de empresa si existe
-        if self.company_context:
-            system_prompt_parts.append("=" * 60)
-            system_prompt_parts.append("INFORMACIÓN DE LA EMPRESA DEL USUARIO:")
-            system_prompt_parts.append("=" * 60)
-            system_prompt_parts.append(self.company_context)
-            system_prompt_parts.append("=" * 60)
-            system_prompt_parts.append("")
-            system_prompt_parts.append("Cuando el usuario pregunte sobre su empresa o pida información personalizada,")
-            system_prompt_parts.append("usa esta información de contexto para responder de forma específica.")
-            system_prompt_parts.append("")
+            # Añadir contexto de empresa si existe
+            if self.company_context:
+                system_prompt_parts.append("=" * 60)
+                system_prompt_parts.append("INFORMACIÓN DE LA EMPRESA DEL USUARIO:")
+                system_prompt_parts.append("=" * 60)
+                system_prompt_parts.append(self.company_context)
+                system_prompt_parts.append("=" * 60)
+                system_prompt_parts.append("")
+                system_prompt_parts.append("Cuando el usuario pregunte sobre su empresa o pida información personalizada,")
+                system_prompt_parts.append("usa esta información de contexto para responder de forma específica.")
+                system_prompt_parts.append("")
 
+        # Instrucciones (siempre presentes)
         system_prompt_parts.extend([
             "IMPORTANTE: Debes SIEMPRE usar las herramientas disponibles para responder preguntas sobre licitaciones. NO inventes información.",
             "",

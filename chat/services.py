@@ -161,13 +161,14 @@ class ChatAgentService:
     def _get_tenders_summary(self) -> str:
         """
         Obtiene un resumen de todas las licitaciones disponibles (parsed_summary).
-        Solo incluye campos REQUIRED y OPTIONAL, no META.
+        Incluye TODOS los campos REQUIRED y OPTIONAL completos, sin META.
 
         Returns:
             String con resumen formateado de licitaciones, o vacío si no hay
         """
         try:
             from tenders.models import Tender
+            import json
 
             # Obtener licitaciones que tienen parsed_summary
             tenders = Tender.objects.exclude(parsed_summary={}).exclude(parsed_summary__isnull=True).order_by('-publication_date')[:50]  # Últimas 50
@@ -183,34 +184,18 @@ class ChatAgentService:
 
             for idx, tender in enumerate(tenders, 1):
                 parsed = tender.parsed_summary
-                required = parsed.get('REQUIRED', {})
-                optional = parsed.get('OPTIONAL', {})
 
-                # Información básica
-                tender_summary = [
-                    f"[{idx}] {required.get('ojs_notice_id', 'N/A')}",
-                    f"    Título: {required.get('title', 'N/A')[:100]}",
-                    f"    Comprador: {required.get('buyer_name', 'N/A')[:80]}",
-                ]
+                # Extraer solo REQUIRED y OPTIONAL (sin META)
+                tender_data = {
+                    'REQUIRED': parsed.get('REQUIRED', {}),
+                    'OPTIONAL': parsed.get('OPTIONAL', {})
+                }
 
-                # Información opcional relevante
-                if optional.get('budget_eur'):
-                    tender_summary.append(f"    Presupuesto: {optional['budget_eur']:,.2f}€")
+                # Convertir a JSON formateado para legibilidad
+                tender_json = json.dumps(tender_data, ensure_ascii=False, indent=2)
 
-                if optional.get('tender_deadline_date'):
-                    tender_summary.append(f"    Plazo: {optional['tender_deadline_date']}")
-
-                if optional.get('contract_type'):
-                    tender_summary.append(f"    Tipo: {optional['contract_type']}")
-
-                # CPV codes
-                cpv_main = required.get('cpv_main', '')
-                cpv_additional = optional.get('cpv_additional', [])
-                all_cpvs = [cpv_main] + cpv_additional if cpv_main else cpv_additional
-                if all_cpvs:
-                    tender_summary.append(f"    CPV: {', '.join(all_cpvs[:3])}")
-
-                summary_parts.append('\n'.join(tender_summary))
+                summary_parts.append(f"[{idx}] Licitación {parsed.get('REQUIRED', {}).get('ojs_notice_id', 'N/A')}")
+                summary_parts.append(tender_json)
                 summary_parts.append('')  # Línea en blanco entre licitaciones
 
             return '\n'.join(summary_parts)
