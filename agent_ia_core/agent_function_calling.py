@@ -60,7 +60,8 @@ class FunctionCallingAgent:
         db_session=None,
         max_iterations: int = 5,
         temperature: float = 0.3,
-        company_context: str = ""
+        company_context: str = "",
+        tenders_summary: str = ""
     ):
         """
         Inicializa el agente con function calling.
@@ -74,6 +75,7 @@ class FunctionCallingAgent:
             max_iterations: Máximo de iteraciones del loop
             temperature: Temperatura del LLM
             company_context: Contexto de la empresa del usuario (opcional)
+            tenders_summary: Resumen de licitaciones disponibles (opcional)
         """
         self.llm_provider = llm_provider.lower()
         self.llm_model = llm_model
@@ -81,6 +83,7 @@ class FunctionCallingAgent:
         self.max_iterations = max_iterations
         self.temperature = temperature
         self.company_context = company_context  # Guardar contexto de empresa
+        self.tenders_summary = tenders_summary  # Guardar resumen de licitaciones
 
         # Validaciones
         if self.llm_provider not in ['ollama', 'openai', 'google']:
@@ -254,6 +257,16 @@ class FunctionCallingAgent:
             "Eres un asistente experto en licitaciones públicas europeas. Tienes acceso a herramientas especializadas para consultar información sobre licitaciones.",
             ""
         ]
+
+        # Añadir resumen de licitaciones disponibles si existe
+        if self.tenders_summary:
+            system_prompt_parts.append("=" * 60)
+            system_prompt_parts.append(self.tenders_summary)
+            system_prompt_parts.append("=" * 60)
+            system_prompt_parts.append("")
+            system_prompt_parts.append("Usa este listado para tener una idea general de las licitaciones disponibles.")
+            system_prompt_parts.append("Para consultas específicas, SIEMPRE usa las herramientas de búsqueda.")
+            system_prompt_parts.append("")
 
         # Añadir contexto de empresa si existe
         if self.company_context:

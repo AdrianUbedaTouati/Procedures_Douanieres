@@ -32,6 +32,9 @@ class ChatAgentService:
         # Obtener contexto de empresa si existe
         self.company_context = self._get_company_context()
 
+        # Obtener resumen de licitaciones disponibles
+        self.tenders_summary = self._get_tenders_summary()
+
     def _get_agent(self):
         """
         Initialize and return FunctionCallingAgent
@@ -80,7 +83,7 @@ class ChatAgentService:
             else:
                 model = self.ollama_model  # Fallback
 
-            # Crear agente con contexto de empresa
+            # Crear agente con contexto de empresa y resumen de licitaciones
             self._agent = FunctionCallingAgent(
                 llm_provider=self.provider,
                 llm_model=model,
@@ -89,12 +92,15 @@ class ChatAgentService:
                 db_session=None,  # Usa conexión Django default
                 max_iterations=5,
                 temperature=0.3,
-                company_context=self.company_context  # Pasar contexto de empresa
+                company_context=self.company_context,  # Pasar contexto de empresa
+                tenders_summary=self.tenders_summary   # Pasar resumen de licitaciones
             )
 
             print(f"[SERVICE] ✓ FunctionCallingAgent creado con {len(self._agent.tool_registry.tools)} tools", file=sys.stderr)
             if self.company_context:
                 print(f"[SERVICE] ✓ Contexto de empresa incluido en system prompt", file=sys.stderr)
+            if self.tenders_summary:
+                print(f"[SERVICE] ✓ Resumen de licitaciones incluido en system prompt", file=sys.stderr)
             return self._agent
 
         except Exception as e:
@@ -150,6 +156,68 @@ class ChatAgentService:
         except Exception as e:
             # Si hay error, retornar vacío para no bloquear el chat
             print(f"[SERVICE] Error obteniendo contexto de empresa: {e}", file=sys.stderr)
+            return ""
+
+    def _get_tenders_summary(self) -> str:
+        """
+        Obtiene un resumen de todas las licitaciones disponibles (parsed_summary).
+        Solo incluye campos REQUIRED y OPTIONAL, no META.
+
+        Returns:
+            String con resumen formateado de licitaciones, o vacío si no hay
+        """
+        try:
+            from tenders.models import Tender
+
+            # Obtener licitaciones que tienen parsed_summary
+            tenders = Tender.objects.exclude(parsed_summary={}).exclude(parsed_summary__isnull=True).order_by('-publication_date')[:50]  # Últimas 50
+
+            if not tenders.exists():
+                return ""
+
+            summary_parts = [
+                "LICITACIONES DISPONIBLES EN LA BASE DE DATOS:",
+                f"Total: {tenders.count()} licitaciones más recientes",
+                ""
+            ]
+
+            for idx, tender in enumerate(tenders, 1):
+                parsed = tender.parsed_summary
+                required = parsed.get('REQUIRED', {})
+                optional = parsed.get('OPTIONAL', {})
+
+                # Información básica
+                tender_summary = [
+                    f"[{idx}] {required.get('ojs_notice_id', 'N/A')}",
+                    f"    Título: {required.get('title', 'N/A')[:100]}",
+                    f"    Comprador: {required.get('buyer_name', 'N/A')[:80]}",
+                ]
+
+                # Información opcional relevante
+                if optional.get('budget_eur'):
+                    tender_summary.append(f"    Presupuesto: {optional['budget_eur']:,.2f}€")
+
+                if optional.get('tender_deadline_date'):
+                    tender_summary.append(f"    Plazo: {optional['tender_deadline_date']}")
+
+                if optional.get('contract_type'):
+                    tender_summary.append(f"    Tipo: {optional['contract_type']}")
+
+                # CPV codes
+                cpv_main = required.get('cpv_main', '')
+                cpv_additional = optional.get('cpv_additional', [])
+                all_cpvs = [cpv_main] + cpv_additional if cpv_main else cpv_additional
+                if all_cpvs:
+                    tender_summary.append(f"    CPV: {', '.join(all_cpvs[:3])}")
+
+                summary_parts.append('\n'.join(tender_summary))
+                summary_parts.append('')  # Línea en blanco entre licitaciones
+
+            return '\n'.join(summary_parts)
+
+        except Exception as e:
+            # Si hay error, retornar vacío para no bloquear el chat
+            print(f"[SERVICE] Error obteniendo resumen de licitaciones: {e}", file=sys.stderr)
             return ""
 
 
