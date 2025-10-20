@@ -118,9 +118,6 @@ def login_view(request):
             print(f"[LOGIN DEBUG] Renderizando template de éxito con redirect a: {next_url}")
 
             # Renderizar página intermedia que redirige con JavaScript
-            from django.shortcuts import render
-            from django.urls import reverse
-
             context = {
                 'next_url': next_url if next_url.startswith('/') else reverse('core:home'),
                 'user': user
