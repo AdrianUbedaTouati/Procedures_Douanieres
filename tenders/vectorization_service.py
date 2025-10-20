@@ -147,66 +147,34 @@ class VectorizationService:
             persist_dir = getattr(config, 'CHROMA_PERSIST_DIRECTORY', str(config.INDEX_DIR / 'chroma'))
             collection_name = getattr(config, 'CHROMA_COLLECTION_NAME', 'eforms_notices')
 
-            # Create ChromaDB client
-            client = chromadb.PersistentClient(path=persist_dir)
+            # SIEMPRE eliminar ChromaDB completo al inicio para evitar corrupciones
+            import shutil
+            chroma_path = Path(persist_dir)
 
-            # Delete old collection if exists (with robust error handling)
-            collection_deleted = False
+            if progress_callback:
+                progress_callback({
+                    'type': 'info',
+                    'message': 'Limpiando índice anterior...'
+                })
+
             try:
-                client.delete_collection(name=collection_name)
-                collection_deleted = True
-                if progress_callback:
-                    progress_callback({
-                        'type': 'info',
-                        'message': '✓ Colección anterior eliminada. Creando nueva indexación...'
-                    })
-            except KeyError as ke:
-                # ChromaDB metadata corruption - force clean
-                if progress_callback:
-                    progress_callback({
-                        'type': 'info',
-                        'message': '⚠️ Detectada corrupción en ChromaDB. Limpiando forzadamente...'
-                    })
-
-                # Force clean by deleting the entire ChromaDB directory
-                import shutil
-                try:
-                    # Close client first
-                    del client
-
-                    # Delete directory
-                    chroma_path = Path(persist_dir)
-                    if chroma_path.exists():
-                        shutil.rmtree(chroma_path)
-                        if progress_callback:
-                            progress_callback({
-                                'type': 'info',
-                                'message': '✓ ChromaDB limpiado. Creando nueva base de datos...'
-                            })
-
-                    # Recreate client with clean directory
-                    client = chromadb.PersistentClient(path=persist_dir)
-                    collection_deleted = True
-
-                except Exception as clean_error:
+                if chroma_path.exists():
+                    shutil.rmtree(chroma_path)
                     if progress_callback:
                         progress_callback({
-                            'type': 'fatal_error',
-                            'error': str(clean_error),
-                            'message': f'❌ Error en limpieza forzada: {str(clean_error)}'
+                            'type': 'info',
+                            'message': '✓ Índice anterior eliminado. Creando nuevo índice desde cero...'
                         })
-                    return {
-                        'success': False,
-                        'error': f'No se pudo limpiar ChromaDB corrupto: {str(clean_error)}'
-                    }
-
-            except Exception as e:
-                # Collection doesn't exist or other error
+            except Exception as clean_error:
                 if progress_callback:
                     progress_callback({
-                        'type': 'info',
-                        'message': 'No hay colección anterior. Creando primera indexación...'
+                        'type': 'error',
+                        'message': f'⚠️ Advertencia: No se pudo eliminar índice anterior: {str(clean_error)}'
                     })
+                # Continuar de todas formas
+
+            # Create ChromaDB client (directorio limpio)
+            client = chromadb.PersistentClient(path=persist_dir)
 
             # Create embeddings using the selected provider
             if self.provider == 'ollama':
@@ -248,14 +216,29 @@ class VectorizationService:
                     if progress_callback:
                         progress_callback({
                             'type': 'cancelled',
-                            'message': '⚠️ Indexación cancelada por el usuario. Limpiando colección temporal...'
+                            'message': '⚠️ Indexación cancelada por el usuario. Eliminando índice incompleto...'
                         })
 
-                    # Delete collection on cancellation
+                    # Eliminar TODO el directorio ChromaDB en caso de cancelación
                     try:
-                        client.delete_collection(name=collection_name)
-                    except:
-                        pass
+                        # Cerrar cliente primero
+                        del client
+
+                        # Eliminar directorio completo
+                        if chroma_path.exists():
+                            shutil.rmtree(chroma_path)
+
+                        if progress_callback:
+                            progress_callback({
+                                'type': 'info',
+                                'message': '✓ Índice incompleto eliminado correctamente.'
+                            })
+                    except Exception as cleanup_error:
+                        if progress_callback:
+                            progress_callback({
+                                'type': 'error',
+                                'message': f'⚠️ Error limpiando índice: {str(cleanup_error)}'
+                            })
 
                     return {
                         'success': False,
@@ -264,7 +247,7 @@ class VectorizationService:
                         'total_chunks': total_chunks,
                         'total_tokens': total_tokens,
                         'total_cost_eur': total_cost_eur,
-                        'message': 'Indexación cancelada.'
+                        'message': 'Indexación cancelada. Índice eliminado.'
                     }
 
                 try:
@@ -431,12 +414,33 @@ class VectorizationService:
             import traceback
             error_trace = traceback.format_exc()
 
-            # Clean up collection on fatal error
+            # Eliminar TODO el directorio ChromaDB en caso de error fatal
+            if progress_callback:
+                progress_callback({
+                    'type': 'error',
+                    'message': f'⚠️ Error fatal durante indexación. Eliminando índice incompleto...'
+                })
+
             try:
-                if 'collection' in locals():
-                    client.delete_collection(name=collection_name)
-            except:
-                pass
+                # Cerrar cliente si existe
+                if 'client' in locals():
+                    del client
+
+                # Eliminar directorio completo
+                if chroma_path.exists():
+                    shutil.rmtree(chroma_path)
+
+                if progress_callback:
+                    progress_callback({
+                        'type': 'info',
+                        'message': '✓ Índice incompleto eliminado.'
+                    })
+            except Exception as cleanup_error:
+                if progress_callback:
+                    progress_callback({
+                        'type': 'error',
+                        'message': f'⚠️ Error en limpieza: {str(cleanup_error)}'
+                    })
 
             if progress_callback:
                 progress_callback({
