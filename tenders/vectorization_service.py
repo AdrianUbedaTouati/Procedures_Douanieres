@@ -248,10 +248,55 @@ class VectorizationService:
                     'message': f'Creando colección: {collection_name}'
                 })
 
-            collection = client.create_collection(
-                name=collection_name,
-                metadata={"description": "Licitaciones eForms indexadas"}
-            )
+            # Intentar crear colección con manejo de corrupción
+            collection = None
+            try:
+                collection = client.create_collection(
+                    name=collection_name,
+                    metadata={"description": "Licitaciones eForms indexadas"}
+                )
+            except KeyError as ke:
+                # ChromaDB corrupto - Limpiar archivos SQLite y reintentar
+                if str(ke) == "'_type'":
+                    if progress_callback:
+                        progress_callback({
+                            'type': 'error',
+                            'message': '⚠️ ChromaDB corrupto detectado. Forzando limpieza completa...'
+                        })
+
+                    # Cerrar cliente actual
+                    del client
+                    gc.collect()
+                    time.sleep(1)
+
+                    # Eliminar archivos SQLite específicos que causan problemas
+                    try:
+                        sqlite_file = Path(persist_dir) / "chroma.sqlite3"
+                        if sqlite_file.exists():
+                            sqlite_file.unlink()
+                            if progress_callback:
+                                progress_callback({
+                                    'type': 'info',
+                                    'message': '✓ Archivo corrupto eliminado. Recreando índice...'
+                                })
+                    except Exception as unlink_error:
+                        if progress_callback:
+                            progress_callback({
+                                'type': 'error',
+                                'message': f'⚠️ No se pudo eliminar archivo: {str(unlink_error)}'
+                            })
+
+                    # Recrear cliente con base de datos limpia
+                    client = chromadb.PersistentClient(path=persist_dir)
+
+                    # Reintentar crear colección
+                    collection = client.create_collection(
+                        name=collection_name,
+                        metadata={"description": "Licitaciones eForms indexadas"}
+                    )
+                else:
+                    # Otro KeyError, propagar
+                    raise
 
             indexed_count = 0
             error_count = 0
