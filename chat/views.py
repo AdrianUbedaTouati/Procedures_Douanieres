@@ -8,6 +8,9 @@ from django.template.loader import render_to_string
 from .models import ChatSession, ChatMessage
 from .services import ChatAgentService
 from tenders.vectorization_service import VectorizationService
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ChatSessionListView(LoginRequiredMixin, ListView):
@@ -232,6 +235,16 @@ class ChatMessageCreateView(LoginRequiredMixin, View):
             assistant_html = render_to_string('chat/partials/_message_bubble.html', {
                 'msg': assistant_message
             })
+
+            # DEBUG: Log información de metadata
+            logger.info(f"📊 AJAX Response Debug:")
+            logger.info(f"  - User message length: {len(user_html)} chars")
+            logger.info(f"  - Assistant message length: {len(assistant_html)} chars")
+            logger.info(f"  - Assistant metadata: {assistant_message.metadata}")
+            logger.info(f"  - Tools used: {assistant_message.metadata.get('tools_used', [])}")
+            logger.info(f"  - Documents used: {len(assistant_message.metadata.get('documents_used', []))}")
+            logger.info(f"  - Total tokens: {assistant_message.metadata.get('total_tokens', 0)}")
+            logger.info(f"  - Cost EUR: {assistant_message.metadata.get('cost_eur', 0)}")
 
             return JsonResponse({
                 'success': True,

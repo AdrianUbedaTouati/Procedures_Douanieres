@@ -427,6 +427,7 @@ class ChatAgentService:
 
             # Build metadata response with token/cost info
             metadata = {
+                'provider': self.provider,  # Añadir provider para distinguir Ollama
                 'route': result.get('route', 'unknown'),
                 'documents_used': documents_used,
                 'verified_fields': result.get('verified_fields', []),

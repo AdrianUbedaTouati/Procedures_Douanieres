@@ -74,9 +74,36 @@
                             </div>
                             {% if msg.role == 'assistant' and msg.metadata %}
                                 {% if msg.metadata.documents_used %}
-                                <div class="message-metadata">
+                                <div class="message-metadata" style="cursor: pointer;" onclick="this.querySelector('.document-details').classList.toggle('d-none'); this.querySelector('.toggle-icon').classList.toggle('bi-chevron-down'); this.querySelector('.toggle-icon').classList.toggle('bi-chevron-up');">
                                     <i class="bi bi-file-text"></i>
                                     <span>{{ msg.metadata.documents_used|length }} documento(s) consultado(s)</span>
+                                    <i class="bi bi-chevron-down toggle-icon" style="margin-left: 8px; font-size: 10px;"></i>
+                                    <div class="document-details d-none" style="margin-top: 8px; padding-left: 20px; font-size: 11px; opacity: 0.9;" onclick="event.stopPropagation();">
+                                        {% for doc in msg.metadata.documents_used %}
+                                        <div style="margin-bottom: 6px; padding: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 2px solid rgba(255,255,255,0.2);">
+                                            <div><strong>Documento {{ forloop.counter }}:</strong></div>
+                                            <div style="margin-top: 4px; font-size: 10px; opacity: 0.8;">
+                                                {{ doc.content|truncatewords:30|default:"[Sin contenido]" }}
+                                            </div>
+                                            {% if doc.metadata %}
+                                            <div style="margin-top: 4px; font-size: 10px; opacity: 0.7;">
+                                                {% if doc.metadata.tender_id %}<span>ID: {{ doc.metadata.tender_id }}</span>{% endif %}
+                                                {% if doc.metadata.chunk_index %}<span> • Chunk: {{ doc.metadata.chunk_index }}</span>{% endif %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if msg.metadata.tools_used %}
+                                <div class="message-metadata mt-1">
+                                    <i class="bi bi-tools"></i>
+                                    <span>Herramientas:
+                                        {% for tool in msg.metadata.tools_used %}
+                                            <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 11px;">{{ tool }}</code>{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </span>
                                 </div>
                                 {% endif %}
                                 {% if msg.metadata.route %}
@@ -109,8 +136,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                {% elif msg.metadata.total_tokens %}
-                                <!-- Ollama: Mostrar solo tokens sin costos -->
+                                {% elif msg.metadata.total_tokens and msg.metadata.provider == 'ollama' %}
+                                <!-- Ollama: Mostrar solo tokens sin costos (solo cuando provider es Ollama) -->
                                 <div class="message-metadata" style="margin-top: 8px; padding: 8px 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 6px; color: white; font-size: 12px;">
                                     <i class="bi bi-check-circle-fill" style="margin-right: 6px;"></i>
                                     <span><strong>{{ msg.metadata.total_tokens }}</strong> tokens procesados</span>
@@ -237,5 +264,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'chat/js/chat.js' %}?v=3.0"></script>
+<script src="{% static 'chat/js/chat.js' %}?v=3.2.4"></script>
 {% endblock %}

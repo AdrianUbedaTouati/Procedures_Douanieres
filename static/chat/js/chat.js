@@ -185,13 +185,6 @@
         // Disable input
         setInputState(false);
 
-        // Create user message
-        const userMessage = {
-            content: message,
-            created_at: new Date().toISOString()
-        };
-        createMessageElement(userMessage, 'user');
-
         // Clear input
         elements.messageInput.value = '';
         autoResizeTextarea();
@@ -218,9 +211,16 @@
             // Hide typing indicator
             hideTypingIndicator();
 
-            if (data.success && data.assistant_message) {
-                // Create assistant message
-                createMessageElement(data.assistant_message, 'assistant');
+            if (data.success) {
+                // Display user message with rendered HTML from server
+                if (data.user_message) {
+                    createMessageElement(data.user_message, 'user');
+                }
+
+                // Display assistant message with rendered HTML from server
+                if (data.assistant_message) {
+                    createMessageElement(data.assistant_message, 'assistant');
+                }
             } else {
                 showError(data.error || 'Error al enviar el mensaje');
             }
