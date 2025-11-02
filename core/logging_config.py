@@ -49,10 +49,10 @@ class ChatLogger:
             file_handler = logging.FileHandler(self.log_file, encoding='utf-8')
             file_handler.setLevel(logging.DEBUG)
 
-            # Formato: timestamp | nivel | mensaje
+            # Formato: timestamp | nivel | mensaje (sin microsegundos para evitar error)
             formatter = logging.Formatter(
                 '%(asctime)s | %(levelname)s | %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S.%f'
+                datefmt='%Y-%m-%d %H:%M:%S'
             )
             file_handler.setFormatter(formatter)
 
