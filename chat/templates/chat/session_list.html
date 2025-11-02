@@ -309,9 +309,9 @@
                             <h3 class="session-card-title">
                                 {{ session.title|default:"Nueva conversación"|truncatechars:100 }}
                             </h3>
-                            {% if session.get_last_message %}
+                            {% if session.last_message_optimized %}
                             <p class="session-card-preview">
-                                {{ session.get_last_message.content|truncatechars:150 }}
+                                {{ session.last_message_optimized.content|truncatechars:150 }}
                             </p>
                             {% endif %}
                         </div>
@@ -342,7 +342,7 @@
                 <div class="session-card-meta">
                     <span class="session-card-meta-item">
                         <i class="bi bi-chat-left-text-fill"></i>
-                        {{ session.get_message_count }} mensaje{{ session.get_message_count|pluralize }}
+                        {{ session.message_count_optimized }} mensaje{{ session.message_count_optimized|pluralize }}
                     </span>
                     <span class="session-card-meta-item">
                         <i class="bi bi-clock-fill"></i>

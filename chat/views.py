@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from django.contrib import messages
 from django.urls import reverse
 from django.template.loader import render_to_string
+from django.db.models import Count, Prefetch
+from django.core.cache import cache
 from .models import ChatSession, ChatMessage
 from .services import ChatAgentService
 from tenders.vectorization_service import VectorizationService
@@ -21,17 +23,36 @@ class ChatSessionListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
+        # Prefetch último mensaje para evitar N+1 queries
+        last_message_prefetch = Prefetch(
+            'messages',
+            queryset=ChatMessage.objects.order_by('-created_at')[:1],
+            to_attr='last_message_cached'
+        )
+
         return ChatSession.objects.filter(
             user=self.request.user,
             is_archived=False
+        ).annotate(
+            message_count=Count('messages')  # Calcular conteo en una sola query
+        ).prefetch_related(
+            last_message_prefetch  # Traer último mensaje de todas las sesiones en 1 query
         ).order_by('-updated_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Verificar estado de ChromaDB para mostrar mensaje informativo
-        vectorization_service = VectorizationService(user=self.request.user)
-        status = vectorization_service.get_vectorstore_status()
+        # Cachear estado de ChromaDB por 5 minutos para mejorar rendimiento
+        cache_key = f'vectorstore_status_{self.request.user.id}'
+        status = cache.get(cache_key)
+
+        if status is None:
+            logger.info(f"[CACHE MISS] Obteniendo estado de ChromaDB para usuario {self.request.user.id}")
+            vectorization_service = VectorizationService(user=self.request.user)
+            status = vectorization_service.get_vectorstore_status()
+            cache.set(cache_key, status, 300)  # Cachear por 5 minutos (300 segundos)
+        else:
+            logger.info(f"[CACHE HIT] Usando estado cacheado de ChromaDB para usuario {self.request.user.id}")
 
         context['vectorstore_status'] = status
         context['can_use_chat'] = status['is_initialized'] and status['num_documents'] > 0

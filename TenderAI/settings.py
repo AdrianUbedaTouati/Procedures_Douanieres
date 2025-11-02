@@ -168,6 +168,14 @@ DEFAULT_K_RETRIEVE = config('DEFAULT_K_RETRIEVE', cast=int, default=6)
 USE_GRADING = config('USE_GRADING', cast=bool, default=True)
 USE_XML_VERIFICATION = config('USE_XML_VERIFICATION', cast=bool, default=True)
 
+# ================================================
+# CHROMADB CONFIGURATION
+# ================================================
+# Desactivar telemetría de ChromaDB para evitar errores de posthog
+# y mejorar rendimiento (elimina latencia de timeouts de telemetría)
+os.environ['ANONYMIZED_TELEMETRY'] = 'False'
+os.environ['CHROMA_TELEMETRY_ENABLED'] = 'False'
+
 # Session Configuration
 SESSION_COOKIE_AGE = 1209600  # 2 semanas
 SESSION_SAVE_EVERY_REQUEST = False  # No es necesario guardar en cada request

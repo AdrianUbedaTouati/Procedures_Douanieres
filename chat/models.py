@@ -37,6 +37,26 @@ class ChatSession(models.Model):
         """Retorna el último mensaje de la sesión"""
         return self.messages.order_by('-created_at').first()
 
+    @property
+    def last_message_optimized(self):
+        """
+        Usa la versión cacheada si está disponible (desde prefetch_related),
+        de lo contrario usa el método tradicional.
+        """
+        if hasattr(self, 'last_message_cached') and self.last_message_cached:
+            return self.last_message_cached[0]
+        return self.get_last_message()
+
+    @property
+    def message_count_optimized(self):
+        """
+        Usa el annotate si está disponible (desde queryset con annotate),
+        de lo contrario usa el método tradicional.
+        """
+        if hasattr(self, 'message_count'):
+            return self.message_count
+        return self.get_message_count()
+
     def generate_title(self):
         """Genera un título basado en el primer mensaje del usuario"""
         first_message = self.messages.filter(role='user').first()
