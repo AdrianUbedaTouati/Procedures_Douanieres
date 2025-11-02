@@ -135,32 +135,38 @@
     // Message Rendering
     // ============================================
     function createMessageElement(message, role) {
-        const isUser = role === 'user';
         const wasNearBottom = isNearBottom();
 
-        const messageHTML = `
-            <div class="message-group ${role}" data-message-id="${message.id || ''}">
-                <div class="message-avatar avatar-${role}">
-                    ${isUser ? '<i class="bi bi-person-fill"></i>' : '<i class="bi bi-robot"></i>'}
-                </div>
-                <div class="message-content-wrapper">
-                    <div class="message-bubble ${role}">
-                        ${escapeHtml(message.content)}
+        // Si el mensaje incluye HTML pre-renderizado, usarlo directamente
+        // Esto incluye markdown renderizado y todos los paneles de metadata
+        if (message.rendered_html) {
+            elements.chatMessages.insertAdjacentHTML('beforeend', message.rendered_html);
+        } else {
+            // Fallback para retrocompatibilidad si no hay rendered_html
+            const isUser = role === 'user';
+            const messageHTML = `
+                <div class="message-group ${role}" data-message-id="${message.id || ''}">
+                    <div class="message-avatar avatar-${role}">
+                        ${isUser ? '<i class="bi bi-person-fill"></i>' : '<i class="bi bi-robot"></i>'}
                     </div>
-                    <div class="message-time">
-                        ${formatTime(message.created_at || new Date().toISOString())}
+                    <div class="message-content-wrapper">
+                        <div class="message-bubble ${role}">
+                            ${escapeHtml(message.content)}
+                        </div>
+                        <div class="message-time">
+                            ${formatTime(message.created_at || new Date().toISOString())}
+                        </div>
+                        ${message.metadata && message.metadata.documents_used ?
+                            `<div class="message-metadata">
+                                <i class="bi bi-file-text"></i>
+                                <span>${message.metadata.documents_used.length} documento(s) consultado(s)</span>
+                            </div>` : ''
+                        }
                     </div>
-                    ${message.metadata && message.metadata.documents_used ?
-                        `<div class="message-metadata">
-                            <i class="bi bi-file-text"></i>
-                            <span>${message.metadata.documents_used.length} documento(s) consultado(s)</span>
-                        </div>` : ''
-                    }
                 </div>
-            </div>
-        `;
-
-        elements.chatMessages.insertAdjacentHTML('beforeend', messageHTML);
+            `;
+            elements.chatMessages.insertAdjacentHTML('beforeend', messageHTML);
+        }
 
         if (wasNearBottom) {
             setTimeout(() => scrollToBottom(), CONFIG.messageAnimationDelay);

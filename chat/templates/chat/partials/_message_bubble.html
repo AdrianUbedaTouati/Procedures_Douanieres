@@ -1,0 +1,74 @@
+{% load chat_extras %}
+<div class="message-group {{ msg.role }}">
+    <div class="message-avatar avatar-{{ msg.role }}">
+        {% if msg.role == 'user' %}
+            <i class="bi bi-person-fill"></i>
+        {% else %}
+            <i class="bi bi-robot"></i>
+        {% endif %}
+    </div>
+    <div class="message-content-wrapper">
+        <div class="message-bubble {{ msg.role }}">
+            {{ msg.content|markdown_to_html }}
+        </div>
+        <div class="message-time">
+            {{ msg.created_at|date:"d/m/Y H:i" }}
+        </div>
+        {% if msg.role == 'assistant' and msg.metadata %}
+            {% if msg.metadata.documents_used %}
+            <div class="message-metadata">
+                <i class="bi bi-file-text"></i>
+                <span>{{ msg.metadata.documents_used|length }} documento(s) consultado(s)</span>
+            </div>
+            {% endif %}
+            {% if msg.metadata.tools_used %}
+            <div class="message-metadata mt-1">
+                <i class="bi bi-tools"></i>
+                <span>Herramientas:
+                    {% for tool in msg.metadata.tools_used %}
+                        <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 11px;">{{ tool }}</code>{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+            {% if msg.metadata.route %}
+            <div class="message-metadata mt-1">
+                <i class="bi bi-diagram-3"></i>
+                <span>Ruta: {{ msg.metadata.route }}</span>
+            </div>
+            {% endif %}
+            <!-- Token and Cost Info -->
+            {% if msg.metadata.total_tokens and msg.metadata.cost_eur > 0 %}
+            <!-- Mostrar panel completo para proveedores de pago -->
+            <div class="message-cost-info" style="margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white; font-size: 12px;">
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <i class="bi bi-coin" style="font-size: 14px;"></i>
+                        <span><strong>Tokens:</strong> {{ msg.metadata.input_tokens|default:0 }} entrada + {{ msg.metadata.output_tokens|default:0 }} salida = {{ msg.metadata.total_tokens }}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <i class="bi bi-cash" style="font-size: 14px;"></i>
+                        <span><strong>Coste:</strong>
+                            {% if msg.metadata.cost_eur < 0.01 %}
+                                €{{ msg.metadata.cost_eur|stringformat:".4f" }}
+                            {% elif msg.metadata.cost_eur < 1 %}
+                                €{{ msg.metadata.cost_eur|stringformat:".3f" }}
+                            {% else %}
+                                €{{ msg.metadata.cost_eur|stringformat:".2f" }}
+                            {% endif %}
+                            <small style="opacity: 0.8;">(aprox.)</small>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% elif msg.metadata.total_tokens %}
+            <!-- Ollama: Mostrar solo tokens sin costos -->
+            <div class="message-metadata" style="margin-top: 8px; padding: 8px 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 6px; color: white; font-size: 12px;">
+                <i class="bi bi-check-circle-fill" style="margin-right: 6px;"></i>
+                <span><strong>{{ msg.metadata.total_tokens }}</strong> tokens procesados</span>
+                <span style="opacity: 0.9; margin-left: 8px;">• 100% GRATIS con Ollama</span>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>

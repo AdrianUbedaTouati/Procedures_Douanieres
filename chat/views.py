@@ -4,6 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.contrib import messages
 from django.urls import reverse
+from django.template.loader import render_to_string
 from .models import ChatSession, ChatMessage
 from .services import ChatAgentService
 from tenders.vectorization_service import VectorizationService
@@ -222,18 +223,30 @@ class ChatMessageCreateView(LoginRequiredMixin, View):
             )
 
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # Renderizar HTML del mensaje del usuario
+            user_html = render_to_string('chat/partials/_message_bubble.html', {
+                'msg': user_message
+            })
+
+            # Renderizar HTML del mensaje del asistente
+            assistant_html = render_to_string('chat/partials/_message_bubble.html', {
+                'msg': assistant_message
+            })
+
             return JsonResponse({
                 'success': True,
                 'user_message': {
                     'id': user_message.id,
                     'content': user_message.content,
-                    'created_at': user_message.created_at.isoformat()
+                    'created_at': user_message.created_at.isoformat(),
+                    'rendered_html': user_html
                 },
                 'assistant_message': {
                     'id': assistant_message.id,
                     'content': assistant_message.content,
                     'created_at': assistant_message.created_at.isoformat(),
-                    'metadata': assistant_message.metadata
+                    'metadata': assistant_message.metadata,
+                    'rendered_html': assistant_html
                 }
             })
 
