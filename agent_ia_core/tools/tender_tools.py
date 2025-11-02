@@ -51,25 +51,40 @@ class GetTenderDetailsTool(BaseTool):
 
             from tenders.models import Tender
 
-            # Buscar la licitación
-            logger.info(f"[GET_TENDER_DETAILS] Buscando licitación con ID: {tender_id}")
+            # Buscar la licitación con búsqueda flexible
+            logger.info(f"[GET_TENDER_DETAILS] Buscando licitación con ID: '{tender_id}'")
+
+            tender = None
+
+            # 1. Intento de búsqueda exacta
             try:
                 tender = Tender.objects.get(ojs_notice_id=tender_id)
-                logger.info(f"[GET_TENDER_DETAILS] Licitación encontrada: {tender.title}")
+                logger.info(f"[GET_TENDER_DETAILS] ✓ Búsqueda exacta exitosa: {tender.title}")
             except Tender.DoesNotExist:
-                logger.warning(f"[GET_TENDER_DETAILS] Licitación {tender_id} NO encontrada")
-                # Intentar buscar licitaciones similares
-                similar = Tender.objects.filter(ojs_notice_id__icontains=tender_id[:8])[:3]
-                if similar.exists():
-                    similar_ids = [t.ojs_notice_id for t in similar]
+                logger.info(f"[GET_TENDER_DETAILS] ✗ Búsqueda exacta falló, intentando búsqueda flexible...")
+
+                # 2. Búsqueda flexible: IDs que contienen el string proporcionado
+                matches = Tender.objects.filter(ojs_notice_id__icontains=tender_id)
+
+                if matches.count() == 1:
+                    # Solo una coincidencia, usar esa
+                    tender = matches.first()
+                    logger.info(f"[GET_TENDER_DETAILS] ✓ Búsqueda flexible encontró 1 match: {tender.ojs_notice_id}")
+                elif matches.count() > 1:
+                    # Múltiples coincidencias, pedir clarificación
+                    match_ids = [t.ojs_notice_id for t in matches[:5]]
+                    logger.warning(f"[GET_TENDER_DETAILS] ✗ Múltiples coincidencias ({matches.count()}): {match_ids}")
                     return {
                         'success': False,
-                        'error': f'Licitación {tender_id} no encontrada. Licitaciones similares encontradas: {", ".join(similar_ids)}. Verifica el ID exacto.'
+                        'error': f'Múltiples licitaciones coinciden con "{tender_id}". Por favor, especifica el ID completo: {", ".join(match_ids[:5])}'
                     }
-                return {
-                    'success': False,
-                    'error': f'Licitación {tender_id} no encontrada en la base de datos. Verifica que el ID esté correcto (formato: XXXXXXXX-YYYY).'
-                }
+                else:
+                    # Sin coincidencias
+                    logger.warning(f"[GET_TENDER_DETAILS] ✗ Sin coincidencias para: {tender_id}")
+                    return {
+                        'success': False,
+                        'error': f'Licitación "{tender_id}" no encontrada. Verifica que el ID esté correcto (formato: XXXXXXXX-YYYY).'
+                    }
 
             # Construir respuesta con TODOS los detalles
             details = {
@@ -196,25 +211,62 @@ class GetTenderXMLTool(BaseTool):
 
             from tenders.models import Tender
 
-            # Obtener la licitación
-            tender = Tender.objects.get(ojs_notice_id=tender_id)
+            # Buscar la licitación con búsqueda flexible
+            logger.info(f"[GET_TENDER_XML] Buscando licitación con ID: '{tender_id}'")
 
-            # Leer el XML del archivo si existe
+            tender = None
+
+            # 1. Intento de búsqueda exacta
+            try:
+                tender = Tender.objects.get(ojs_notice_id=tender_id)
+                logger.info(f"[GET_TENDER_XML] ✓ Búsqueda exacta exitosa: {tender.ojs_notice_id}")
+            except Tender.DoesNotExist:
+                logger.info(f"[GET_TENDER_XML] ✗ Búsqueda exacta falló, intentando búsqueda flexible...")
+
+                # 2. Búsqueda flexible
+                matches = Tender.objects.filter(ojs_notice_id__icontains=tender_id)
+
+                if matches.count() == 1:
+                    tender = matches.first()
+                    logger.info(f"[GET_TENDER_XML] ✓ Búsqueda flexible encontró 1 match: {tender.ojs_notice_id}")
+                elif matches.count() > 1:
+                    match_ids = [t.ojs_notice_id for t in matches[:5]]
+                    logger.warning(f"[GET_TENDER_XML] ✗ Múltiples coincidencias ({matches.count()}): {match_ids}")
+                    return {
+                        'success': False,
+                        'error': f'Múltiples licitaciones coinciden con "{tender_id}". Especifica el ID completo: {", ".join(match_ids[:5])}'
+                    }
+                else:
+                    logger.warning(f"[GET_TENDER_XML] ✗ Sin coincidencias para: {tender_id}")
+                    return {
+                        'success': False,
+                        'error': f'Licitación "{tender_id}" no encontrada. Verifica el ID (formato: XXXXXXXX-YYYY).'
+                    }
+
+            # Leer el XML del archivo o base de datos
             xml_content = None
+
+            # 3. Intentar leer desde archivo (source_path)
             if tender.source_path:
                 import os
                 if os.path.exists(tender.source_path):
+                    logger.info(f"[GET_TENDER_XML] ✓ Leyendo XML desde archivo: {tender.source_path}")
                     with open(tender.source_path, 'r', encoding='utf-8') as f:
                         xml_content = f.read()
                 else:
-                    return {
-                        'success': False,
-                        'error': f'Archivo XML no encontrado en: {tender.source_path}'
-                    }
-            else:
+                    logger.warning(f"[GET_TENDER_XML] ✗ Archivo no existe: {tender.source_path}")
+
+            # 4. Fallback: intentar leer desde xml_content en BD
+            if not xml_content and tender.xml_content:
+                logger.info(f"[GET_TENDER_XML] ✓ Usando xml_content de la base de datos")
+                xml_content = tender.xml_content
+
+            # 5. Si aún no hay XML, error
+            if not xml_content:
+                logger.error(f"[GET_TENDER_XML] ✗ Sin XML disponible para: {tender.ojs_notice_id}")
                 return {
                     'success': False,
-                    'error': 'Esta licitación no tiene un archivo XML asociado'
+                    'error': f'Licitación {tender.ojs_notice_id} no tiene XML disponible (ni en archivo ni en BD).'
                 }
 
             return {
