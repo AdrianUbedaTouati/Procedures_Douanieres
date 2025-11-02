@@ -63,8 +63,37 @@ class GetTenderDetailsTool(BaseTool):
             except Tender.DoesNotExist:
                 logger.info(f"[GET_TENDER_DETAILS] ✗ Búsqueda exacta falló, intentando búsqueda flexible...")
 
-                # 2. Búsqueda flexible: IDs que contienen el string proporcionado
-                matches = Tender.objects.filter(ojs_notice_id__icontains=tender_id)
+                # 2. Búsqueda flexible con múltiples estrategias
+                from django.db.models import Q
+
+                # Normalizar el ID de búsqueda (quitar ceros a la izquierda de la parte numérica)
+                normalized_id = tender_id
+                if '-' in tender_id:
+                    parts = tender_id.split('-')
+                    # Quitar ceros a la izquierda de la primera parte (número)
+                    normalized_id = parts[0].lstrip('0') + '-' + parts[1]
+                    logger.info(f"[GET_TENDER_DETAILS] ID normalizado: '{tender_id}' -> '{normalized_id}'")
+
+                # Buscar con múltiples estrategias:
+                # - ID original contiene el ID de DB (ej: "00690603-2025" contiene "690603-2025")
+                # - ID de DB contiene el ID original
+                # - ID normalizado es exacto
+                # - ID normalizado está contenido
+                matches = Tender.objects.filter(
+                    Q(ojs_notice_id__icontains=tender_id) |
+                    Q(ojs_notice_id__in=[normalized_id]) |
+                    Q(ojs_notice_id__icontains=normalized_id)
+                ).distinct()
+
+                # Si no hay matches con contains, intentar buscar IDs de DB que estén contenidos en el ID de búsqueda
+                if matches.count() == 0:
+                    logger.info(f"[GET_TENDER_DETAILS] Intentando búsqueda inversa (DB ID dentro de búsqueda)...")
+                    all_tenders = Tender.objects.all()
+                    for t in all_tenders:
+                        # Verificar si el ID de DB está contenido en el ID de búsqueda
+                        if t.ojs_notice_id in tender_id or t.ojs_notice_id in normalized_id:
+                            matches = Tender.objects.filter(ojs_notice_id=t.ojs_notice_id)
+                            break
 
                 if matches.count() == 1:
                     # Solo una coincidencia, usar esa
@@ -79,11 +108,25 @@ class GetTenderDetailsTool(BaseTool):
                         'error': f'Múltiples licitaciones coinciden con "{tender_id}". Por favor, especifica el ID completo: {", ".join(match_ids[:5])}'
                     }
                 else:
-                    # Sin coincidencias
+                    # Sin coincidencias, sugerir IDs similares
                     logger.warning(f"[GET_TENDER_DETAILS] ✗ Sin coincidencias para: {tender_id}")
+
+                    # Buscar IDs similares para ayudar al usuario
+                    similar_ids = []
+                    if '-' in tender_id:
+                        year_part = tender_id.split('-')[1]
+                        similar = Tender.objects.filter(ojs_notice_id__endswith=f'-{year_part}')[:5]
+                        similar_ids = [t.ojs_notice_id for t in similar]
+
+                    error_msg = f'Licitación "{tender_id}" no encontrada.'
+                    if similar_ids:
+                        error_msg += f' IDs disponibles del mismo año: {", ".join(similar_ids)}'
+                    else:
+                        error_msg += ' Verifica que el ID esté correcto (formato: XXXXXXXX-YYYY).'
+
                     return {
                         'success': False,
-                        'error': f'Licitación "{tender_id}" no encontrada. Verifica que el ID esté correcto (formato: XXXXXXXX-YYYY).'
+                        'error': error_msg
                     }
 
             # Construir respuesta con TODOS los detalles
