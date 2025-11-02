@@ -42,6 +42,33 @@ class User(AbstractUser):
         help_text='Tu API key del proveedor seleccionado (no necesaria para Ollama)'
     )
 
+    # OpenAI specific fields
+    openai_model = models.CharField(
+        max_length=50,
+        blank=True,
+        default='gpt-4o-mini',
+        choices=[
+            ('gpt-4o', 'GPT-4o (Más potente, más caro)'),
+            ('gpt-4o-mini', 'GPT-4o-mini (Balance calidad/precio)'),
+            ('gpt-4-turbo', 'GPT-4 Turbo (Anterior generación)'),
+            ('gpt-3.5-turbo', 'GPT-3.5 Turbo (Económico, menos capaz)'),
+        ],
+        verbose_name='Modelo OpenAI',
+        help_text='Modelo de chat para OpenAI (gpt-4o-mini recomendado)'
+    )
+    openai_embedding_model = models.CharField(
+        max_length=100,
+        blank=True,
+        default='text-embedding-3-small',
+        choices=[
+            ('text-embedding-3-small', 'text-embedding-3-small (Económico, recomendado)'),
+            ('text-embedding-3-large', 'text-embedding-3-large (Más preciso, más caro)'),
+            ('text-embedding-ada-002', 'text-embedding-ada-002 (Legacy)'),
+        ],
+        verbose_name='Modelo Embeddings OpenAI',
+        help_text='Modelo de embeddings para OpenAI (text-embedding-3-small recomendado)'
+    )
+
     # Ollama specific fields
     ollama_model = models.CharField(
         max_length=100,

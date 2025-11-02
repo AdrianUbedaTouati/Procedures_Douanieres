@@ -20,17 +20,26 @@ class ChatAgentService:
         Initialize the chat agent service
 
         Args:
-            user: Django User instance with llm_api_key, llm_provider, ollama_model, ollama_embedding_model
+            user: Django User instance with llm_api_key, llm_provider, openai_model, ollama_model, ollama_embedding_model
         """
         self.user = user
         self.api_key = user.llm_api_key if hasattr(user, 'llm_api_key') else None
         self.provider = user.llm_provider if hasattr(user, 'llm_provider') else 'gemini'
+        self.openai_model = user.openai_model if hasattr(user, 'openai_model') else 'gpt-4o-mini'
+        self.openai_embedding_model = user.openai_embedding_model if hasattr(user, 'openai_embedding_model') else 'text-embedding-3-small'
         self.ollama_model = user.ollama_model if hasattr(user, 'ollama_model') else 'qwen2.5:72b'
         self.ollama_embedding_model = user.ollama_embedding_model if hasattr(user, 'ollama_embedding_model') else 'nomic-embed-text'
         self._agent = None
 
         # Obtener contexto de empresa si existe
         self.company_context = self._get_company_context()
+
+        # DEBUG: Imprimir contexto de empresa
+        if self.company_context:
+            print(f"[SERVICE] ✓ Contexto de empresa cargado: {len(self.company_context)} caracteres", file=sys.stderr)
+            print(f"[SERVICE] Contexto: {self.company_context[:200]}...", file=sys.stderr)
+        else:
+            print(f"[SERVICE] ⚠️ NO hay contexto de empresa", file=sys.stderr)
 
         # Obtener resumen de licitaciones disponibles
         self.tenders_summary = self._get_tenders_summary()
@@ -65,42 +74,52 @@ class ChatAgentService:
             if self.provider == 'ollama':
                 self._verify_ollama_availability()
 
-            # Crear retriever
+            # Crear retriever con el modelo de embeddings correcto según el provider
+            if self.provider == 'ollama':
+                embedding_model = self.ollama_embedding_model
+            elif self.provider == 'openai':
+                embedding_model = self.openai_embedding_model
+            else:
+                embedding_model = None  # Gemini u otros providers
+
             retriever = create_retriever(
                 k=6,
-                provider='ollama' if self.provider == 'ollama' else self.provider,
+                provider=self.provider,
                 api_key=None if self.provider == 'ollama' else self.api_key,
-                embedding_model=self.ollama_embedding_model if self.provider == 'ollama' else None
+                embedding_model=embedding_model
             )
 
             # Determinar el modelo según el proveedor
             if self.provider == 'ollama':
                 model = self.ollama_model
             elif self.provider == 'openai':
-                model = 'gpt-4o-mini'  # Modelo por defecto de OpenAI
+                model = self.openai_model  # Usar modelo seleccionado por el usuario
             elif self.provider == 'google':
                 model = 'gemini-2.0-flash-exp'  # Modelo por defecto de Gemini
             else:
                 model = self.ollama_model  # Fallback
 
-            # Crear agente con contexto de empresa y resumen de licitaciones
+            # Crear agente con usuario (para tools de contexto)
             self._agent = FunctionCallingAgent(
                 llm_provider=self.provider,
                 llm_model=model,
                 llm_api_key=None if self.provider == 'ollama' else self.api_key,
                 retriever=retriever,
                 db_session=None,  # Usa conexión Django default
-                max_iterations=5,
+                user=self.user,  # Pasar usuario para tools de contexto
+                max_iterations=15,  # Aumentado de 5 a 15
                 temperature=0.3,
-                company_context=self.company_context,  # Pasar contexto de empresa
-                tenders_summary=self.tenders_summary   # Pasar resumen de licitaciones
+                company_context=self.company_context,  # Mantener por compatibilidad (deprecated)
+                tenders_summary=self.tenders_summary   # Mantener por compatibilidad (deprecated)
             )
 
             print(f"[SERVICE] ✓ FunctionCallingAgent creado con {len(self._agent.tool_registry.tools)} tools", file=sys.stderr)
+            if self.user:
+                print(f"[SERVICE] ✓ Tools de contexto disponibles (get_company_info, get_tenders_summary)", file=sys.stderr)
             if self.company_context:
-                print(f"[SERVICE] ✓ Contexto de empresa incluido en system prompt", file=sys.stderr)
+                print(f"[SERVICE] ✓ Contexto de empresa cargado (deprecated - ahora usa get_company_info tool)", file=sys.stderr)
             if self.tenders_summary:
-                print(f"[SERVICE] ✓ Resumen de licitaciones incluido en system prompt", file=sys.stderr)
+                print(f"[SERVICE] ✓ Resumen de licitaciones cargado (deprecated - ahora usa get_tenders_summary tool)", file=sys.stderr)
             return self._agent
 
         except Exception as e:
@@ -413,6 +432,7 @@ class ChatAgentService:
                 'verified_fields': result.get('verified_fields', []),
                 'iterations': result.get('iterations', 0),
                 'num_documents': len(documents_used),
+                'tools_used': result.get('tools_used', []),  # Añadir tools usadas
                 # Token and cost tracking
                 'input_tokens': cost_data['input_tokens'],
                 'output_tokens': cost_data['output_tokens'],
@@ -423,6 +443,9 @@ class ChatAgentService:
             # Log final del proceso
             print(f"[SERVICE] ✓ Respuesta procesada: {len(response_content)} caracteres", file=sys.stderr)
             print(f"[SERVICE] Documentos recuperados: {len(documents_used)}", file=sys.stderr)
+            tools_used = result.get('tools_used', [])
+            if tools_used:
+                print(f"[SERVICE] Herramientas usadas ({len(tools_used)}): {' → '.join(tools_used)}", file=sys.stderr)
             print(f"[SERVICE] Tokens totales: {cost_data['total_tokens']} (in: {cost_data['input_tokens']}, out: {cost_data['output_tokens']})", file=sys.stderr)
             print(f"[SERVICE] Costo: €{cost_data['total_cost_eur']:.4f}\n", file=sys.stderr)
 

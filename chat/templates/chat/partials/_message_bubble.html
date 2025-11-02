@@ -38,8 +38,8 @@
             </div>
             {% endif %}
             <!-- Token and Cost Info -->
-            {% if msg.metadata.total_tokens and msg.metadata.cost_eur > 0 %}
-            <!-- Mostrar panel completo para proveedores de pago -->
+            {% if msg.metadata.total_tokens and msg.metadata.cost_eur >= 0.0001 %}
+            <!-- Mostrar panel completo para proveedores de pago (costo >= €0.0001) -->
             <div class="message-cost-info" style="margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white; font-size: 12px;">
                 <div style="display: flex; gap: 16px; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 6px;">
