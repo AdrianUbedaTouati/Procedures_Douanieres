@@ -25,14 +25,12 @@
                     <div style="margin-bottom: 6px; padding: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; border-left: 2px solid rgba(255,255,255,0.2);">
                         <div><strong>Documento {{ forloop.counter }}:</strong></div>
                         <div style="margin-top: 4px; font-size: 10px; opacity: 0.8;">
-                            {{ doc.content|truncatewords:30|default:"[Sin contenido]" }}
+                            {{ doc.content_preview|default:"[Sin contenido]" }}
                         </div>
-                        {% if doc.metadata %}
                         <div style="margin-top: 4px; font-size: 10px; opacity: 0.7;">
-                            {% if doc.metadata.tender_id %}<span>ID: {{ doc.metadata.tender_id }}</span>{% endif %}
-                            {% if doc.metadata.chunk_index %}<span> • Chunk: {{ doc.metadata.chunk_index }}</span>{% endif %}
+                            {% if doc.id %}<span>ID: {{ doc.id }}</span>{% endif %}
+                            {% if doc.section %}<span> • Sección: {{ doc.section }}</span>{% endif %}
                         </div>
-                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
