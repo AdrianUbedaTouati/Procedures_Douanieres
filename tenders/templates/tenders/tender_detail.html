@@ -391,14 +391,9 @@
                                             <i class="bi bi-check2-square"></i>
                                             {% if tender.parsed_summary.OPTIONAL.lots %}8{% elif tender.parsed_summary.OPTIONAL.award_criteria %}7{% else %}6{% endif %}. REQUISITOS DE ELEGIBILIDAD
                                         </h2>
-                                        <ul class="word-checklist">
-                                            {% for requirement in tender.parsed_summary.OPTIONAL.eligibility_requirements|split:"|" %}
-                                            <li>
-                                                <i class="bi bi-square"></i>
-                                                {{ requirement|trim }}
-                                            </li>
-                                            {% endfor %}
-                                        </ul>
+                                        <div class="word-requirements-box">
+                                            {{ tender.parsed_summary.OPTIONAL.eligibility_requirements }}
+                                        </div>
                                     </div>
                                     {% endif %}
 
@@ -1268,6 +1263,18 @@ document.addEventListener('DOMContentLoaded', function() {
 .word-checklist i {
     color: #3498db;
     font-size: 1.2rem;
+}
+
+/* Caja de requisitos (alternativa a checklist) */
+.word-requirements-box {
+    padding: 20px;
+    background: #f8f9fa;
+    border-left: 4px solid #3498db;
+    border-radius: 6px;
+    margin: 15px 0;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    font-family: 'Arial', sans-serif;
 }
 
 /* Listas de adjuntos y links */
