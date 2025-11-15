@@ -1,6 +1,6 @@
-# 📚 Índice de Documentación - TenderAI v3.0
+# 📚 Índice de Documentación - TenderAI v3.7
 
-**Sistema de Function Calling Multi-Proveedor para Análisis de Licitaciones**
+**Sistema de Function Calling con Review Loop Automático y Navegación Web Interactiva**
 
 ---
 
@@ -15,10 +15,10 @@ Si es tu primera vez, lee en este orden:
    - Comparación de proveedores LLM
 
 2. **[TOOLS_REFERENCE.md](TOOLS_REFERENCE.md)** ← Lee esto segundo
-   - Documentación completa de las 9 tools
+   - Documentación completa de las **16 tools** (11 activas + 5 opcionales)
    - Ejemplos de uso para cada tool
    - Casos de uso típicos
-   - Estadísticas de frecuencia
+   - Categorización: Context, Search, Info, Analysis, Quality, Web
 
 3. **[ARCHITECTURE.md](ARCHITECTURE.md)** ← Lee esto para entender el sistema
    - Arquitectura de alto nivel
@@ -50,20 +50,18 @@ Si es tu primera vez, lee en este orden:
 ### 🛠️ **TOOLS_REFERENCE.md**
 
 **Qué contiene:**
-- Documentación completa de las 9 tools:
-  - `search_tenders` - Búsqueda semántica
-  - `find_by_budget` - Filtro presupuesto
-  - `find_by_deadline` - Filtro fecha límite
-  - `find_by_cpv` - Filtro sector CPV
-  - `find_by_location` - Filtro geográfico NUTS
-  - `get_tender_details` - Detalles completos
-  - `get_tender_xml` - XML completo
-  - `get_statistics` - Estadísticas agregadas
-  - `get_compare_tenders` - Comparación lado a lado
+- Documentación completa de las **16 tools**:
+  - **Context (2)**: `get_company_info`, `get_tenders_summary`
+  - **Search (5)**: `search_tenders`, `find_by_budget`, `find_by_deadline`, `find_by_cpv`, `find_by_location`
+  - **Info (2)**: `get_tender_details`, `get_tender_xml`
+  - **Analysis (2)**: `get_statistics`, `compare_tenders`
+  - **Quality (2, opcional)**: `grade_documents`, `verify_fields`
+  - **Web (3, opcional)**: `web_search`, `browse_webpage`, `browse_interactive` ⭐ NUEVO v3.7
 - Parámetros de cada tool
 - Ejemplos de uso
 - Respuestas esperadas
 - Casos de uso típicos
+- Activación de tools opcionales
 
 **Cuándo leerlo:**
 - Quieres entender qué puede hacer el sistema
@@ -85,18 +83,19 @@ Usuario: "Compara licitaciones 123 y 456"
 ### 🏗️ **ARCHITECTURE.md**
 
 **Qué contiene:**
-- Arquitectura de alto nivel
+- Arquitectura de alto nivel v3.7
 - Componentes principales:
-  - FunctionCallingAgent
-  - ToolRegistry
-  - 9 Tools especializadas
-  - SchemaConverter
-  - ChatAgentService
-  - Retriever (ChromaDB)
-- Flujo de datos completo
+  - FunctionCallingAgent (max 15 iteraciones)
+  - ToolRegistry (16 tools)
+  - ResponseReviewer ⭐ NUEVO v3.6 (Review Loop)
+  - SchemaConverter (multi-proveedor)
+  - ChatAgentService (con Review Loop automático)
+  - Retriever (ChromaDB con embeddings especializados)
+  - BrowseInteractiveTool ⭐ NUEVO v3.7 (Playwright)
+- Flujo de datos completo con Review Loop
 - Comparación de proveedores
 - Métricas de rendimiento
-- Base de datos (modelos Django + ChromaDB)
+- Base de datos (modelos Django + ChromaDB + metadata de review)
 
 **Cuándo leerlo:**
 - Quieres entender cómo funciona el sistema internamente
@@ -143,12 +142,22 @@ LLM_TEMPERATURE=0.3
 ### 🔄 **FLUJO_EJECUCION_CHAT.md**
 
 **Qué contiene:**
-- Flujo completo de una consulta de chat
-- Paso a paso desde frontend hasta respuesta
-- Routing per-message
-- Integración con agent_ia_core
-- Procesamiento de tool calls
-- Generación de respuesta final
+- Flujo completo de una consulta de chat v3.7
+- **9 pasos detallados** desde frontend hasta respuesta:
+  1. Usuario envía mensaje
+  2. Django Views prepara historial
+  3. ChatAgentService - Iteración 1
+  4. FunctionCallingAgent ejecuta tools
+  5. **ResponseReviewer - Revisión ⭐ NUEVO** (Formato 30%, Contenido 40%, Análisis 30%)
+  6. **Segunda Iteración - Mejora ⭐ SIEMPRE ejecutada**
+  7. Merge de resultados (documentos + tools)
+  8. Guardar en BD con metadata de review
+  9. Respuesta al frontend
+- Integración completa con agent_ia_core
+- Procesamiento de tool calls con hasta 15 iteraciones
+- Decisión de mejora automática (SIEMPRE mejorar)
+- 3 ejemplos reales de Review Loop
+- Tabla de métricas (tokens, latencia)
 
 **Cuándo leerlo:**
 - Debugging de flujo de chat
@@ -158,23 +167,26 @@ LLM_TEMPERATURE=0.3
 
 ---
 
-### 📝 **CHANGELOG.md**
+### 📝 **Historial de Versiones**
 
-**Qué contiene:**
-- Historial completo de versiones
-- v3.0.0: Sistema Function Calling completo
-- v1.4.0: Routing per-message + Ollama
-- v1.3.0: Descarga TED mejorada
-- v1.2.0: Recomendaciones IA
-- v1.1.0: Descarga TED inicial
-- v1.0.0: Lanzamiento inicial
-- Roadmap de futuras mejoras
+**Versiones principales:**
+- **v3.7.0** (actual): BrowseInteractiveTool con Playwright - Navegación web interactiva
+- **v3.6.0**: Review Loop automático - ResponseReviewer que mejora TODAS las respuestas
+- **v3.0.0**: Sistema Function Calling completo con 16 tools
+- **v1.4.0**: Routing per-message + Ollama (100% local)
+- **v1.3.0**: Descarga TED mejorada con cancelación
+- **v1.2.0**: Recomendaciones IA multicriteria
+- **v1.1.0**: Descarga TED inicial
+- **v1.0.0**: Lanzamiento inicial
 
-**Cuándo leerlo:**
-- Quieres saber qué cambió entre versiones
-- Planificación de migración
-- Entender evolución del proyecto
-- Conocer features futuras (roadmap)
+**Roadmap v4.0+:**
+- Multi-Agent Orchestration
+- Tool Learning dinámico
+- Streaming de respuestas (SSE/WebSocket)
+- Cache de Function Calls
+- Dashboard Analytics
+
+**Nota:** CHANGELOG.md eliminado por solicitud del usuario. Ver README.md sección "Notas de Versión".
 
 ---
 
@@ -259,14 +271,19 @@ LLM_TEMPERATURE=0.3
 
 ## 📊 Comparación de Documentos
 
-| Documento | Audiencia | Complejidad | Tiempo Lectura |
-|-----------|-----------|-------------|----------------|
-| README.md | Todos | Baja | 10-15 min |
-| TOOLS_REFERENCE.md | Usuarios + Devs | Media | 20-30 min |
-| ARCHITECTURE.md | Devs + Admins | Alta | 30-45 min |
-| CONFIGURACION_AGENTE.md | Admins + Devs | Media | 15-20 min |
-| FLUJO_EJECUCION_CHAT.md | Devs | Media-Alta | 15-20 min |
-| CHANGELOG.md | Todos | Baja | 5-10 min |
+| Documento | Audiencia | Complejidad | Tiempo Lectura | Versión |
+|-----------|-----------|-------------|----------------|---------|
+| README.md | Todos | Baja | 15-20 min | v3.7.0 |
+| TOOLS_REFERENCE.md | Usuarios + Devs | Media | 25-35 min | v3.7.0 |
+| ARCHITECTURE.md | Devs + Admins | Alta | 35-50 min | v3.7.0 |
+| FLUJO_EJECUCION_CHAT.md | Devs | Media-Alta | 20-25 min | v3.7.0 |
+| CONFIGURACION_AGENTE.md | Admins + Devs | Media | 15-20 min | v3.0.0 |
+| GUIA_INSTALACION_OLLAMA.md | Admins | Baja | 10-15 min | v1.4.0 |
+
+**Notas:**
+- ✅ 6 documentos esenciales actualizados (eliminados 9 archivos obsoletos)
+- ⭐ Nuevos en v3.7: BrowseInteractiveTool, Review Loop detallado
+- 📖 Todos los docs actualizados con 16 tools (vs 9 en v3.0)
 
 ---
 
@@ -314,47 +331,89 @@ LLM_TEMPERATURE=0.3
 
 ```
 TenderAI_Platform/
-├── DOCS_INDEX.md              ← Este archivo (índice de docs)
-├── README.md                  ← Documentación principal
-├── TOOLS_REFERENCE.md         ← Referencia de las 9 tools
-├── ARCHITECTURE.md            ← Arquitectura técnica
-├── CONFIGURACION_AGENTE.md    ← Configuración del agente
-├── FLUJO_EJECUCION_CHAT.md    ← Flujo de ejecución del chat
-├── CHANGELOG.md               ← Historial de versiones
-└── agent_ia_core/             ← Código fuente
-    ├── agent_function_calling.py
-    ├── retriever.py
+├── DOCS_INDEX.md                      ← Este archivo (índice de docs) ✅ v3.7
+├── README.md                          ← Documentación principal ✅ v3.7
+├── TOOLS_REFERENCE.md                 ← Referencia de las 16 tools ✅ v3.7
+├── ARCHITECTURE.md                    ← Arquitectura técnica ✅ v3.7
+├── FLUJO_EJECUCION_CHAT.md            ← Flujo con Review Loop ✅ v3.7
+├── CONFIGURACION_AGENTE.md            ← Configuración del agente
+├── GUIA_INSTALACION_OLLAMA.md         ← Instalación de Ollama
+└── agent_ia_core/                     ← Código fuente
+    ├── agent_function_calling.py      ← FunctionCallingAgent (max 15 iter)
+    ├── retriever.py                   ← ChromaDB + embeddings
     └── tools/
-        ├── base.py
-        ├── search_tools.py
-        ├── tender_tools.py
-        ├── registry.py
-        └── schema_converters.py
+        ├── base.py                    ← Clase base de tools
+        ├── context_tools.py           ← get_company_info, get_tenders_summary
+        ├── search_tools.py            ← 5 tools de búsqueda
+        ├── tender_tools.py            ← get_tender_details, get_tender_xml
+        ├── analysis_tools.py          ← get_statistics, compare_tenders
+        ├── quality_tools.py           ← grade_documents, verify_fields
+        ├── web_search_tool.py         ← web_search (Google Custom Search)
+        ├── browse_webpage_tool.py     ← browse_webpage (HTML estático)
+        ├── browse_interactive_tool.py ← browse_interactive (Playwright) ⭐ v3.7
+        ├── registry.py                ← ToolRegistry (16 tools)
+        └── schema_converters.py       ← SchemaConverter multi-proveedor
+
+chat/
+    ├── response_reviewer.py           ← ResponseReviewer ⭐ v3.6
+    └── services.py                    ← ChatAgentService (Review Loop)
 ```
+
+**Archivos eliminados (obsoletos):**
+- ❌ AJAX_RENDERING_FIX.md
+- ❌ CONTEXT_TOOLS_FIXES.md
+- ❌ CONTEXT_TOOLS_IMPLEMENTATION.md
+- ❌ EMBEDDINGS_FIX.md
+- ❌ INSTRUCCIONES_DEBUG_LOGIN.md
+- ❌ MARKDOWN_FORMAT_IMPROVEMENTS.md
+- ❌ REINDEXACION_CONTACTOS.md
+- ❌ SISTEMA_LOGGING.md
+- ❌ TENDER_ID_SEARCH_FIX.md
 
 ---
 
 ## 🔗 Enlaces Rápidos
 
-- **Inicio**: [README.md](README.md)
-- **Tools**: [TOOLS_REFERENCE.md](TOOLS_REFERENCE.md)
-- **Arquitectura**: [ARCHITECTURE.md](ARCHITECTURE.md)
+- **Inicio**: [README.md](README.md) ✅ v3.7
+- **Tools (16)**: [TOOLS_REFERENCE.md](TOOLS_REFERENCE.md) ✅ v3.7
+- **Arquitectura**: [ARCHITECTURE.md](ARCHITECTURE.md) ✅ v3.7
+- **Flujo + Review Loop**: [FLUJO_EJECUCION_CHAT.md](FLUJO_EJECUCION_CHAT.md) ✅ v3.7
 - **Configuración**: [CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md)
-- **Flujo**: [FLUJO_EJECUCION_CHAT.md](FLUJO_EJECUCION_CHAT.md)
-- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **Ollama**: [GUIA_INSTALACION_OLLAMA.md](GUIA_INSTALACION_OLLAMA.md)
 
 ---
 
 ## 💡 Consejos
 
-- **Primero README**: Siempre empieza por README.md
-- **Ejemplos primero**: TOOLS_REFERENCE.md tiene muchos ejemplos prácticos
-- **Usa Ctrl+F**: Busca palabras clave en cada documento
-- **Arquitectura para debugging**: ARCHITECTURE.md es clave para resolver problemas técnicos
-- **CHANGELOG para cambios**: Consulta CHANGELOG.md antes de actualizar
+- **Primero README**: Siempre empieza por [README.md](README.md)
+- **16 Tools**: [TOOLS_REFERENCE.md](TOOLS_REFERENCE.md) tiene ejemplos detallados de todas las tools
+- **Review Loop**: [FLUJO_EJECUCION_CHAT.md](FLUJO_EJECUCION_CHAT.md) explica cómo funciona la mejora automática
+- **Arquitectura para debugging**: [ARCHITECTURE.md](ARCHITECTURE.md) es clave para resolver problemas técnicos
+- **Usa Ctrl+F**: Busca palabras clave en cada documento (ej: "browse_interactive", "review_loop")
+- **Docs actualizados**: Toda la documentación está en v3.7.0 (eliminados archivos obsoletos)
 
 ---
 
-**🤖 Generated with [Claude Code](https://claude.com/claude-code)**
+## 📌 Resumen de Cambios v3.7
+
+**Documentación actualizada:**
+- ✅ README.md - Características principales, instalación Playwright, ejemplos de uso
+- ✅ ARCHITECTURE.md - ResponseReviewer, BrowseInteractiveTool, Review Loop
+- ✅ TOOLS_REFERENCE.md - 16 tools (11 activas + 5 opcionales)
+- ✅ FLUJO_EJECUCION_CHAT.md - 9 pasos con Review Loop automático
+- ✅ DOCS_INDEX.md - Índice actualizado con nuevas features
+
+**Archivos eliminados:**
+- ❌ 9 archivos MD obsoletos (fixes ya integrados)
+
+**Nuevas features documentadas:**
+- ⭐ BrowseInteractiveTool con Playwright (navegación web interactiva)
+- ⭐ Review Loop automático (ResponseReviewer + 2 iteraciones SIEMPRE)
+- ⭐ 16 tools totales (vs 9 en v3.0)
+- ⭐ Hasta 15 iteraciones automáticas del agente
+
+---
+
+**🤖 Documentación actualizada a v3.7.0**
 
 **Co-Authored-By: Claude <noreply@anthropic.com>**
