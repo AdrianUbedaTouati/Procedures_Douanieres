@@ -1,20 +1,32 @@
-# TenderAI Platform v1.4.0
+# TenderAI Platform v3.7.0
 
-Plataforma inteligente de análisis de licitaciones públicas con IA integrada y soporte para LLMs locales.
+Plataforma inteligente de análisis de licitaciones públicas con sistema de **Function Calling avanzado**, **Review Loop automático**, y navegación web interactiva con Playwright.
 
 ## 🚀 Características Principales
 
-- **Chat Inteligente con Routing Per-Message**: Asistente conversacional con RAG (Retrieval-Augmented Generation)
-  - **Sistema de routing 100% LLM** que clasifica cada mensaje de forma independiente
-  - **Soporte multi-proveedor**: Google Gemini, OpenAI, NVIDIA, y **Ollama (100% local y gratis)**
-  - **ChromaDB vectorstore** con 235+ documentos indexados
-  - Cambio dinámico entre conversación general y consulta de documentos
-- **Recomendaciones IA**: Sistema de recomendaciones multicriteria usando Google Gemini
-- **Gestión de Licitaciones**: Búsqueda, filtrado y seguimiento de ofertas públicas
-- **Descarga TED API**: Obtención automatizada de licitaciones europeas con progreso en tiempo real
-- **Perfiles Empresariales**: Personalización completa para recomendaciones precisas
-- **Análisis Multicriteria**: Evaluación técnica, presupuestaria, geográfica, de experiencia y competencia
-- **100% Privado con Ollama**: Opción de usar modelos locales sin enviar datos a la nube
+- **🤖 Sistema Function Calling con 16 Tools**: Agente IA que ejecuta herramientas especializadas automáticamente
+  - **11 Tools siempre activas**: Context (2), Search (5), Info (2), Analysis (2)
+  - **5 Tools opcionales**: Quality (2), Web (3) - incluye navegador interactivo Playwright
+  - **Hasta 15 iteraciones automáticas** para resolver consultas complejas
+  - **Review Loop automático** con ResponseReviewer que mejora TODAS las respuestas
+- **🔍 Review Loop Automático v3.6+**: Sistema de mejora continua en 2 iteraciones
+  - **Iteración 1**: Agent ejecuta tools y genera respuesta inicial
+  - **Review**: ResponseReviewer evalúa formato (30%), contenido (40%), análisis (30%)
+  - **Iteración 2**: SIEMPRE ejecutada con prompt mejorado basado en feedback
+  - **Merge inteligente**: Combina documentos y herramientas de ambas iteraciones
+- **🌐 Navegación Web Interactiva v3.7**: BrowseInteractiveTool con Playwright
+  - **Navegador real Chromium** que ejecuta JavaScript completo
+  - **Navegación inteligente con LLM**: Clicks, formularios, esperas dinámicas
+  - **Ideal para portales complejos** como contrataciondelestado.es
+  - Tasa de éxito 95-98% en sitios gubernamentales
+- **🔍 Chat RAG Avanzado**: Retrieval-Augmented Generation con ChromaDB
+  - **Soporte multi-proveedor**: Google Gemini, OpenAI, NVIDIA, Ollama (100% local y gratis)
+  - **ChromaDB vectorstore** con embeddings especializados por proveedor
+  - **Routing per-message** 100% LLM para decisiones inteligentes
+- **📊 Recomendaciones IA Multicriteria**: Evaluación técnica, presupuestaria, geográfica
+- **📥 Descarga TED API**: Obtención automatizada de licitaciones europeas con progreso en tiempo real
+- **🏢 Perfiles Empresariales**: Autocompletado con IA desde texto libre
+- **🔒 100% Privado con Ollama**: Opción de usar modelos locales sin enviar datos a la nube
 
 ## 📋 Requisitos
 
@@ -23,6 +35,11 @@ Plataforma inteligente de análisis de licitaciones públicas con IA integrada y
 - **Opción 1 (Recomendado para privacidad)**: Ollama instalado localmente (100% gratis, sin API key)
 - **Opción 2**: Google Gemini API Key / OpenAI API Key / NVIDIA API Key
 - ChromaDB para vectorización
+- **Playwright** (opcional): Para navegación web interactiva
+  ```bash
+  pip install playwright
+  playwright install chromium
+  ```
 - 16GB+ RAM para usar Ollama con modelos grandes
 
 ## 🛠️ Instalación
@@ -58,13 +75,17 @@ DB_NAME=db.sqlite3
 # Email (opcional para recuperación de contraseña)
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 
-# Agent_IA Configuration
-LLM_PROVIDER=google
-DEFAULT_K_RETRIEVE=5
+# Agent_IA Configuration - Function Calling v3.7
+USE_FUNCTION_CALLING=true           # Activar sistema de Function Calling
+LLM_PROVIDER=google                 # google | openai | ollama | nvidia
+DEFAULT_K_RETRIEVE=6                # Documentos a recuperar
 CHROMA_COLLECTION_NAME=eforms_chunks
+LLM_TEMPERATURE=0.3                 # Creatividad (0.0-1.0)
+MAX_FUNCTION_CALLING_ITERATIONS=15  # Máximo de iteraciones del agente
 
 # ChromaDB Configuration
-ANONYMIZED_TELEMETRY=False  # Deshabilita telemetría para evitar errores en logs
+ANONYMIZED_TELEMETRY=False          # Deshabilita telemetría para evitar errores en logs
+CHROMA_PERSIST_DIRECTORY=data/index/chroma
 ```
 
 5. **Aplicar migraciones**
@@ -121,15 +142,18 @@ Accede a http://127.0.0.1:8000
 3. El sistema evaluará hasta 50 licitaciones activas
 4. Ver recomendaciones en **Recomendadas**
 
-### 3. Usar Chat IA
+### 3. Usar Chat IA con Function Calling
 
 1. Ir a **Chat**
 2. Click en **Nueva Conversación**
-3. Hacer preguntas sobre licitaciones
-4. Ejemplos:
-   - "¿Qué licitaciones hay de desarrollo de software?"
-   - "Dame detalles de la licitación 2024-123456"
-   - "¿Cuáles son las fechas límite de esta semana?"
+3. Hacer preguntas complejas - el agente usará las 16 tools automáticamente
+4. **Ejemplos de consultas que ejecutan tools**:
+   - "¿Qué licitaciones hay de desarrollo de software?" → `search_tenders`, `find_by_cpv`
+   - "Dame las 3 mejores licitaciones de IT con presupuesto > 100k" → `find_by_cpv`, `find_by_budget`, `get_tender_details`
+   - "Compara las licitaciones 123 y 456" → `compare_tenders`
+   - "Busca en Google licitaciones de seguridad informática" → `web_search` (si `use_web_search=True`)
+   - "Navega a contrataciondelestado.es y busca licitaciones recientes" → `browse_interactive` (Playwright)
+5. **Review automático**: Todas las respuestas pasan por 2 iteraciones para máxima calidad
 
 ### 4. Descargar Licitaciones de TED API
 
@@ -193,49 +217,101 @@ TenderAI_Platform/
 - **tenders**: CRUD de licitaciones, recomendaciones, búsqueda, descarga desde TED API
 - **chat**: Sesiones de chat, integración con Agent_IA
 
-## 🤖 Sistema de Chat Inteligente
+## 🤖 Sistema de Chat Inteligente v3.7
 
-### Arquitectura RAG con Routing Per-Message
+### Arquitectura Function Calling con Review Loop
 
-El chat utiliza un **sistema de routing 100% LLM** que analiza cada mensaje de forma independiente para decidir cómo responder.
+El chat utiliza un **sistema de Function Calling** donde el LLM decide automáticamente qué herramientas ejecutar para responder cada consulta.
 
 #### Componentes Principales
 
-**1. Routing Node (agent_ia_core/agent_graph.py)**
-- Clasifica CADA mensaje individualmente (no toda la conversación)
-- Usa solo el mensaje actual (sin influencia del historial)
-- Decide entre dos rutas:
-  - `vectorstore`: Consultar documentos de licitaciones
-  - `general`: Conversación general sin documentos
+**1. FunctionCallingAgent (agent_ia_core/agent_function_calling.py)**
+- Ejecuta hasta **15 iteraciones automáticas**
+- Decide qué tools llamar basándose en la consulta
+- Ejecuta múltiples tools en paralelo cuando es posible
+- Combina resultados de todas las tools para respuesta final
 
-**2. Retriever (agent_ia_core/retriever.py)**
+**2. ToolRegistry (agent_ia_core/tools/registry.py)**
+- **16 tools especializadas**:
+  - **Context (2)**: `get_company_info`, `get_tenders_summary`
+  - **Search (5)**: `search_tenders`, `find_by_budget`, `find_by_deadline`, `find_by_cpv`, `find_by_location`
+  - **Info (2)**: `get_tender_details`, `get_tender_xml`
+  - **Analysis (2)**: `get_statistics`, `compare_tenders`
+  - **Quality (2)**: `grade_documents`, `verify_fields` (opcional)
+  - **Web (3)**: `web_search`, `browse_webpage`, `browse_interactive` (opcional)
+
+**3. ResponseReviewer (chat/response_reviewer.py)** ⭐ NUEVO v3.6
+- Evalúa TODAS las respuestas del agente
+- Criterios de evaluación:
+  - **Formato (30%)**: Markdown, estructura, claridad
+  - **Contenido (40%)**: Completitud, datos esenciales
+  - **Análisis (30%)**: Justificación, objetividad
+- Proporciona feedback detallado y sugerencias de mejora
+
+**4. Review Loop Automático** ⭐ NUEVO v3.6
+```
+1. ITERACIÓN INICIAL
+   Agent ejecuta tools → Genera respuesta inicial
+
+2. REVIEW (SIEMPRE ejecutado)
+   ResponseReviewer analiza respuesta
+   Detecta problemas y sugiere mejoras
+
+3. SEGUNDA ITERACIÓN (SIEMPRE ejecutada)
+   Prompt mejorado con feedback del reviewer
+   Agent puede ejecutar tools adicionales si necesita
+   Genera respuesta mejorada
+
+4. MERGE Y RETORNO
+   Respuesta final = iteración 2 (mejorada)
+   Documentos = docs iteración 1 + docs iteración 2
+```
+
+**5. Retriever (agent_ia_core/retriever.py)**
 - Recupera documentos relevantes de ChromaDB
-- Embeddings con modelos específicos por proveedor:
+- Embeddings especializados por proveedor:
   - **Ollama**: `nomic-embed-text` (local)
   - **Google**: `models/embedding-001`
   - **OpenAI**: `text-embedding-3-small`
   - **NVIDIA**: `nvidia/nv-embedqa-e5-v5`
 
-**3. Answer Node (agent_ia_core/agent_graph.py)**
-- Genera respuestas con contexto conversacional
-- Usa el historial de conversación SOLO para respuestas, NO para routing
-- Combina documentos recuperados + historial para respuestas coherentes
+**6. BrowseInteractiveTool (agent_ia_core/tools/browse_interactive_tool.py)** ⭐ NUEVO v3.7
+- Navegador Chromium headless con Playwright
+- Ejecuta JavaScript completo (SPA, React, Vue)
+- **Modo inteligente con LLM**:
+  1. Analiza página actual
+  2. LLM decide: EXTRACT / CLICK / SEARCH
+  3. Ejecuta acción (click, fill form, wait)
+  4. Repite hasta encontrar información o max_steps
+- Ideal para portales complejos (contrataciondelestado.es, PLACE, etc.)
 
-#### Flujo de una Conversación Multi-Turno
+#### Flujo de una Consulta con Function Calling
 
 ```
-Usuario: "hola"
-→ Routing: general (sin historial)
-→ Respuesta: Saludo cordial
+Usuario: "Dame las 3 mejores licitaciones de software con presupuesto > 50k"
 
-Usuario: "cual es la mejor licitación en software"
-→ Routing: vectorstore (analiza SOLO este mensaje)
-→ Recupera: 6 documentos relevantes de ChromaDB
-→ Respuesta: Análisis detallado con datos de las licitaciones
+→ ITERACIÓN 1:
+  - Agent decide llamar: find_by_cpv(query="software")
+  - Agent decide llamar: find_by_budget(min_budget=50000)
+  - Agent combina resultados y genera respuesta inicial
 
-Usuario: "gracias"
-→ Routing: general (NO se confunde con el mensaje anterior!)
-→ Respuesta: Despedida cordial
+→ REVIEW (SIEMPRE):
+  - ResponseReviewer evalúa respuesta
+  - Detecta: "Falta información de plazos de presentación"
+  - Score: 75/100 (APPROVED, pero mejorable)
+  - Sugerencia: "Añadir deadlines y contactos"
+
+→ ITERACIÓN 2 (SIEMPRE):
+  - Prompt mejorado: "Añade plazos y contactos a tu respuesta"
+  - Agent llama: get_tender_details() para licitaciones seleccionadas
+  - Genera respuesta MEJORADA con plazos, contactos, y análisis completo
+
+→ MERGE:
+  - Respuesta final = Iteración 2 (con plazos y contactos)
+  - Documentos = docs de iteración 1 + docs de iteración 2
+  - Metadata guardada: review_status, score, suggestions
+
+→ USUARIO recibe respuesta de máxima calidad
 ```
 
 ### Configuración del Agente
@@ -243,30 +319,37 @@ Usuario: "gracias"
 El agente es totalmente configurable vía `.env`:
 
 ```env
-# Sistema de Routing (LLM-based)
-LLM_TEMPERATURE=0.3              # Creatividad del LLM (0.0-1.0)
-LLM_TIMEOUT=120                  # Timeout en segundos
+# Function Calling System v3.7
+USE_FUNCTION_CALLING=true                # Activar sistema de Function Calling
+MAX_FUNCTION_CALLING_ITERATIONS=15       # Máximo de iteraciones automáticas
+LLM_TEMPERATURE=0.3                      # Creatividad del LLM (0.0-1.0)
+LLM_TIMEOUT=120                          # Timeout en segundos
 
 # Recuperación de Documentos
-DEFAULT_K_RETRIEVE=6             # Documentos a recuperar
-MIN_SIMILARITY_SCORE=0.5         # Umbral de similitud (0.0-1.0)
+DEFAULT_K_RETRIEVE=6                     # Documentos a recuperar
+MIN_SIMILARITY_SCORE=0.5                 # Umbral de similitud (0.0-1.0)
 
 # Características del Agente
-USE_GRADING=True                 # Validar relevancia de docs
-USE_XML_VERIFICATION=True        # Verificar campos críticos en XML
+USE_GRADING=false                        # ⚠️ Obsoleto en v3.0+ (usar tools opcionales)
+USE_XML_VERIFICATION=false               # ⚠️ Obsoleto en v3.0+ (usar tools opcionales)
+
+# Tools Opcionales (activar en perfil de usuario)
+# use_web_search = True en el perfil → Activa web_search, browse_webpage, browse_interactive
+# use_grading_docs = True en el perfil → Activa grade_documents
+# use_field_verification = True en el perfil → Activa verify_fields
 
 # Ollama Settings (local)
-OLLAMA_CONTEXT_LENGTH=2048       # Contexto en tokens (1024/2048/4096)
+OLLAMA_CONTEXT_LENGTH=2048               # Contexto en tokens (1024/2048/4096)
 
 # ChromaDB
 CHROMA_COLLECTION_NAME=eforms_chunks
 CHROMA_PERSIST_DIRECTORY=data/index/chroma
 
 # Historial
-MAX_CONVERSATION_HISTORY=10      # Límite de mensajes en contexto
+MAX_CONVERSATION_HISTORY=10              # Límite de mensajes en contexto
 ```
 
-Consulta [CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md) para detalles completos.
+**📖 Documentación completa**: Ver [CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md), [ARCHITECTURE.md](ARCHITECTURE.md), y [TOOLS_REFERENCE.md](TOOLS_REFERENCE.md).
 
 ### Proveedores de LLM Soportados
 
@@ -365,36 +448,68 @@ static/
     └── js/main.js         # Utilidades generales
 ```
 
-## 📝 Notas de la Versión 1.4.0
+## 📝 Notas de la Versión 3.7.0
 
-### ✨ Nuevo en v1.4.0 - Sistema de Chat Inteligente Completado
+### ✨ Nuevo en v3.7.0 - BrowseInteractiveTool con Playwright
 
-**Sistema de Routing Per-Message:**
-- **Routing 100% LLM** que clasifica cada mensaje de forma independiente
-- **Sin keywords rígidas**: El LLM entiende sinónimos e intención automáticamente
-- **Cambio dinámico**: Alterna entre general/vectorstore según cada mensaje
-- **Historial contextual**: Usado solo para respuestas, NO para clasificación
-- **Testing completo**: 4/4 tests pasando en flujos multi-turno
+**Navegación Web Interactiva:**
+- **Navegador Chromium headless** con Playwright
+- **Ejecuta JavaScript completo** (SPA, React, Vue, Angular)
+- **Modo inteligente con LLM**: Analiza página → Decide acción → Ejecuta → Repite
+- **Acciones soportadas**: Click, fill forms, wait for content, scroll, navigate
+- **Ideal para portales complejos**: contrataciondelestado.es, PLACE, etc.
+- **95-98% success rate** en sitios gubernamentales
+- **Activación**: `use_web_search=True` en perfil de usuario
 
-**Integración Ollama (100% Local y Gratis):**
-- Soporte completo para modelos Ollama (qwen2.5:7b, llama3.1, etc.)
-- **Sin costos**: No se requiere API key ni pagos
-- **100% Privado**: Todos los datos quedan en tu máquina
-- ChromaDB con 235+ documentos indexados de 37 licitaciones
-- Embeddings locales con `nomic-embed-text`
+**Ejemplo de uso**:
+```python
+Usuario: "Navega a contrataciondelestado.es y busca licitaciones recientes"
+→ browse_interactive tool:
+  1. Navega a URL
+  2. LLM analiza página principal
+  3. Decide hacer click en "Búsqueda"
+  4. Llena formulario con criterios
+  5. Envía y espera resultados
+  6. Extrae información de licitaciones
+  7. Retorna datos al agente
+→ Respuesta final con licitaciones encontradas
+```
 
-**Configuración Avanzada:**
-- Sistema completamente configurable vía `.env`
-- Archivo [CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md) con guía completa
-- Settings de grading y verificación por usuario
-- Control de context length, temperatura, timeout, etc.
+### ✨ Incluido en v3.6.0 - Review Loop Automático
 
-**UI/UX Mejorada:**
-- Diseño premium ultra-moderno para chat
-- Gradientes vibrantes y animaciones suaves
-- Markdown rendering con sintaxis highlight
-- Citation badges con efectos de brillo
-- Paneles de costos diferenciados (Ollama vs Cloud)
+**Sistema de Mejora Continua:**
+- **ResponseReviewer** evalúa TODAS las respuestas automáticamente
+- **3 criterios de evaluación**: Formato (30%), Contenido (40%), Análisis (30%)
+- **Segunda iteración SIEMPRE ejecutada** para mejorar respuestas
+- **Feedback detallado**: Problemas detectados y sugerencias de mejora
+- **Merge inteligente**: Combina documentos y tools de ambas iteraciones
+- **Metadata guardada**: `review_status`, `review_score`, `review_issues`, `review_suggestions`
+
+**Ejemplo de mejora**:
+```
+Iteración 1: "Estas son 3 licitaciones de software"
+→ Review: "Falta información de plazos y contactos" (Score: 75/100)
+→ Iteración 2: "Estas son 3 licitaciones de software:
+   1. Licitación ABC - Plazo: 15/02/2025 - Contacto: xyz@email.com
+   ..."
+```
+
+### ✨ Incluido en v3.0.0 - Sistema Function Calling Completo
+
+**Function Calling con 16 Tools:**
+- **11 tools siempre activas**: Context (2), Search (5), Info (2), Analysis (2)
+- **5 tools opcionales**: Quality (2), Web (3)
+- **Hasta 15 iteraciones automáticas** para resolver consultas complejas
+- **Ejecución paralela** de tools cuando es posible
+- **SchemaConverter automático** para cada proveedor LLM
+
+**Tools disponibles**:
+- **Context**: `get_company_info`, `get_tenders_summary`
+- **Search**: `search_tenders`, `find_by_budget`, `find_by_deadline`, `find_by_cpv`, `find_by_location`
+- **Info**: `get_tender_details`, `get_tender_xml`
+- **Analysis**: `get_statistics`, `compare_tenders`
+- **Quality** (opcional): `grade_documents`, `verify_fields`
+- **Web** (opcional): `web_search`, `browse_webpage`, `browse_interactive`
 
 ### ✅ Incluido en v1.3.0
 - **Cancelación de descargas en tiempo real** con botón dedicado
@@ -424,17 +539,16 @@ static/
 - Templates Bootstrap 5
 - API key por usuario
 
-### 🔜 Roadmap
-- Notificaciones por email cuando hay nuevas licitaciones
-- Dashboard con gráficos y estadísticas
-- Exportación de recomendaciones a PDF
-- API REST para integraciones
-- Sistema de suscripciones
-- Indexación automática post-descarga
-- Programación de descargas periódicas
-- Soporte para más modelos Ollama (llama3.1, phi-3, etc.)
-- Cache de embeddings para mayor velocidad
-- Modo multi-agente para tareas complejas
+### 🔜 Roadmap v4.0+
+- **Multi-Agent Orchestration**: Coordinación de múltiples agentes especializados
+- **Tool Learning**: Agentes que aprenden nuevas tools dinámicamente
+- **Streaming de respuestas**: UI con respuestas en tiempo real (SSE/WebSocket)
+- **Cache de Function Calls**: Reutilizar resultados de tools recientes
+- **Notificaciones Push**: Email/SMS cuando hay nuevas licitaciones relevantes
+- **Dashboard Analytics**: Gráficos de uso de tools, éxito de Function Calling
+- **Exportación PDF mejorada**: Reportes con análisis de tools ejecutadas
+- **API REST**: Endpoints para integración con sistemas externos
+- **Playwright pool**: Pool de navegadores para mayor concurrencia
 
 ## 🐛 Solución de Problemas
 
@@ -465,26 +579,46 @@ static/
 - Asegúrate de que tu perfil de empresa esté completo
 - Verifica que la API key sea válida
 
-### Chat General
+### Chat con Function Calling
 
-**Chat no responde o no consulta documentos**
+**Chat no ejecuta tools**
+1. Verifica que `USE_FUNCTION_CALLING=true` en `.env`
+2. Verifica logs del servidor:
+   - Busca `[FUNCTION CALLING] Initialized with X tools`
+   - Debe mostrar las 16 tools (11 + 5 opcionales según perfil)
+3. Comprueba que el usuario tenga API key configurada en perfil
+
+**Review Loop no funciona**
+1. Verifica logs del servidor:
+   - Busca `[REVIEW] Analyzing response`
+   - Busca `[IMPROVEMENT] Generating improved response`
+2. El Review Loop requiere que `USE_FUNCTION_CALLING=true`
+3. Verifica que ChatMessage tenga campos `review_*` en BD
+
+**BrowseInteractiveTool no funciona**
+1. Verifica que Playwright esté instalado:
+   ```bash
+   pip install playwright
+   playwright install chromium
+   ```
+2. Verifica que `use_web_search=True` en perfil de usuario
+3. Verifica logs: `[BROWSE INTERACTIVE] Navegando a URL`
+4. En Windows, puede requerir ejecutar como administrador la primera vez
+
+**Chat no consulta licitaciones indexadas**
 1. Verifica que haya licitaciones indexadas:
    - Ve a **/licitaciones/vectorizacion/**
    - Haz clic en "Indexar Todas las Licitaciones"
-   - Espera a que termine (aparecerá mensaje de éxito)
-2. Comprueba que ChromaDB tenga documentos:
+2. Comprueba ChromaDB:
    ```python
    python manage.py shell
    >>> import chromadb
    >>> client = chromadb.PersistentClient(path='data/index/chroma')
    >>> collection = client.get_collection('eforms_chunks')
-   >>> print(collection.count())  # Debe mostrar 235+
+   >>> print(collection.count())  # Debe mostrar documentos
    ```
-
-**El routing no funciona correctamente**
-- Verifica los logs del servidor (stderr)
-- Busca líneas con `[ROUTE] Clasificando SOLO mensaje actual`
-- Si usa keywords en lugar de LLM, el servidor no recargó los cambios
+3. Con Function Calling, el agente decide si usar `search_tenders` tool
+   - Verifica logs: `[AGENT] Calling tool: search_tenders`
 
 ### Problemas Generales
 
@@ -512,14 +646,18 @@ Desarrollado con:
 
 ## 📚 Documentación Adicional
 
-- **[CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md)** - Guía completa de configuración del agente RAG
+**🎯 Empieza aquí:**
+- **[DOCS_INDEX.md](DOCS_INDEX.md)** - Índice completo de documentación, guías por rol
+
+**📖 Documentación principal:**
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Arquitectura completa del sistema v3.7
+- **[TOOLS_REFERENCE.md](TOOLS_REFERENCE.md)** - Referencia completa de las 16 tools
+- **[FLUJO_EJECUCION_CHAT.md](FLUJO_EJECUCION_CHAT.md)** - Flujo de ejecución paso a paso con Review Loop
+- **[CONFIGURACION_AGENTE.md](CONFIGURACION_AGENTE.md)** - Configuración detallada del agente
 - **[GUIA_INSTALACION_OLLAMA.md](GUIA_INSTALACION_OLLAMA.md)** - Instalación y configuración de Ollama
-- **[ESTRUCTURA_PROYECTO.md](ESTRUCTURA_PROYECTO.md)** - Arquitectura y estructura del proyecto
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detalles técnicos de arquitectura
-- **[CHANGELOG.md](CHANGELOG.md)** - Historial completo de cambios
 
 ---
 
-**TenderAI Platform v1.4.0** - Encuentra las mejores oportunidades de licitación con IA
+**TenderAI Platform v3.7.0** - Encuentra las mejores oportunidades de licitación con IA
 
-*Now with 100% local and free AI support via Ollama* 🚀
+*Powered by Function Calling, Review Loop, and Interactive Web Browsing* 🚀
