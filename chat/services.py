@@ -429,6 +429,118 @@ class ChatAgentService:
             # Extract response content
             response_content = result.get('answer', 'No se pudo generar una respuesta.')
 
+            # ========================================================================
+            # REVIEW AND IMPROVEMENT LOOP WITH SECOND LLM
+            # ========================================================================
+            from chat.response_reviewer import ResponseReviewer
+
+            print(f"[SERVICE] Iniciando revisión de respuesta...", file=sys.stderr)
+
+            # Create reviewer with same LLM as agent
+            reviewer = ResponseReviewer(agent.llm)
+
+            # Build metadata for reviewer
+            review_metadata_input = {
+                'documents_used': result.get('documents', []),
+                'tools_used': result.get('tools_used', []),
+                'route': result.get('route', 'unknown')
+            }
+
+            # Review initial response
+            review_result = reviewer.review_response(
+                user_question=message,
+                conversation_history=formatted_history,
+                initial_response=response_content,
+                metadata=review_metadata_input
+            )
+
+            print(f"[SERVICE] Revisión completada: {review_result['status']} (score: {review_result['score']}/100)", file=sys.stderr)
+
+            # If needs improvement, run second iteration
+            improvement_applied = False
+            if review_result['status'] == 'NEEDS_IMPROVEMENT':
+                print(f"[SERVICE] Respuesta necesita mejoras. Ejecutando segunda iteración...", file=sys.stderr)
+
+                # Build issues list for prompt
+                issues_list = '\n'.join([f"- {issue}" for issue in review_result['issues']])
+                suggestions_list = '\n'.join([f"- {suggestion}" for suggestion in review_result['suggestions']])
+
+                # Build improvement prompt
+                improvement_prompt = f"""Tu respuesta anterior fue revisada y necesita mejoras.
+
+**Tu respuesta original:**
+{response_content}
+
+**Problemas detectados:**
+{issues_list}
+
+**Sugerencias:**
+{suggestions_list}
+
+**Feedback del revisor:**
+{review_result['feedback']}
+
+**Tu tarea:**
+Genera una respuesta MEJORADA que resuelva estos problemas.
+
+**IMPORTANTE:**
+- Usa herramientas (tools) si necesitas buscar más información
+- Si faltan datos específicos (presupuestos, plazos, etc.), búscalos
+- Si el formato es incorrecto, corrígelo (usa ## para licitaciones múltiples, NO listas numeradas)
+- Si falta análisis, justifica tus recomendaciones con datos concretos
+
+**Pregunta original del usuario:**
+{message}
+
+Genera tu respuesta mejorada:"""
+
+                # Execute second query with improvement prompt
+                # Añadir respuesta original al historial para contexto
+                improvement_history = formatted_history + [
+                    {'role': 'user', 'content': message},
+                    {'role': 'assistant', 'content': response_content}
+                ]
+
+                print(f"[SERVICE] Ejecutando query de mejora...", file=sys.stderr)
+                improved_result = agent.query(
+                    improvement_prompt,
+                    conversation_history=improvement_history
+                )
+
+                # Update response with improved version
+                response_content = improved_result.get('answer', response_content)
+                improvement_applied = True
+
+                print(f"[SERVICE] ✓ Respuesta mejorada generada: {len(response_content)} caracteres", file=sys.stderr)
+
+                # Update result with improved data (merge documents/tools from both iterations)
+                # Merge documents (avoid duplicates)
+                existing_doc_ids = {doc.get('ojs_notice_id') for doc in result.get('documents', [])}
+                new_docs = [doc for doc in improved_result.get('documents', [])
+                           if doc.get('ojs_notice_id') not in existing_doc_ids]
+                result['documents'] = result.get('documents', []) + new_docs
+
+                # Merge tools used
+                result['tools_used'] = list(set(result.get('tools_used', []) + improved_result.get('tools_used', [])))
+
+                # Update iterations count
+                result['iterations'] = result.get('iterations', 0) + improved_result.get('iterations', 0)
+
+            # Save review metadata for tracking
+            review_tracking = {
+                'review_performed': True,
+                'review_status': review_result['status'],
+                'review_score': review_result['score'],
+                'review_issues': review_result['issues'],
+                'review_suggestions': review_result['suggestions'],
+                'improvement_applied': improvement_applied
+            }
+
+            print(f"[SERVICE] Review tracking: {review_tracking}", file=sys.stderr)
+            # ========================================================================
+            # END REVIEW LOOP
+            # ========================================================================
+
             # Format document metadata for frontend
             from tenders.models import Tender
             documents_used = []
@@ -478,7 +590,9 @@ class ChatAgentService:
                 'input_tokens': cost_data['input_tokens'],
                 'output_tokens': cost_data['output_tokens'],
                 'total_tokens': cost_data['total_tokens'],
-                'cost_eur': cost_data['total_cost_eur']
+                'cost_eur': cost_data['total_cost_eur'],
+                # Review tracking (from LLM reviewer)
+                'review': review_tracking
             }
 
             # Log final del proceso
@@ -488,7 +602,13 @@ class ChatAgentService:
             if tools_used:
                 print(f"[SERVICE] Herramientas usadas ({len(tools_used)}): {' → '.join(tools_used)}", file=sys.stderr)
             print(f"[SERVICE] Tokens totales: {cost_data['total_tokens']} (in: {cost_data['input_tokens']}, out: {cost_data['output_tokens']})", file=sys.stderr)
-            print(f"[SERVICE] Costo: €{cost_data['total_cost_eur']:.4f}\n", file=sys.stderr)
+            print(f"[SERVICE] Costo: €{cost_data['total_cost_eur']:.4f}", file=sys.stderr)
+            # Review metrics
+            print(f"[SERVICE] Review - Status: {review_tracking['review_status']}, Score: {review_tracking['review_score']}/100", file=sys.stderr)
+            if review_tracking['improvement_applied']:
+                print(f"[SERVICE] Review - Mejora aplicada (2da iteración ejecutada)", file=sys.stderr)
+                print(f"[SERVICE] Review - Issues: {len(review_tracking['review_issues'])}", file=sys.stderr)
+            print(f"", file=sys.stderr)  # Línea en blanco final
 
             # LOG: Mensaje final del asistente con metadata
             if self.chat_logger:
