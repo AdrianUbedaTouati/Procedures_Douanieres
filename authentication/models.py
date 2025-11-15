@@ -115,6 +115,11 @@ class User(AbstractUser):
         verbose_name='Google Search Engine ID',
         help_text='ID del motor de búsqueda personalizado (cx parameter)'
     )
+    browse_max_chars = models.IntegerField(
+        default=10000,
+        verbose_name='Máximo de caracteres por página',
+        help_text='Número máximo de caracteres a extraer de cada página web (1,000 - 50,000). Más caracteres = más tokens = mayor costo pero más información detallada.'
+    )
 
     # Shipping address fields
     address_line1 = models.CharField(max_length=255, blank=True, verbose_name='Dirección (Línea 1)')

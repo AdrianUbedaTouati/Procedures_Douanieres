@@ -155,6 +155,20 @@ class EditProfileForm(forms.ModelForm):
         }),
         help_text='ID del motor de búsqueda personalizado (cx parameter)'
     )
+    browse_max_chars = forms.IntegerField(
+        required=False,
+        label='Máximo de caracteres por página web',
+        initial=10000,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': '10000',
+            'min': 1000,
+            'max': 50000,
+            'step': 1000,
+            'id': 'browse_max_chars_input'
+        }),
+        help_text='Máximo de caracteres a extraer de cada página web (1,000 - 50,000). Aproximadamente 1 token = 4 caracteres. Por defecto 10,000 (≈2,500 tokens)'
+    )
 
     # Campos de dirección
     address_line1 = forms.CharField(
@@ -211,7 +225,7 @@ class EditProfileForm(forms.ModelForm):
         fields = ('username', 'email', 'first_name', 'last_name', 'phone',
                  'llm_provider', 'llm_api_key', 'openai_model', 'ollama_model', 'ollama_embedding_model',
                  'use_grading', 'use_verification',
-                 'use_web_search', 'google_search_api_key', 'google_search_engine_id',
+                 'use_web_search', 'google_search_api_key', 'google_search_engine_id', 'browse_max_chars',
                  'address_line1', 'address_line2', 'city', 'state_province',
                  'postal_code', 'country')
 

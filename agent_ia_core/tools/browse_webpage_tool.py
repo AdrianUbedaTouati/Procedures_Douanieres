@@ -52,17 +52,23 @@ IMPORTANT:
 Input: A complete URL to browse and extract content from.
 Output: The main text content of the webpage, cleaned and formatted."""
 
-    def __init__(self):
-        """Inicializa la tool."""
+    def __init__(self, default_max_chars: int = 10000):
+        """
+        Inicializa la tool.
+
+        Args:
+            default_max_chars: Número máximo de caracteres por defecto (configurable por usuario)
+        """
+        self.default_max_chars = default_max_chars
         super().__init__()
 
-    def run(self, url: str, max_chars: int = 10000) -> Dict[str, Any]:
+    def run(self, url: str, max_chars: int = None) -> Dict[str, Any]:
         """
         Navega a una URL y extrae su contenido principal.
 
         Args:
             url: URL completa de la página a navegar (debe empezar con http:// o https://)
-            max_chars: Número máximo de caracteres a retornar (default 10000)
+            max_chars: Número máximo de caracteres a retornar (si es None, usa default_max_chars)
 
         Returns:
             Dict con formato:
@@ -77,6 +83,10 @@ Output: The main text content of the webpage, cleaned and formatted."""
                 'error': str (si success=False)
             }
         """
+        # Usar default_max_chars si no se especifica max_chars
+        if max_chars is None:
+            max_chars = self.default_max_chars
+
         try:
             # Validar URL
             if not url or not isinstance(url, str):

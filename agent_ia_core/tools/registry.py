@@ -98,18 +98,19 @@ class ToolRegistry:
                         engine_id=google_search_engine_id
                     )
                     logger.info("[REGISTRY] ✓ Web search tool habilitada (use_web_search=True, credenciales OK)")
+
+                    # Browse Webpage: Navega y extrae contenido completo de páginas web
+                    # Se habilita cuando use_web_search está activo Y hay credenciales de Google Search
+                    from .browse_webpage_tool import BrowseWebpageTool
+                    browse_max_chars = getattr(self.user, 'browse_max_chars', 10000)
+                    self.tools['browse_webpage'] = BrowseWebpageTool(default_max_chars=browse_max_chars)
+                    logger.info(f"[REGISTRY] ✓ Browse webpage tool habilitada (use_web_search=True, max_chars={browse_max_chars})")
                 else:
                     logger.warning(
                         "[REGISTRY] ⚠ use_web_search=True pero faltan credenciales. "
                         f"API Key: {'OK' if google_search_api_key else 'FALTA'}, "
                         f"Engine ID: {'OK' if google_search_engine_id else 'FALTA'}"
                     )
-
-                # Browse Webpage: Navega y extrae contenido completo de páginas web
-                # Se habilita cuando use_web_search está activo (no requiere credenciales adicionales)
-                from .browse_webpage_tool import BrowseWebpageTool
-                self.tools['browse_webpage'] = BrowseWebpageTool()
-                logger.info("[REGISTRY] ✓ Browse webpage tool habilitada (use_web_search=True)")
 
         logger.info(f"[REGISTRY] {len(self.tools)} tools registradas: {list(self.tools.keys())}")
 
