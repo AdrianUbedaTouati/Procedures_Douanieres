@@ -94,4 +94,12 @@ def markdown_to_html(text):
         }
     )
 
+    # POST-PROCESSING: Agregar target="_blank" a todos los enlaces
+    # Esto hace que todos los enlaces se abran en una nueva pestaña
+    html = re.sub(
+        r'<a\s+([^>]*?)href=(["\'])([^"\']+)\2([^>]*?)>',
+        r'<a \1href=\2\3\2 target="_blank" rel="noopener noreferrer"\4>',
+        html
+    )
+
     return mark_safe(html)
