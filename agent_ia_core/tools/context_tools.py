@@ -22,10 +22,13 @@ class GetCompanyInfoTool(BaseTool):
 
     name = "get_company_info"
     description = (
-        "Obtiene información sobre la empresa del usuario. "
+        "Obtiene información sobre la empresa y perfil del usuario. "
+        "**IMPORTANTE: USA ESTA TOOL SIEMPRE que el usuario pida recomendaciones personalizadas o preguntas abiertas** "
+        "(ej: 'dame la mejor licitación para mí', 'qué licitación me interesa', 'cuál me conviene'). "
         "Usa esta herramienta cuando el usuario pregunte sobre su empresa, "
         "o cuando necesites información del perfil de empresa para dar recomendaciones personalizadas. "
-        "Devuelve: nombre, sector, empleados, CPV codes, regiones NUTS, capacidades, certificaciones, presupuesto."
+        "Devuelve: nombre, sector, empleados, CPV codes, regiones NUTS, capacidades, certificaciones, presupuesto. "
+        "Con esta información puedes hacer análisis de fit y justificar recomendaciones con datos objetivos."
     )
 
     def __init__(self, user):
