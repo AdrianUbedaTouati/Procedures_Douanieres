@@ -97,6 +97,25 @@ class User(AbstractUser):
         help_text='Valida campos críticos con el XML original (más preciso pero más lento)'
     )
 
+    # Google Search API settings
+    use_web_search = models.BooleanField(
+        default=False,
+        verbose_name='Activar Búsqueda Web',
+        help_text='Permite al agente buscar información actualizada en internet'
+    )
+    google_search_api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Google Search API Key',
+        help_text='API Key de Google Custom Search API'
+    )
+    google_search_engine_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='Google Search Engine ID',
+        help_text='ID del motor de búsqueda personalizado (cx parameter)'
+    )
+
     # Shipping address fields
     address_line1 = models.CharField(max_length=255, blank=True, verbose_name='Dirección (Línea 1)')
     address_line2 = models.CharField(max_length=255, blank=True, verbose_name='Dirección (Línea 2)')

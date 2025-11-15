@@ -86,6 +86,25 @@ class ToolRegistry:
                 self.tools['verify_fields'] = VerifyFieldsTool()
                 logger.info("[REGISTRY] ✓ Verification tool habilitada (use_verification=True)")
 
+            # Web Search: Búsqueda en internet usando Google Custom Search API
+            if getattr(self.user, 'use_web_search', False):
+                google_search_api_key = getattr(self.user, 'google_search_api_key', None)
+                google_search_engine_id = getattr(self.user, 'google_search_engine_id', None)
+
+                if google_search_api_key and google_search_engine_id:
+                    from .web_search_tool import GoogleWebSearchTool
+                    self.tools['web_search'] = GoogleWebSearchTool(
+                        api_key=google_search_api_key,
+                        engine_id=google_search_engine_id
+                    )
+                    logger.info("[REGISTRY] ✓ Web search tool habilitada (use_web_search=True, credenciales OK)")
+                else:
+                    logger.warning(
+                        "[REGISTRY] ⚠ use_web_search=True pero faltan credenciales. "
+                        f"API Key: {'OK' if google_search_api_key else 'FALTA'}, "
+                        f"Engine ID: {'OK' if google_search_engine_id else 'FALTA'}"
+                    )
+
         logger.info(f"[REGISTRY] {len(self.tools)} tools registradas: {list(self.tools.keys())}")
 
     def initialize_grading_tool(self, llm):

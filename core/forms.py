@@ -67,6 +67,22 @@ class EditProfileForm(forms.ModelForm):
         }),
         help_text='No es necesaria para Ollama (modelo local)'
     )
+    openai_model = forms.ChoiceField(
+        required=False,
+        label='Modelo OpenAI',
+        choices=[
+            ('gpt-4o', 'GPT-4o (Más potente, más caro)'),
+            ('gpt-4o-mini', 'GPT-4o-mini (Balance calidad/precio) - Recomendado'),
+            ('gpt-4-turbo', 'GPT-4 Turbo (Anterior generación)'),
+            ('gpt-3.5-turbo', 'GPT-3.5 Turbo (Económico, menos capaz)'),
+        ],
+        initial='gpt-4o-mini',
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'id': 'openai_model_select'
+        }),
+        help_text='Solo se usa si seleccionas OpenAI como proveedor'
+    )
     ollama_model = forms.CharField(
         required=False,
         label='Modelo Ollama',
@@ -106,6 +122,38 @@ class EditProfileForm(forms.ModelForm):
             'class': 'form-check-input'
         }),
         help_text='Valida campos críticos con el XML original (más preciso pero más lento)'
+    )
+
+    # Google Search API settings
+    use_web_search = forms.BooleanField(
+        required=False,
+        label='Activar Búsqueda Web',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'use_web_search_checkbox'
+        }),
+        help_text='Permite al agente buscar información actualizada en internet'
+    )
+    google_search_api_key = forms.CharField(
+        required=False,
+        label='Google Search API Key',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'AIza...',
+            'type': 'password',
+            'id': 'google_search_api_key_input'
+        }),
+        help_text='API key de Google Custom Search API (100 búsquedas/día gratis)'
+    )
+    google_search_engine_id = forms.CharField(
+        required=False,
+        label='Google Custom Search Engine ID',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'a1b2c3d4e5f6g7h8i',
+            'id': 'google_search_engine_id_input'
+        }),
+        help_text='ID del motor de búsqueda personalizado (cx parameter)'
     )
 
     # Campos de dirección
@@ -161,8 +209,9 @@ class EditProfileForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ('username', 'email', 'first_name', 'last_name', 'phone',
-                 'llm_provider', 'llm_api_key', 'ollama_model', 'ollama_embedding_model',
+                 'llm_provider', 'llm_api_key', 'openai_model', 'ollama_model', 'ollama_embedding_model',
                  'use_grading', 'use_verification',
+                 'use_web_search', 'google_search_api_key', 'google_search_engine_id',
                  'address_line1', 'address_line2', 'city', 'state_province',
                  'postal_code', 'country')
 

@@ -136,7 +136,44 @@
                                         </a>
                                     </div>
                                 </div>
-                            {% else %}
+                            {% elif user.llm_provider == 'openai' %}
+                                <!-- Configuración de OpenAI -->
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <strong class="text-white">Modelo Seleccionado:</strong>
+                                    </div>
+                                    <div class="col-md-8">
+                                        {% with model=user.openai_model|default:"gpt-4o-mini" %}
+                                            <code class="bg-light text-dark p-2 rounded d-inline-block">
+                                                {{ model }}
+                                            </code>
+                                            {% if model == 'gpt-4o-mini' %}
+                                                <span class="badge bg-success ms-2">Recomendado</span>
+                                                <small class="text-white-50 d-block mt-1">
+                                                    <i class="bi bi-info-circle"></i> Balance perfecto calidad/precio (~€0.0006/conversación)
+                                                </small>
+                                            {% elif model == 'gpt-4o' %}
+                                                <span class="badge bg-warning text-dark ms-2">Premium</span>
+                                                <small class="text-white-50 d-block mt-1">
+                                                    <i class="bi bi-info-circle"></i> Más potente (~€0.0024/conversación - 4x más caro)
+                                                </small>
+                                            {% elif model == 'gpt-4-turbo' %}
+                                                <span class="badge bg-secondary ms-2">Anterior Gen</span>
+                                                <small class="text-white-50 d-block mt-1">
+                                                    <i class="bi bi-info-circle"></i> Generación anterior
+                                                </small>
+                                            {% elif model == 'gpt-3.5-turbo' %}
+                                                <span class="badge bg-info ms-2">Económico</span>
+                                                <small class="text-white-50 d-block mt-1">
+                                                    <i class="bi bi-info-circle"></i> Más económico (~€0.0003/conversación) pero menos capaz
+                                                </small>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            {% if user.llm_provider != 'ollama' %}
                                 <!-- Configuración de proveedores cloud -->
                                 <div class="row mb-3">
                                     <div class="col-md-4">
@@ -181,6 +218,97 @@
                                             </div>
                                         {% endif %}
                                     </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Web Search Configuration -->
+                    <div class="card mb-3 border-info">
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-globe"></i> Configuración de Búsqueda Web
+                            </h5>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <strong>Estado:</strong>
+                                </div>
+                                <div class="col-md-8">
+                                    {% if user.use_web_search %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Activada
+                                        </span>
+                                        {% if user.google_search_api_key and user.google_search_engine_id %}
+                                            <span class="badge bg-light text-success ms-2">
+                                                <i class="bi bi-key-fill"></i> Credenciales configuradas
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark ms-2">
+                                                <i class="bi bi-exclamation-triangle"></i> Faltan credenciales
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-x-circle"></i> Desactivada
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if user.use_web_search %}
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <strong>Google Search API Key:</strong>
+                                    </div>
+                                    <div class="col-md-8">
+                                        {% if user.google_search_api_key %}
+                                            <code class="bg-light text-dark p-2 rounded d-inline-block" style="font-size: 12px;">
+                                                {{ user.google_search_api_key|slice:":20" }}••••••••••••••••
+                                            </code>
+                                        {% else %}
+                                            <span class="text-muted">No configurada</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <strong>Search Engine ID:</strong>
+                                    </div>
+                                    <div class="col-md-8">
+                                        {% if user.google_search_engine_id %}
+                                            <code class="bg-light text-dark p-2 rounded d-inline-block">
+                                                {{ user.google_search_engine_id }}
+                                            </code>
+                                        {% else %}
+                                            <span class="text-muted">No configurado</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                {% if not user.google_search_api_key or not user.google_search_engine_id %}
+                                    <div class="alert alert-warning mb-0">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        <strong>Configuración incompleta</strong>
+                                        <p class="mb-2 mt-2">Para que el agente pueda buscar en internet, necesitas configurar ambas credenciales de Google Search API.</p>
+                                        <a href="{% url 'core:edit_profile' %}" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-gear"></i> Configurar Credenciales
+                                        </a>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-success mb-0">
+                                        <i class="bi bi-check-circle"></i>
+                                        <strong>Todo listo</strong> - El agente puede buscar información actualizada en internet cuando lo necesite.
+                                        <small class="d-block mt-1">
+                                            <i class="bi bi-info-circle"></i> Cuota gratuita: 100 búsquedas/día
+                                        </small>
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="alert alert-info mb-0">
+                                    <i class="bi bi-info-circle"></i>
+                                    La búsqueda web está desactivada. El agente solo utilizará información de tu base de datos de licitaciones.
                                 </div>
                             {% endif %}
                         </div>
