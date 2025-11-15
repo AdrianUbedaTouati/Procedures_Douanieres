@@ -184,6 +184,9 @@ Si STATUS = APPROVED, deja esta sección vacía o escribe "Respuesta correcta"]
 - Si score < 75 → STATUS debe ser NEEDS_IMPROVEMENT
 - En FEEDBACK, sé específico: "Falta incluir el presupuesto de la licitación 00123456"
 - NO reescribas la respuesta, solo da feedback al agente para que él la mejore
+
+**NOTA:** El agente SIEMPRE ejecutará una segunda iteración de mejora independientemente del score.
+Así que incluso si la respuesta está bien (APPROVED), proporciona sugerencias constructivas para hacerla aún mejor.
 """
 
         return prompt

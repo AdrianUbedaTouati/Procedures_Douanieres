@@ -456,75 +456,79 @@ class ChatAgentService:
 
             print(f"[SERVICE] Revisión completada: {review_result['status']} (score: {review_result['score']}/100)", file=sys.stderr)
 
-            # If needs improvement, run second iteration
-            improvement_applied = False
-            if review_result['status'] == 'NEEDS_IMPROVEMENT':
-                print(f"[SERVICE] Respuesta necesita mejoras. Ejecutando segunda iteración...", file=sys.stderr)
+            # ALWAYS run second iteration for improvement (regardless of score)
+            print(f"[SERVICE] Ejecutando segunda iteración de mejora (siempre activo)...", file=sys.stderr)
+            improvement_applied = True
 
-                # Build issues list for prompt
-                issues_list = '\n'.join([f"- {issue}" for issue in review_result['issues']])
-                suggestions_list = '\n'.join([f"- {suggestion}" for suggestion in review_result['suggestions']])
+            # Build issues list for prompt
+            issues_list = '\n'.join([f"- {issue}" for issue in review_result['issues']])
+            suggestions_list = '\n'.join([f"- {suggestion}" for suggestion in review_result['suggestions']])
 
-                # Build improvement prompt
-                improvement_prompt = f"""Tu respuesta anterior fue revisada y necesita mejoras.
+            # Build improvement prompt with feedback
+            if review_result['feedback']:
+                feedback_section = f"""**Feedback del revisor:**
+{review_result['feedback']}"""
+            else:
+                feedback_section = "**Nota del revisor:** La respuesta está bien estructurada, pero siempre podemos mejorarla."
+
+            improvement_prompt = f"""Tu respuesta anterior fue revisada. Vamos a mejorarla.
 
 **Tu respuesta original:**
 {response_content}
 
 **Problemas detectados:**
-{issues_list}
+{issues_list if issues_list else '- Ningún problema grave detectado'}
 
 **Sugerencias:**
-{suggestions_list}
+{suggestions_list if suggestions_list else '- Mantener el buen formato actual'}
 
-**Feedback del revisor:**
-{review_result['feedback']}
+{feedback_section}
 
 **Tu tarea:**
-Genera una respuesta MEJORADA que resuelva estos problemas.
+Genera una respuesta MEJORADA que sea aún más completa y útil.
 
 **IMPORTANTE:**
 - Usa herramientas (tools) si necesitas buscar más información
 - Si faltan datos específicos (presupuestos, plazos, etc.), búscalos
 - Si el formato es incorrecto, corrígelo (usa ## para licitaciones múltiples, NO listas numeradas)
 - Si falta análisis, justifica tus recomendaciones con datos concretos
+- Si ya está bien, puedes añadir más detalles útiles o mejorar la presentación
 
 **Pregunta original del usuario:**
 {message}
 
 Genera tu respuesta mejorada:"""
 
-                # Execute second query with improvement prompt
-                # Añadir respuesta original al historial para contexto
-                improvement_history = formatted_history + [
-                    {'role': 'user', 'content': message},
-                    {'role': 'assistant', 'content': response_content}
-                ]
+            # Execute second query with improvement prompt
+            # Añadir respuesta original al historial para contexto
+            improvement_history = formatted_history + [
+                {'role': 'user', 'content': message},
+                {'role': 'assistant', 'content': response_content}
+            ]
 
-                print(f"[SERVICE] Ejecutando query de mejora...", file=sys.stderr)
-                improved_result = agent.query(
-                    improvement_prompt,
-                    conversation_history=improvement_history
-                )
+            print(f"[SERVICE] Ejecutando query de mejora...", file=sys.stderr)
+            improved_result = agent.query(
+                improvement_prompt,
+                conversation_history=improvement_history
+            )
 
-                # Update response with improved version
-                response_content = improved_result.get('answer', response_content)
-                improvement_applied = True
+            # Update response with improved version
+            response_content = improved_result.get('answer', response_content)
 
-                print(f"[SERVICE] ✓ Respuesta mejorada generada: {len(response_content)} caracteres", file=sys.stderr)
+            print(f"[SERVICE] ✓ Respuesta mejorada generada: {len(response_content)} caracteres", file=sys.stderr)
 
-                # Update result with improved data (merge documents/tools from both iterations)
-                # Merge documents (avoid duplicates)
-                existing_doc_ids = {doc.get('ojs_notice_id') for doc in result.get('documents', [])}
-                new_docs = [doc for doc in improved_result.get('documents', [])
-                           if doc.get('ojs_notice_id') not in existing_doc_ids]
-                result['documents'] = result.get('documents', []) + new_docs
+            # Update result with improved data (merge documents/tools from both iterations)
+            # Merge documents (avoid duplicates)
+            existing_doc_ids = {doc.get('ojs_notice_id') for doc in result.get('documents', [])}
+            new_docs = [doc for doc in improved_result.get('documents', [])
+                       if doc.get('ojs_notice_id') not in existing_doc_ids]
+            result['documents'] = result.get('documents', []) + new_docs
 
-                # Merge tools used
-                result['tools_used'] = list(set(result.get('tools_used', []) + improved_result.get('tools_used', [])))
+            # Merge tools used
+            result['tools_used'] = list(set(result.get('tools_used', []) + improved_result.get('tools_used', [])))
 
-                # Update iterations count
-                result['iterations'] = result.get('iterations', 0) + improved_result.get('iterations', 0)
+            # Update iterations count
+            result['iterations'] = result.get('iterations', 0) + improved_result.get('iterations', 0)
 
             # Save review metadata for tracking
             review_tracking = {

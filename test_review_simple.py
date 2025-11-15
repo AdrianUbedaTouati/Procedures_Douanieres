@@ -65,8 +65,8 @@ try:
         print("[FAIL] Llamada a review_response no encontrada")
         sys.exit(1)
 
-    if 'NEEDS_IMPROVEMENT' in source:
-        print("[OK] Logica de mejora encontrada")
+    if 'improvement_prompt' in source:
+        print("[OK] Logica de mejora encontrada (siempre activa)")
     else:
         print("[FAIL] Logica de mejora no encontrada")
         sys.exit(1)
