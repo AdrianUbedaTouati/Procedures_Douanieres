@@ -112,6 +112,12 @@ class ToolRegistry:
                         f"[REGISTRY] ✓ Browse webpage tool habilitada "
                         f"(use_web_search=True, max_chars={browse_max_chars}, chunk_size={browse_chunk_size})"
                     )
+
+                    # Browse Interactive: Navegador interactivo con Playwright para sitios JavaScript
+                    # Se habilita automáticamente cuando use_web_search está activo
+                    from .browse_interactive_tool import BrowseInteractiveTool
+                    self.tools['browse_interactive'] = BrowseInteractiveTool()
+                    logger.info("[REGISTRY] ✓ Browse interactive tool habilitada (use_web_search=True, Playwright)")
                 else:
                     logger.warning(
                         "[REGISTRY] ⚠ use_web_search=True pero faltan credenciales. "
@@ -136,8 +142,13 @@ class ToolRegistry:
             self.tools['grade_documents'] = GradeDocumentsTool(llm)
             logger.info("[REGISTRY] GradeDocumentsTool inicializada con LLM")
 
-        # Guardar referencia al LLM para browse_webpage
+        # Guardar referencia al LLM para browse_webpage y browse_interactive
         self.llm = llm
+
+        # Inyectar LLM a browse_interactive si existe
+        if 'browse_interactive' in self.tools:
+            self.tools['browse_interactive'].llm = llm
+            logger.info("[REGISTRY] BrowseInteractiveTool inicializada con LLM para navegación inteligente")
 
     def get_tool(self, name: str) -> Optional[BaseTool]:
         """
@@ -218,6 +229,9 @@ class ToolRegistry:
         if name == 'browse_webpage' and hasattr(self, 'llm') and self.llm:
             kwargs['llm'] = self.llm
             logger.info(f"[REGISTRY] Inyectando LLM a browse_webpage para extracción progresiva")
+
+        # Si la tool es browse_interactive, el LLM ya está inyectado en __init__
+        # No necesita inyección en kwargs porque es parte del estado de la tool
 
         logger.info(f"[REGISTRY] Ejecutando tool '{name}'...")
         return tool.execute_safe(**kwargs)
