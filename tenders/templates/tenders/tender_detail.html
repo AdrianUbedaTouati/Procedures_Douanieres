@@ -23,6 +23,9 @@
                 <div class="card-body">
                     <p class="text-muted mb-2">
                         <strong>ID:</strong> {{ tender.ojs_notice_id }}
+                        <a href="https://ted.europa.eu/udl?uri=TED:NOTICE:{{ tender.ojs_notice_id }}:DATA:ES:HTML" target="_blank" class="ms-2 badge bg-primary text-decoration-none" title="Ver en TED Europa">
+                            <i class="bi bi-box-arrow-up-right"></i> Ver en TED
+                        </a>
                     </p>
                     <p class="text-muted mb-2">
                         <strong>Organismo:</strong> {{ tender.buyer_name }}
@@ -227,7 +230,12 @@
                                             </tr>
                                             <tr>
                                                 <td class="word-label">Número de Aviso (OJS ID):</td>
-                                                <td class="word-value">{{ tender.ojs_notice_id }}</td>
+                                                <td class="word-value">
+                                                    {{ tender.ojs_notice_id }}
+                                                    <a href="https://ted.europa.eu/udl?uri=TED:NOTICE:{{ tender.ojs_notice_id }}:DATA:ES:HTML" target="_blank" class="ms-2" style="color: #3498db;">
+                                                        <i class="bi bi-box-arrow-up-right"></i> Ver en TED
+                                                    </a>
+                                                </td>
                                             </tr>
                                             <tr>
                                                 <td class="word-label">Organismo Contratante:</td>

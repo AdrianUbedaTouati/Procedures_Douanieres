@@ -189,6 +189,34 @@ class GetTenderDetailsTool(BaseTool):
             if tender.indexed_at:
                 details['indexed_at'] = tender.indexed_at.isoformat()
 
+            # TED URL (generada desde ojs_notice_id)
+            details['ted_url'] = f"https://ted.europa.eu/udl?uri=TED:NOTICE:{tender.ojs_notice_id}:DATA:ES:HTML"
+
+            # Campos adicionales desde parsed_summary
+            if tender.parsed_summary:
+                optional = tender.parsed_summary.get('OPTIONAL', {})
+                required = tender.parsed_summary.get('REQUIRED', {})
+
+                # CPV principal completo (desde REQUIRED)
+                if required.get('cpv_main'):
+                    details['cpv_main'] = required['cpv_main']
+
+                # Requisitos de elegibilidad
+                if optional.get('eligibility_requirements'):
+                    details['eligibility_requirements'] = optional['eligibility_requirements']
+
+                # Referencias externas (URLs a portales oficiales)
+                if optional.get('external_references'):
+                    details['external_references'] = optional['external_references']
+
+                # Documentos adjuntos
+                if optional.get('attachments'):
+                    details['attachments'] = optional['attachments']
+
+                # Lotes del contrato
+                if optional.get('lots'):
+                    details['lots'] = optional['lots']
+
             return {
                 'success': True,
                 'tender': details

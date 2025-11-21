@@ -127,6 +127,11 @@ class EFormsXMLParser:
             fields["cpv_main"] = value
             xpaths_used["cpv_main"] = xpath
 
+        # 7. ted_url - URL de la licitación en TED (construida desde ojs_notice_id)
+        if fields.get("ojs_notice_id"):
+            fields["ted_url"] = f"https://ted.europa.eu/udl?uri=TED:NOTICE:{fields['ojs_notice_id']}:DATA:ES:HTML"
+            xpaths_used["ted_url"] = "generated_from_ojs_notice_id"
+
         # Guardar XPaths usados en META
         self._xpaths_registry = xpaths_used
 
@@ -499,7 +504,8 @@ class EFormsXMLParser:
             "publication_date",
             "buyer_name",
             "title",
-            "cpv_main"
+            "cpv_main",
+            "ted_url"
         ]
 
         missing = [key for key in required_keys if key not in required_fields or not required_fields[key]]
