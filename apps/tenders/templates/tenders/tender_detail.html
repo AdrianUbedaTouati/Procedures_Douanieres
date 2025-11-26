@@ -198,6 +198,13 @@
 
                         <!-- Tab 3: Documento Completo -->
                         <div class="tab-pane fade" id="document-view" role="tabpanel">
+                            {% if xml_rendered_html %}
+                            <!-- Mostrar XML renderizado estilo TED -->
+                            <div class="ted-document-wrapper">
+                                {{ xml_rendered_html|safe }}
+                            </div>
+                            {% else %}
+                            <!-- Mostrar documento generado si no hay XML -->
                             <div class="word-document-container">
                                 <!-- ENCABEZADO DEL DOCUMENTO -->
                                 <div class="word-header">
@@ -510,6 +517,7 @@
                                 </div>
                                 {% endif %}
                             </div>
+                            {% endif %} <!-- Fin de {% if xml_rendered_html %} -->
                         </div>
                     </div>
                 </div>
@@ -1461,6 +1469,102 @@ document.addEventListener('DOMContentLoaded', function() {
 
     .word-section {
         page-break-inside: avoid;
+    }
+}
+
+/* ========================================
+   ESTILOS PARA XML RENDERIZADO ESTILO TED
+   ======================================== */
+
+.ted-document-wrapper {
+    background: white;
+    padding: 20px;
+    font-family: 'arial-regular', Arial, sans-serif;
+}
+
+#notice {
+    padding: 1px 20px;
+    font-size: 15px;
+    line-height: 1.25rem;
+    color: #444;
+    font-family: 'Arial', sans-serif;
+}
+
+#notice .header {
+    padding-bottom: 15px;
+    border-bottom: 2px solid #3498db;
+    margin-bottom: 20px;
+}
+
+#notice .h2 {
+    padding-top: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #DDD;
+    color: #2c3e50;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+#notice .section-content {
+    margin-left: 65px;
+    margin-bottom: 12px;
+}
+
+#notice .subsection-content {
+    margin-top: 12px;
+}
+
+#notice .sublevel__number {
+    float: left;
+    margin-left: -65px;
+    width: 55px;
+    text-align: right;
+    font-weight: 600;
+}
+
+#notice .sublevel__content {
+    margin-bottom: 10px;
+}
+
+#notice .bold {
+    font-weight: 600;
+}
+
+#notice .label {
+    font-weight: 500;
+    color: #555;
+    margin-right: 5px;
+}
+
+#notice .data {
+    color: #333;
+}
+
+#notice a {
+    color: #3D6ECF;
+    text-decoration: none;
+}
+
+#notice a:hover {
+    color: #1454B7;
+    text-decoration: underline;
+}
+
+#notice div {
+    padding-bottom: 7px;
+}
+
+/* Responsive para TED document */
+@media (max-width: 768px) {
+    #notice .section-content {
+        margin-left: 20px;
+    }
+
+    #notice .sublevel__number {
+        float: none;
+        margin-left: 0;
+        width: auto;
+        text-align: left;
     }
 }
 </style>

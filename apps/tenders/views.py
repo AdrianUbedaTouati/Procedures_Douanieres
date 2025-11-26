@@ -9,6 +9,7 @@ from .models import Tender, SavedTender, TenderRecommendation
 from apps.company.models import CompanyProfile
 from .services import TenderRecommendationService
 from .ted_downloader import download_and_save_tenders
+from .xml_renderer import render_xml_to_html
 import json
 import threading
 
@@ -281,6 +282,15 @@ class TenderDetailView(LoginRequiredMixin, DetailView):
             context['recommendation'] = recommendation
         except TenderRecommendation.DoesNotExist:
             context['recommendation'] = None
+
+        # Renderizar XML completo a HTML (estilo TED)
+        if self.object.xml_content:
+            context['xml_rendered_html'] = render_xml_to_html(
+                self.object.xml_content,
+                self.object.ojs_notice_id
+            )
+        else:
+            context['xml_rendered_html'] = None
 
         return context
 
