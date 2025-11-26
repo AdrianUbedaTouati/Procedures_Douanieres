@@ -14,7 +14,8 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nchore: Limpiar archivos no usados y backups\n\nArchivos eliminados:\n- apps/authentication/views_old.py (codigo antiguo)\n- apps/authentication/context_processors.py (no configurado)\n- apps/core/middleware.py (ForceSessionMiddleware no usado)\n- apps/authentication/static/authentication/js/auth.js.bak\n- apps/authentication/templates/authentication/base_auth_backup.html\n\nSistema de logs verificado: funcionando correctamente.\nNo se encontraron archivos duplicados funcionales.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(python manage.py shell:*)"
     ],
     "deny": [],
     "ask": []

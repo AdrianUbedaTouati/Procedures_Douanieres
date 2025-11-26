@@ -258,10 +258,26 @@ class TenderDetailView(LoginRequiredMixin, DetailView):
     slug_url_kwarg = 'ojs_notice_id'
 
     def get_object(self, queryset=None):
-        tender = super().get_object(queryset)
-        # Incrementar contador de vistas
-        tender.increment_views()
-        return tender
+        try:
+            tender = super().get_object(queryset)
+            # Incrementar contador de vistas
+            tender.increment_views()
+            return tender
+        except Tender.DoesNotExist:
+            # Si no existe en BD, redirigir a TED Europa
+            ojs_notice_id = self.kwargs.get(self.slug_url_kwarg)
+            ted_url = f"https://ted.europa.eu/es/notice/-/detail/{ojs_notice_id}"
+
+            # Añadir mensaje informativo
+            messages.info(
+                self.request,
+                f"La licitación {ojs_notice_id} no está descargada en tu base de datos. "
+                f"Te redirigimos a TED Europa para verla."
+            )
+
+            # Redirigir a TED
+            from django.shortcuts import redirect
+            return redirect(ted_url)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
