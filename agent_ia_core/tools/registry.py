@@ -5,7 +5,7 @@ Registro central de todas las tools disponibles.
 
 from typing import Dict, List, Any, Optional
 from .base import BaseTool
-from .search_tools import SearchTendersTool, FindByBudgetTool
+from .search_tools import FindBestTenderTool, FindTopTendersTool, FindByBudgetTool
 from .tender_tools import GetTenderDetailsTool
 import logging
 
@@ -55,10 +55,16 @@ class ToolRegistry:
             self.tools['get_tenders_summary'] = GetTendersSummaryTool(self.user)
             logger.info("[REGISTRY] Tools de contexto registradas (get_company_info, get_tenders_summary)")
 
-        # Tools de búsqueda
-        self.tools['search_tenders'] = SearchTendersTool(self.retriever)
+        # Tools de búsqueda semántica (basadas en concentración de chunks)
+        self.tools['find_best_tender'] = FindBestTenderTool(self.retriever)
+        self.tools['find_top_tenders'] = FindTopTendersTool(self.retriever)
+        logger.info("[REGISTRY] Nuevas tools de búsqueda por concentración registradas (find_best_tender, find_top_tenders)")
+
+        # Tools de búsqueda estructurada (Django DB)
         self.tools['find_by_budget'] = FindByBudgetTool(self.db_session)
         self.tools['find_by_deadline'] = FindByDeadlineTool(self.db_session)
+
+        # Tools de búsqueda con filtros (vectorstore + metadata)
         self.tools['find_by_cpv'] = FindByCPVTool(self.retriever)
         self.tools['find_by_location'] = FindByLocationTool(self.retriever)
 

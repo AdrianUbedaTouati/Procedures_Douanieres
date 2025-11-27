@@ -5,7 +5,8 @@ Cada tool es una función que el LLM puede llamar para obtener información.
 
 from .base import BaseTool
 from .search_tools import (
-    SearchTendersTool,
+    FindBestTenderTool,
+    FindTopTendersTool,
     FindByBudgetTool,
     FindByDeadlineTool,
     FindByCPVTool,
@@ -21,7 +22,8 @@ from .registry import ToolRegistry
 
 __all__ = [
     'BaseTool',
-    'SearchTendersTool',
+    'FindBestTenderTool',
+    'FindTopTendersTool',
     'FindByBudgetTool',
     'FindByDeadlineTool',
     'FindByCPVTool',

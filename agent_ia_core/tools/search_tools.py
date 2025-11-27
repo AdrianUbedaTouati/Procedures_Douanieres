@@ -10,13 +10,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class SearchTendersTool(BaseTool):
+class FindBestTenderTool(BaseTool):
     """
-    Busca licitaciones usando búsqueda semántica vectorial.
+    Encuentra LA mejor licitación (singular) usando análisis de concentración de chunks.
+
+    Algoritmo:
+    - Recupera los top 7 chunks más relevantes
+    - Cuenta cuántos chunks pertenecen a cada licitación
+    - Retorna la licitación con más chunks en el top 7
+    - En caso de empate, usa el score más alto
     """
 
-    name = "search_tenders"
-    description = "Busca licitaciones por palabras clave o temas usando búsqueda semántica. Usa esta función cuando el usuario busque por CONTENIDO (ej: 'software', 'construcción', 'servicios médicos'). NO uses esta función si el usuario quiere filtrar por presupuesto - para eso usa find_by_budget."
+    name = "find_best_tender"
+    description = (
+        "Encuentra LA MEJOR licitación (singular) para una consulta usando análisis de concentración. "
+        "**USA ESTA TOOL cuando el usuario pida 'LA mejor', 'LA más relevante', 'cuál es LA que más me conviene', "
+        "'cuál me recomiendas', 'LA más interesante'.** "
+        "Esta herramienta analiza los 7 chunks más relevantes y selecciona el documento con mayor concentración. "
+        "Ideal para recomendaciones personalizadas donde solo se necesita UNA respuesta."
+    )
 
     def __init__(self, retriever):
         """
@@ -26,71 +38,91 @@ class SearchTendersTool(BaseTool):
         super().__init__()
         self.retriever = retriever
 
-    def run(self, query: str, limit: int = 6) -> Dict[str, Any]:
+    def run(self, query: str) -> Dict[str, Any]:
         """
-        Ejecuta la búsqueda vectorial.
+        Encuentra LA mejor licitación basada en concentración de chunks.
 
         Args:
             query: Texto de búsqueda
-            limit: Número máximo de resultados
 
         Returns:
-            Dict con resultados de la búsqueda
+            Dict con la mejor licitación encontrada
         """
         try:
-            # Buscar en ChromaDB usando el método retrieve() de HybridRetriever
-            documents = self.retriever.retrieve(query=query, k=limit)
+            # 1. Recuperar top 7 chunks
+            documents = self.retriever.retrieve(query=query, k=7)
 
             if not documents:
                 return {
                     'success': True,
                     'count': 0,
-                    'results': [],
+                    'result': None,
                     'message': f'No se encontraron licitaciones para "{query}"'
                 }
 
-            # Formatear resultados
-            results = []
-            seen_ids = set()  # Para evitar duplicados
+            # 2. Contar apariciones por documento
+            doc_counts = {}
+            doc_scores = {}
+            doc_first_appearance = {}  # Para saber qué chunk apareció primero
 
-            for doc in documents:
+            for idx, doc in enumerate(documents):
                 meta = doc.metadata
                 tender_id = meta.get('ojs_notice_id')
 
-                # Evitar duplicados
-                if tender_id in seen_ids:
-                    continue
-                seen_ids.add(tender_id)
+                if tender_id not in doc_counts:
+                    doc_counts[tender_id] = 0
+                    doc_scores[tender_id] = meta.get('score', 0)
+                    doc_first_appearance[tender_id] = idx
 
-                # Crear resumen del resultado
-                result = {
-                    'id': tender_id,
-                    'section': meta.get('section', 'N/A'),
-                    'buyer': meta.get('buyer_name', 'N/A'),
-                    'preview': doc.page_content[:200],  # Primeros 200 chars
-                }
+                doc_counts[tender_id] += 1
 
-                # Añadir campos opcionales si existen
-                if meta.get('budget_eur'):
-                    result['budget'] = float(meta.get('budget_eur'))
-                if meta.get('tender_deadline_date'):
-                    result['deadline'] = meta.get('tender_deadline_date')
-                if meta.get('cpv_codes'):
-                    result['cpv'] = meta.get('cpv_codes')
-                if meta.get('publication_date'):
-                    result['published'] = meta.get('publication_date')
+            # 3. Encontrar ganador (más chunks, mejor score en empate, menor índice en doble empate)
+            winner_id = max(
+                doc_counts.keys(),
+                key=lambda tid: (
+                    doc_counts[tid],           # Prioridad 1: Más chunks
+                    doc_scores[tid],           # Prioridad 2: Mejor score
+                    -doc_first_appearance[tid] # Prioridad 3: Apareció primero (menos índice)
+                )
+            )
 
-                results.append(result)
+            # 4. Recopilar información del ganador
+            winner_chunks = [doc for doc in documents if doc.metadata.get('ojs_notice_id') == winner_id]
+            first_chunk = winner_chunks[0]
+            meta = first_chunk.metadata
+
+            result = {
+                'id': winner_id,
+                'buyer': meta.get('buyer_name', 'N/A'),
+                'chunk_count': doc_counts[winner_id],
+                'score': doc_scores[winner_id],
+                'preview': first_chunk.page_content[:300],
+                'sections_found': [doc.metadata.get('section', 'N/A') for doc in winner_chunks]
+            }
+
+            # Añadir campos opcionales
+            if meta.get('budget_eur'):
+                result['budget'] = float(meta.get('budget_eur'))
+            if meta.get('tender_deadline_date'):
+                result['deadline'] = meta.get('tender_deadline_date')
+            if meta.get('cpv_codes'):
+                result['cpv'] = meta.get('cpv_codes')
+            if meta.get('nuts_regions'):
+                result['location'] = meta.get('nuts_regions')
+            if meta.get('publication_date'):
+                result['published'] = meta.get('publication_date')
 
             return {
                 'success': True,
-                'count': len(results),
-                'results': results,
-                'message': f'Encontradas {len(results)} licitaciones para "{query}"'
+                'count': 1,
+                'result': result,
+                'message': f'Licitación más relevante: {winner_id} (concentración: {doc_counts[winner_id]}/7 chunks)',
+                'total_candidates': len(doc_counts),
+                'algorithm': 'chunk_concentration'
             }
 
         except Exception as e:
-            logger.error(f"Error en search_tenders: {e}", exc_info=True)
+            logger.error(f"Error en find_best_tender: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)
@@ -106,14 +138,221 @@ class SearchTendersTool(BaseTool):
                 'properties': {
                     'query': {
                         'type': 'string',
-                        'description': 'La búsqueda que el usuario quiere hacer. Ejemplo: "software", "desarrollo web", "construcción en Madrid"'
+                        'description': (
+                            'La consulta del usuario. Incluye contexto sobre qué busca y por qué. '
+                            'Ejemplo: "licitación de desarrollo web con presupuesto alto", '
+                            '"mejor oportunidad para empresa de construcción en Madrid"'
+                        )
+                    }
+                },
+                'required': ['query']
+            }
+        }
+
+
+class FindTopTendersTool(BaseTool):
+    """
+    Encuentra las X mejores licitaciones (plural) usando análisis iterativo de concentración.
+
+    Algoritmo:
+    - Recupera 7*X chunks (una ventana de 7 chunks por documento solicitado)
+    - Procesa iterativamente ventanas de 7 chunks
+    - En cada ventana, selecciona el documento con mayor concentración
+    - Elimina todos los chunks del documento seleccionado
+    - Continúa hasta obtener X documentos o quedarse sin chunks
+    - Si no hay suficientes chunks, retorna menos documentos con explicación
+    """
+
+    name = "find_top_tenders"
+    description = (
+        "Encuentra LAS X MEJORES licitaciones (plural) usando selección iterativa por concentración. "
+        "**USA ESTA TOOL cuando el usuario pida 'las mejores', 'las más relevantes', 'top 5', 'dame varias opciones', "
+        "'muéstrame las más interesantes' (plural).** "
+        "Analiza 7*X chunks y selecciona iterativamente los X documentos más relevantes sin repeticiones. "
+        "Ideal para comparaciones, análisis de opciones múltiples, o cuando el usuario quiere ver varias alternativas."
+    )
+
+    def __init__(self, retriever):
+        """
+        Args:
+            retriever: Retriever de ChromaDB para búsqueda vectorial
+        """
+        super().__init__()
+        self.retriever = retriever
+
+    def run(self, query: str, limit: int = 5) -> Dict[str, Any]:
+        """
+        Encuentra las X mejores licitaciones usando selección iterativa.
+
+        Args:
+            query: Texto de búsqueda
+            limit: Número de licitaciones a retornar (default: 5)
+
+        Returns:
+            Dict con las mejores licitaciones encontradas
+        """
+        try:
+            # 1. Calcular chunks necesarios (7 por documento)
+            k_chunks = limit * 7
+
+            # 2. Recuperar todos los chunks en una sola consulta
+            all_docs = self.retriever.retrieve(query=query, k=k_chunks)
+
+            if not all_docs:
+                return {
+                    'success': True,
+                    'count': 0,
+                    'requested': limit,
+                    'results': [],
+                    'message': f'No se encontraron licitaciones para "{query}"'
+                }
+
+            # Verificar si hay suficientes chunks (mínimo 7)
+            if len(all_docs) < 7:
+                return {
+                    'success': True,
+                    'count': 0,
+                    'requested': limit,
+                    'results': [],
+                    'message': f'Insuficientes chunks para análisis (encontrados: {len(all_docs)}, necesarios: 7 mínimo)',
+                    'total_chunks_found': len(all_docs)
+                }
+
+            # 3. Selección iterativa
+            selected_tenders = []
+            used_tender_ids = set()
+            available_chunks = list(all_docs)  # Copia para ir eliminando
+
+            iteration = 0
+            while len(selected_tenders) < limit and len(available_chunks) >= 7:
+                iteration += 1
+
+                # Tomar ventana de 7 chunks
+                window = available_chunks[:7]
+
+                # Contar en esta ventana (solo documentos NO usados)
+                window_counts = {}
+                window_scores = {}
+                window_first_idx = {}
+
+                for idx, doc in enumerate(window):
+                    tender_id = doc.metadata.get('ojs_notice_id')
+
+                    # Solo contar si no está ya seleccionado
+                    if tender_id not in used_tender_ids:
+                        if tender_id not in window_counts:
+                            window_counts[tender_id] = 0
+                            window_scores[tender_id] = doc.metadata.get('score', 0)
+                            window_first_idx[tender_id] = idx
+
+                        window_counts[tender_id] += 1
+
+                # Si no hay documentos nuevos en esta ventana, terminamos
+                if not window_counts:
+                    logger.info(f"Iteración {iteration}: No hay documentos nuevos en ventana, terminando")
+                    break
+
+                # Encontrar ganador en esta ventana
+                winner_id = max(
+                    window_counts.keys(),
+                    key=lambda tid: (
+                        window_counts[tid],
+                        window_scores[tid],
+                        -window_first_idx[tid]
+                    )
+                )
+
+                # Recopilar información del ganador
+                winner_chunks = [doc for doc in all_docs if doc.metadata.get('ojs_notice_id') == winner_id]
+                first_chunk = winner_chunks[0]
+                meta = first_chunk.metadata
+
+                result = {
+                    'id': winner_id,
+                    'buyer': meta.get('buyer_name', 'N/A'),
+                    'chunk_count': len(winner_chunks),
+                    'score': window_scores[winner_id],
+                    'preview': first_chunk.page_content[:200],
+                    'rank': len(selected_tenders) + 1
+                }
+
+                # Campos opcionales
+                if meta.get('budget_eur'):
+                    result['budget'] = float(meta.get('budget_eur'))
+                if meta.get('tender_deadline_date'):
+                    result['deadline'] = meta.get('tender_deadline_date')
+                if meta.get('cpv_codes'):
+                    result['cpv'] = meta.get('cpv_codes')
+                if meta.get('nuts_regions'):
+                    result['location'] = meta.get('nuts_regions')
+                if meta.get('publication_date'):
+                    result['published'] = meta.get('publication_date')
+
+                selected_tenders.append(result)
+                used_tender_ids.add(winner_id)
+
+                # Eliminar TODOS los chunks del ganador de available_chunks
+                available_chunks = [
+                    doc for doc in available_chunks
+                    if doc.metadata.get('ojs_notice_id') != winner_id
+                ]
+
+                logger.info(f"Iteración {iteration}: Seleccionado {winner_id} (concentración: {window_counts[winner_id]}/7), quedan {len(available_chunks)} chunks")
+
+            # 4. Construir mensaje de resultado
+            found_count = len(selected_tenders)
+
+            if found_count < limit:
+                message = (
+                    f'Encontradas {found_count} licitaciones de las {limit} solicitadas. '
+                    f'Disponibilidad limitada de chunks (total recuperado: {len(all_docs)} chunks).'
+                )
+            else:
+                message = f'Encontradas las {found_count} mejores licitaciones para "{query}"'
+
+            return {
+                'success': True,
+                'count': found_count,
+                'requested': limit,
+                'results': selected_tenders,
+                'message': message,
+                'total_chunks_analyzed': len(all_docs),
+                'iterations': iteration,
+                'algorithm': 'iterative_chunk_concentration'
+            }
+
+        except Exception as e:
+            logger.error(f"Error en find_top_tenders: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def get_schema(self) -> Dict[str, Any]:
+        """Schema de la tool."""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'parameters': {
+                'type': 'object',
+                'properties': {
+                    'query': {
+                        'type': 'string',
+                        'description': (
+                            'La consulta del usuario. Incluye contexto sobre qué busca. '
+                            'Ejemplo: "licitaciones de software", "oportunidades en construcción", '
+                            '"servicios de consultoría en Madrid"'
+                        )
                     },
                     'limit': {
                         'type': 'integer',
-                        'description': 'Número de licitaciones a devolver. Ajusta según la necesidad: usa 6-10 para búsquedas rápidas, 20-30 para análisis comparativos amplios. Por defecto: 6',
-                        'default': 6,
+                        'description': (
+                            'Número de licitaciones a devolver. Ajusta según la necesidad: '
+                            '3-5 para comparaciones rápidas, 10-15 para análisis amplios. Por defecto: 5'
+                        ),
+                        'default': 5,
                         'minimum': 1,
-                        'maximum': 50
+                        'maximum': 20
                     }
                 },
                 'required': ['query']
