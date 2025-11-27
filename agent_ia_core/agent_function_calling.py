@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 import logging
 import json
+from datetime import datetime
 
 # Importar tools
 sys.path.append(str(Path(__file__).parent))
@@ -33,6 +34,17 @@ except ImportError:
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def get_current_datetime() -> str:
+    """
+    Devuelve la fecha y hora actual en formato legible para el LLM.
+
+    Returns:
+        String con formato: "Fecha actual: YYYY-MM-DD | Hora: HH:MM:SS"
+    """
+    now = datetime.now()
+    return f"Fecha actual: {now.strftime('%Y-%m-%d')} | Hora: {now.strftime('%H:%M:%S')}"
 
 
 class FunctionCallingAgent:
@@ -330,6 +342,8 @@ class FunctionCallingAgent:
         # System prompt base (siempre presente)
         system_prompt_parts = [
             "Eres un asistente experto en licitaciones públicas europeas. Tienes acceso a herramientas especializadas para consultar información sobre licitaciones.",
+            "",
+            f"CONTEXTO TEMPORAL: {get_current_datetime()}",
             ""
         ]
 
@@ -346,7 +360,7 @@ class FunctionCallingAgent:
 
         # Instrucciones (siempre presentes)
         system_prompt_parts.extend([
-            "IMPORTANTE: Debes SIEMPRE usar las herramientas disponibles para responder preguntas. NO inventes información.",
+            "IMPORTANTE: Tienes a disposicion herramientas disponibles para responder preguntas. NO inventes información.",
             "",
             "Herramientas disponibles:",
             "- search_tenders: Búsqueda general por contenido/tema",
@@ -369,7 +383,7 @@ class FunctionCallingAgent:
 
         system_prompt_parts.extend([
             "",
-            "Cuando el usuario pregunte por licitaciones, DEBES usar las herramientas apropiadas. Por ejemplo:",
+            "Cuando el usuario pregunte por licitaciones, puedes usar las herramientas apropiadas. Por ejemplo:",
             "- \"¿Cuál es la licitación más cara?\" → USA get_statistics",
             "- \"Licitaciones de software\" → USA search_tenders",
             "- \"Licitaciones entre 50k y 100k\" → USA find_by_budget",
