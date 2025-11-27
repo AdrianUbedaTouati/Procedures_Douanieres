@@ -1,38 +1,26 @@
 # -*- coding: utf-8 -*-
 """
-Renderizador de XML eForms a HTML similar a TED Europa.
-Convierte el XML almacenado en un formato visual legible.
+Renderizador de XML eForms a HTML - Versión Completa.
+Muestra TODA la información del XML sin omitir ningún campo.
 
-Versión 2.0 - XPaths correctos para eForms
+Versión 3.0 - Renderizado completo de todo el árbol XML
 """
 
 from lxml import etree
-from typing import Optional, List
-
-
-# Namespaces eForms
-EFORMS_NS = {
-    'can': 'urn:oasis:names:specification:ubl:schema:xsd:ContractAwardNotice-2',
-    'cn': 'urn:oasis:names:specification:ubl:schema:xsd:ContractNotice-2',
-    'cac': 'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2',
-    'cbc': 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2',
-    'ext': 'urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2',
-    'efac': 'http://data.europa.eu/p27/eforms-ubl-extension-aggregate-components/1',
-    'efext': 'http://data.europa.eu/p27/eforms-ubl-extensions/1',
-    'efbc': 'http://data.europa.eu/p27/eforms-ubl-extension-basic-components/1',
-}
+from typing import Optional
 
 
 def render_xml_to_html(xml_content: str, notice_id: str) -> str:
     """
-    Convierte el XML eForms a HTML renderizado similar a TED.
+    Convierte el XML eForms completo a HTML estructurado.
+    Muestra TODOS los elementos y atributos sin omitir nada.
 
     Args:
         xml_content: Contenido del XML eForms
         notice_id: ID del aviso (ej: 754920-2025)
 
     Returns:
-        HTML renderizado del documento
+        HTML renderizado del documento completo
     """
     if not xml_content:
         return '<div class="alert alert-warning">No hay contenido XML disponible.</div>'
@@ -41,388 +29,205 @@ def render_xml_to_html(xml_content: str, notice_id: str) -> str:
         # Parsear XML
         root = etree.fromstring(xml_content.encode('utf-8'))
 
-        # Determinar tipo de documento
-        doc_type = root.tag.split('}')[-1] if '}' in root.tag else root.tag
-
-        # Generar HTML
+        # Generar HTML del árbol completo
         html_parts = []
-        html_parts.append('<div id="notice" class="eforms-notice">')
+        html_parts.append('<div id="notice" class="eforms-notice-complete">')
+        html_parts.append(f'<div class="xml-header"><h3>Documento Completo XML - {notice_id}</h3></div>')
+        html_parts.append('<div class="xml-content">')
 
-        # Header
-        html_parts.append(_render_header(root, notice_id, doc_type))
-
-        # Sección 1: Comprador
-        html_parts.append(_render_section_buyer(root))
-
-        # Sección 2: Procedimiento
-        html_parts.append(_render_section_procedure(root))
-
-        # Sección 5: Lotes
-        html_parts.append(_render_section_lots(root))
-
-        # Sección 8: Organizaciones
-        html_parts.append(_render_section_organizations(root))
-
-        # Información del anuncio
-        html_parts.append(_render_section_notice_info(root, notice_id))
+        # Renderizar todo el árbol XML recursivamente
+        html_parts.append(_render_element(root, level=0))
 
         html_parts.append('</div>')
+        html_parts.append('</div>')
 
-        return '\n'.join(html_parts)
+        # Agregar estilos CSS inline para el renderizado
+        css = """
+        <style>
+        .eforms-notice-complete {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .xml-header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .xml-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        .xml-content {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .xml-element {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: white;
+            border-left: 3px solid #3498db;
+            border-radius: 3px;
+        }
+        .xml-element-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        .xml-element-namespace {
+            font-size: 11px;
+            color: #7f8c8d;
+            font-style: italic;
+            margin-left: 8px;
+        }
+        .xml-element-text {
+            color: #27ae60;
+            margin-left: 20px;
+            padding: 6px 10px;
+            background: #e8f8f5;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        .xml-attributes {
+            margin: 6px 0 6px 20px;
+            padding: 6px 10px;
+            background: #fff3cd;
+            border-left: 2px solid #ffc107;
+            border-radius: 3px;
+        }
+        .xml-attribute {
+            color: #e67e22;
+            font-size: 12px;
+            margin: 3px 0;
+        }
+        .xml-attribute-name {
+            font-weight: 600;
+            color: #d35400;
+        }
+        .xml-attribute-value {
+            color: #8e44ad;
+            font-family: 'Courier New', monospace;
+        }
+        .xml-children {
+            margin-left: 20px;
+            border-left: 1px dashed #bdc3c7;
+            padding-left: 15px;
+        }
+        .xml-empty {
+            color: #95a5a6;
+            font-style: italic;
+            margin-left: 20px;
+            font-size: 12px;
+        }
+        </style>
+        """
+
+        return css + '\n'.join(html_parts)
 
     except Exception as e:
-        return f'<div class="alert alert-danger">Error renderizando XML: {str(e)}<br><small>{type(e).__name__}</small></div>'
-
-
-def _render_header(root, notice_id: str, doc_type: str) -> str:
-    """Renderiza el encabezado del documento."""
-    # Título está en ProcurementProject/Name
-    title = _get_text(root, './/cac:ProcurementProject/cbc:Name', 'Sin título')
-
-    html = f'''
-    <div class="header">
-        <div class="header-content">
-            <span class="bold">{notice_id} - Licitación</span>
-            <div class="bold">{title}</div>
-            <div class="bold">Anuncio de contrato o de concesión. Régimen normal</div>
-        </div>
-    </div>
-    '''
-    return html
-
-
-def _render_section_buyer(root) -> str:
-    """Renderiza la sección 1. Comprador."""
-    # Obtener ID del comprador desde ContractingParty
-    buyer_id_elem = root.find('.//cac:ContractingParty/cac:Party/cac:PartyIdentification/cbc:ID', namespaces=EFORMS_NS)
-    buyer_id = buyer_id_elem.text if buyer_id_elem is not None else None
-
-    # Buscar el comprador en Organizations (es la primera organización generalmente)
-    buyer_name = 'N/A'
-    buyer_email = ''
-    buyer_phone = ''
-
-    # Buscar en Organizations
-    orgs = root.findall('.//efac:Organization', namespaces=EFORMS_NS)
-    for org in orgs:
-        org_id_elem = org.find('.//efac:Company/cac:PartyIdentification/cbc:ID', namespaces=EFORMS_NS)
-        if org_id_elem is not None and buyer_id and org_id_elem.text == buyer_id:
-            # Esta es la organización compradora
-            name_elem = org.find('.//efac:Company/cac:PartyName/cbc:Name', namespaces=EFORMS_NS)
-            if name_elem is not None:
-                buyer_name = name_elem.text
-
-            email_elem = org.find('.//efac:Company/cac:Contact/cbc:ElectronicMail', namespaces=EFORMS_NS)
-            if email_elem is not None:
-                buyer_email = email_elem.text
-
-            phone_elem = org.find('.//efac:Company/cac:Contact/cbc:Telephone', namespaces=EFORMS_NS)
-            if phone_elem is not None:
-                buyer_phone = phone_elem.text
-            break
-
-    # Si no encontramos por ID, tomar la primera organización
-    if buyer_name == 'N/A' and orgs:
-        name_elem = orgs[0].find('.//efac:Company/cac:PartyName/cbc:Name', namespaces=EFORMS_NS)
-        if name_elem is not None:
-            buyer_name = name_elem.text
-
-        email_elem = orgs[0].find('.//efac:Company/cac:Contact/cbc:ElectronicMail', namespaces=EFORMS_NS)
-        if email_elem is not None:
-            buyer_email = email_elem.text
-
-        phone_elem = orgs[0].find('.//efac:Company/cac:Contact/cbc:Telephone', namespaces=EFORMS_NS)
-        if phone_elem is not None:
-            buyer_phone = phone_elem.text
-
-    html = f'''
-    <div class="h2" id="section1_1">
-        1. <span>Comprador</span>
-    </div>
-    <div class="section-content">
-        <div class="sublevel__number">
-            <span class="bold">1.1. </span>
-        </div>
-        <div class="sublevel__content">
-            <span class="bold">Comprador</span>
-        </div>
-        <div>
-            <span class="label">Denominación oficial</span><span>:&nbsp;</span><span class="data">{buyer_name}</span>
-        </div>
-    '''
-
-    if buyer_email:
-        html += f'''
-        <div>
-            <span class="label">Correo electrónico</span><span>:&nbsp;</span>
-            <span class="data"><a href="mailto:{buyer_email}">{buyer_email}</a></span>
+        import traceback
+        error_detail = traceback.format_exc()
+        return f'''
+        <div class="alert alert-danger">
+            <strong>Error renderizando XML:</strong> {str(e)}
+            <br><br>
+            <details>
+                <summary>Detalles técnicos</summary>
+                <pre style="font-size: 11px; margin-top: 10px;">{error_detail}</pre>
+            </details>
         </div>
         '''
 
-    if buyer_phone:
-        html += f'''
-        <div>
-            <span class="label">Teléfono</span><span>:&nbsp;</span><span class="data">{buyer_phone}</span>
-        </div>
-        '''
 
-    html += '</div>'
-    return html
-
-
-def _render_section_procedure(root) -> str:
-    """Renderiza la sección 2. Procedimiento."""
-    # Título y descripción están en ProcurementProject
-    title = _get_text(root, './/cac:ProcurementProject/cbc:Name', 'N/A')
-    description = _get_text(root, './/cac:ProcurementProject/cbc:Description', '')
-
-    # ID del procedimiento
-    procedure_id = _get_text(root, './/cbc:UUID', 'N/A')
-
-    # Tipo de procedimiento
-    proc_type = _get_text(root, './/cac:TenderingProcess/cac:ProcessJustification/cbc:Description', '')
-
-    html = f'''
-    <div class="h2" id="section2_3">
-        2. <span>Procedimiento</span>
-    </div>
-    <div class="section-content">
-        <div class="sublevel__number">
-            <span class="bold">2.1. </span>
-        </div>
-        <div class="sublevel__content">
-            <span class="bold">Procedimiento</span>
-        </div>
-        <div>
-            <span class="label">Título</span><span>:&nbsp;</span><span class="data">{title}</span>
-        </div>
-    '''
-
-    if description:
-        html += f'''
-        <div>
-            <span class="label">Descripción</span><span>:&nbsp;</span><span class="data">{description}</span>
-        </div>
-        '''
-
-    if proc_type:
-        html += f'''
-        <div>
-            <span class="label">Tipo</span><span>:&nbsp;</span><span class="data">{proc_type}</span>
-        </div>
-        '''
-
-    html += f'''
-        <div>
-            <span class="label">Identificador del procedimiento</span><span>:&nbsp;</span><span class="data">{procedure_id}</span>
-        </div>
-    </div>
-    '''
-    return html
-
-
-def _render_section_lots(root) -> str:
-    """Renderiza la sección 5. Lotes."""
-    lots = root.findall('.//cac:ProcurementProjectLot', namespaces=EFORMS_NS)
-
-    if not lots:
-        return ''
-
-    html = f'''
-    <div class="h2" id="section5_9">
-        5. <span>Lote</span>
-    </div>
-    '''
-
-    for i, lot in enumerate(lots, 1):
-        lot_id = _get_text(lot, './/cbc:ID', f'LOT-{i:04d}')
-
-        # Título y descripción del lote
-        lot_title = _get_text(lot, './/cac:ProcurementProject/cbc:Name', 'Sin título')
-        lot_desc = _get_text(lot, './/cac:ProcurementProject/cbc:Description', '')
-
-        # Presupuesto
-        budget = _get_text(lot, './/cac:ProcurementProject/cac:RequestedTenderTotal/cbc:EstimatedOverallContractAmount', '')
-        currency = _get_attr(lot, './/cac:ProcurementProject/cac:RequestedTenderTotal/cbc:EstimatedOverallContractAmount', 'currencyID', 'EUR')
-
-        html += f'''
-        <div class="section-content">
-            <div class="sublevel__number">
-                <span class="bold">5.{i}. </span>
-            </div>
-            <div class="sublevel__content">
-                <span class="bold">Lote</span><span>:&nbsp;</span><span class="data">{lot_id}</span>
-            </div>
-            <div>
-                <span class="label">Título</span><span>:&nbsp;</span><span class="data">{lot_title}</span>
-            </div>
-        '''
-
-        if lot_desc:
-            html += f'''
-            <div>
-                <span class="label">Descripción</span><span>:&nbsp;</span><span class="data">{lot_desc}</span>
-            </div>
-            '''
-
-        if budget:
-            html += f'''
-            <div>
-                <span class="label">Presupuesto estimado</span><span>:&nbsp;</span><span class="data">{budget} {currency}</span>
-            </div>
-            '''
-
-        html += '</div>'
-
-    return html
-
-
-def _render_section_organizations(root) -> str:
-    """Renderiza la sección 8. Organizaciones."""
-    organizations = root.findall('.//efac:Organization', namespaces=EFORMS_NS)
-
-    if not organizations:
-        return ''
-
-    html = f'''
-    <div class="h2" id="section8_20">
-        8. <span>Organizaciones</span>
-    </div>
-    '''
-
-    for i, org in enumerate(organizations, 1):
-        # ID de la organización
-        org_id = _get_text(org, './/efac:Company/cac:PartyIdentification/cbc:ID', f'ORG-{i:04d}')
-
-        # Nombre
-        org_name = _get_text(org, './/efac:Company/cac:PartyName/cbc:Name', 'N/A')
-
-        # Contacto
-        org_email = _get_text(org, './/efac:Company/cac:Contact/cbc:ElectronicMail', '')
-        org_phone = _get_text(org, './/efac:Company/cac:Contact/cbc:Telephone', '')
-        org_website = _get_text(org, './/efac:Company/cac:WebsiteURI', '')
-
-        # Dirección
-        city = _get_text(org, './/efac:Company/cac:PostalAddress/cbc:CityName', '')
-        postal_code = _get_text(org, './/efac:Company/cac:PostalAddress/cbc:PostalZone', '')
-        country = _get_text(org, './/efac:Company/cac:PostalAddress/cac:Country/cbc:Name', '')
-
-        html += f'''
-        <div class="section-content">
-            <div class="sublevel__number">
-                <span class="bold">8.{i}. </span>
-            </div>
-            <div class="sublevel__content">
-                <span class="bold">{org_id}</span>
-            </div>
-            <div>
-                <span class="label">Denominación oficial</span><span>:&nbsp;</span><span class="data">{org_name}</span>
-            </div>
-        '''
-
-        if org_email:
-            html += f'''
-            <div>
-                <span class="label">Correo electrónico</span><span>:&nbsp;</span>
-                <span class="data"><a href="mailto:{org_email}">{org_email}</a></span>
-            </div>
-            '''
-
-        if org_phone:
-            html += f'''
-            <div>
-                <span class="label">Teléfono</span><span>:&nbsp;</span><span class="data">{org_phone}</span>
-            </div>
-            '''
-
-        if org_website:
-            html += f'''
-            <div>
-                <span class="label">Dirección de internet</span><span>:&nbsp;</span>
-                <span class="data"><a href="{org_website}" target="_blank">{org_website}</a></span>
-            </div>
-            '''
-
-        if city or postal_code or country:
-            location = ', '.join(filter(None, [city, postal_code, country]))
-            html += f'''
-            <div>
-                <span class="label">Ubicación</span><span>:&nbsp;</span><span class="data">{location}</span>
-            </div>
-            '''
-
-        html += '</div>'
-
-    return html
-
-
-def _render_section_notice_info(root, notice_id: str) -> str:
-    """Renderiza la información del anuncio."""
-    issue_date = _get_text(root, './/cbc:IssueDate', 'N/A')
-    issue_time = _get_text(root, './/cbc:IssueTime', '')
-
-    html = f'''
-    <div class="h2" id="section_23">
-        <span>Información del anuncio</span>
-    </div>
-    <div class="section-content">
-        <div>
-            <span class="label">Número de publicación del anuncio</span><span>:&nbsp;</span><span class="data">{notice_id}</span>
-        </div>
-        <div>
-            <span class="label">Fecha de publicación</span><span>:&nbsp;</span><span class="data">{issue_date}</span>
-        </div>
-    '''
-
-    if issue_time:
-        html += f'''
-        <div>
-            <span class="label">Hora de envío</span><span>:&nbsp;</span><span class="data">{issue_time}</span>
-        </div>
-        '''
-
-    html += '</div>'
-    return html
-
-
-def _get_text(element, xpath: str, default: str = '') -> str:
+def _render_element(element, level=0) -> str:
     """
-    Obtiene texto de un elemento XML usando XPath.
+    Renderiza un elemento XML y todos sus hijos recursivamente.
 
     Args:
-        element: Elemento raíz donde buscar
-        xpath: XPath para buscar
-        default: Valor por defecto si no se encuentra
+        element: Elemento XML (lxml.etree.Element)
+        level: Nivel de profundidad (para indentación)
 
     Returns:
-        Texto encontrado o default
+        HTML del elemento y todos sus descendientes
     """
-    try:
-        result = element.find(xpath, namespaces=EFORMS_NS)
-        if result is not None and result.text:
-            return result.text.strip()
-        return default
-    except:
-        return default
+    html_parts = []
+
+    # Extraer nombre del tag (sin namespace)
+    tag_name = element.tag.split('}')[-1] if '}' in element.tag else element.tag
+
+    # Extraer namespace si existe
+    namespace = ''
+    if '}' in element.tag:
+        namespace = element.tag.split('}')[0].replace('{', '')
+
+    # Texto del elemento (limpiado)
+    text = element.text.strip() if element.text and element.text.strip() else ''
+
+    # Inicio del elemento
+    html_parts.append('<div class="xml-element">')
+
+    # Nombre del elemento con namespace
+    element_header = f'<div class="xml-element-name">&lt;{tag_name}&gt;'
+    if namespace:
+        element_header += f'<span class="xml-element-namespace">({namespace})</span>'
+    element_header += '</div>'
+    html_parts.append(element_header)
+
+    # Atributos
+    if element.attrib:
+        html_parts.append('<div class="xml-attributes">')
+        html_parts.append('<strong style="font-size: 11px; color: #e67e22;">Atributos:</strong>')
+        for attr_name, attr_value in element.attrib.items():
+            html_parts.append(
+                f'<div class="xml-attribute">'
+                f'<span class="xml-attribute-name">@{attr_name}</span> = '
+                f'<span class="xml-attribute-value">"{attr_value}"</span>'
+                f'</div>'
+            )
+        html_parts.append('</div>')
+
+    # Texto del elemento (si es un nodo hoja con contenido)
+    if text:
+        html_parts.append(f'<div class="xml-element-text">{_escape_html(text)}</div>')
+
+    # Elementos hijos
+    children = list(element)
+    if children:
+        html_parts.append('<div class="xml-children">')
+        for child in children:
+            html_parts.append(_render_element(child, level + 1))
+        html_parts.append('</div>')
+    elif not text:
+        # Elemento vacío sin texto ni hijos
+        html_parts.append('<div class="xml-empty">(vacío)</div>')
+
+    # Cierre del elemento
+    html_parts.append('</div>')
+
+    return '\n'.join(html_parts)
 
 
-def _get_attr(element, xpath: str, attr_name: str, default: str = '') -> str:
+def _escape_html(text: str) -> str:
     """
-    Obtiene un atributo de un elemento XML usando XPath.
+    Escapa caracteres HTML especiales para evitar inyección.
 
     Args:
-        element: Elemento raíz donde buscar
-        xpath: XPath para buscar el elemento
-        attr_name: Nombre del atributo
-        default: Valor por defecto si no se encuentra
+        text: Texto a escapar
 
     Returns:
-        Valor del atributo o default
+        Texto escapado
     """
-    try:
-        result = element.find(xpath, namespaces=EFORMS_NS)
-        if result is not None:
-            return result.get(attr_name, default)
-        return default
-    except:
-        return default
+    return (text
+        .replace('&', '&amp;')
+        .replace('<', '&lt;')
+        .replace('>', '&gt;')
+        .replace('"', '&quot;')
+        .replace("'", '&#39;')
+    )
