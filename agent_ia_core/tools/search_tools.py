@@ -110,8 +110,10 @@ class SearchTendersTool(BaseTool):
                     },
                     'limit': {
                         'type': 'integer',
-                        'description': 'Cuántas licitaciones quieres que devuelva. Por defecto 6.',
-                        'default': 6
+                        'description': 'Número de licitaciones a devolver. Ajusta según la necesidad: usa 6-10 para búsquedas rápidas, 20-30 para análisis comparativos amplios. Por defecto: 6',
+                        'default': 6,
+                        'minimum': 1,
+                        'maximum': 50
                     }
                 },
                 'required': ['query']
@@ -244,8 +246,10 @@ class FindByBudgetTool(BaseTool):
                     },
                     'limit': {
                         'type': 'integer',
-                        'description': 'Cuántos resultados devolver',
-                        'default': 10
+                        'description': 'Número de licitaciones a devolver. Ajusta según la necesidad: usa 10-15 para búsquedas estándar, 30-50 para análisis exhaustivos. Por defecto: 10',
+                        'default': 10,
+                        'minimum': 1,
+                        'maximum': 100
                     }
                 }
             }
@@ -392,8 +396,10 @@ class FindByDeadlineTool(BaseTool):
                     },
                     'limit': {
                         'type': 'integer',
-                        'description': 'Cuántos resultados devolver',
-                        'default': 10
+                        'description': 'Número de licitaciones a devolver ordenadas por proximidad de deadline. Ajusta según necesidad: 10 para urgentes, 30+ para planificación amplia. Por defecto: 10',
+                        'default': 10,
+                        'minimum': 1,
+                        'maximum': 100
                     }
                 }
             }
@@ -514,8 +520,10 @@ class FindByCPVTool(BaseTool):
                     },
                     'limit': {
                         'type': 'integer',
-                        'description': 'Cuántos resultados devolver',
-                        'default': 10
+                        'description': 'Número de licitaciones a devolver filtradas por CPV. Ajusta según análisis: 10-15 para sectores específicos, 30+ para análisis de mercado amplio. Por defecto: 10',
+                        'default': 10,
+                        'minimum': 1,
+                        'maximum': 100
                     }
                 },
                 'required': ['cpv_code']
@@ -655,8 +663,10 @@ class FindByLocationTool(BaseTool):
                     },
                     'limit': {
                         'type': 'integer',
-                        'description': 'Cuántos resultados devolver',
-                        'default': 10
+                        'description': 'Número de licitaciones a devolver filtradas por ubicación. Ajusta según análisis: 10-15 para regiones específicas, 30+ para análisis territorial amplio. Por defecto: 10',
+                        'default': 10,
+                        'minimum': 1,
+                        'maximum': 100
                     }
                 },
                 'required': ['location']
