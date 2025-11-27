@@ -2,10 +2,12 @@
 """
 Renderizador de XML eForms a HTML similar a TED Europa.
 Convierte el XML almacenado en un formato visual legible.
+
+Versión 2.0 - XPaths correctos para eForms
 """
 
 from lxml import etree
-from typing import Optional
+from typing import Optional, List
 
 
 # Namespaces eForms
@@ -69,12 +71,13 @@ def render_xml_to_html(xml_content: str, notice_id: str) -> str:
         return '\n'.join(html_parts)
 
     except Exception as e:
-        return f'<div class="alert alert-danger">Error renderizando XML: {str(e)}</div>'
+        return f'<div class="alert alert-danger">Error renderizando XML: {str(e)}<br><small>{type(e).__name__}</small></div>'
 
 
 def _render_header(root, notice_id: str, doc_type: str) -> str:
     """Renderiza el encabezado del documento."""
-    title = _get_text(root, './/cbc:Title', 'Sin título')
+    # Título está en ProcurementProject/Name
+    title = _get_text(root, './/cac:ProcurementProject/cbc:Name', 'Sin título')
 
     html = f'''
     <div class="header">
@@ -90,8 +93,47 @@ def _render_header(root, notice_id: str, doc_type: str) -> str:
 
 def _render_section_buyer(root) -> str:
     """Renderiza la sección 1. Comprador."""
-    buyer_name = _get_text(root, './/cac:ContractingParty//cac:Party//cbc:Name', 'N/A')
-    buyer_email = _get_text(root, './/cac:ContractingParty//cac:Party//cbc:ElectronicMail', '')
+    # Obtener ID del comprador desde ContractingParty
+    buyer_id_elem = root.find('.//cac:ContractingParty/cac:Party/cac:PartyIdentification/cbc:ID', namespaces=EFORMS_NS)
+    buyer_id = buyer_id_elem.text if buyer_id_elem is not None else None
+
+    # Buscar el comprador en Organizations (es la primera organización generalmente)
+    buyer_name = 'N/A'
+    buyer_email = ''
+    buyer_phone = ''
+
+    # Buscar en Organizations
+    orgs = root.findall('.//efac:Organization', namespaces=EFORMS_NS)
+    for org in orgs:
+        org_id_elem = org.find('.//efac:Company/cac:PartyIdentification/cbc:ID', namespaces=EFORMS_NS)
+        if org_id_elem is not None and buyer_id and org_id_elem.text == buyer_id:
+            # Esta es la organización compradora
+            name_elem = org.find('.//efac:Company/cac:PartyName/cbc:Name', namespaces=EFORMS_NS)
+            if name_elem is not None:
+                buyer_name = name_elem.text
+
+            email_elem = org.find('.//efac:Company/cac:Contact/cbc:ElectronicMail', namespaces=EFORMS_NS)
+            if email_elem is not None:
+                buyer_email = email_elem.text
+
+            phone_elem = org.find('.//efac:Company/cac:Contact/cbc:Telephone', namespaces=EFORMS_NS)
+            if phone_elem is not None:
+                buyer_phone = phone_elem.text
+            break
+
+    # Si no encontramos por ID, tomar la primera organización
+    if buyer_name == 'N/A' and orgs:
+        name_elem = orgs[0].find('.//efac:Company/cac:PartyName/cbc:Name', namespaces=EFORMS_NS)
+        if name_elem is not None:
+            buyer_name = name_elem.text
+
+        email_elem = orgs[0].find('.//efac:Company/cac:Contact/cbc:ElectronicMail', namespaces=EFORMS_NS)
+        if email_elem is not None:
+            buyer_email = email_elem.text
+
+        phone_elem = orgs[0].find('.//efac:Company/cac:Contact/cbc:Telephone', namespaces=EFORMS_NS)
+        if phone_elem is not None:
+            buyer_phone = phone_elem.text
 
     html = f'''
     <div class="h2" id="section1_1">
@@ -117,15 +159,28 @@ def _render_section_buyer(root) -> str:
         </div>
         '''
 
+    if buyer_phone:
+        html += f'''
+        <div>
+            <span class="label">Teléfono</span><span>:&nbsp;</span><span class="data">{buyer_phone}</span>
+        </div>
+        '''
+
     html += '</div>'
     return html
 
 
 def _render_section_procedure(root) -> str:
     """Renderiza la sección 2. Procedimiento."""
-    title = _get_text(root, './/cbc:Title', 'N/A')
-    description = _get_text(root, './/cbc:Description', 'N/A')
+    # Título y descripción están en ProcurementProject
+    title = _get_text(root, './/cac:ProcurementProject/cbc:Name', 'N/A')
+    description = _get_text(root, './/cac:ProcurementProject/cbc:Description', '')
+
+    # ID del procedimiento
     procedure_id = _get_text(root, './/cbc:UUID', 'N/A')
+
+    # Tipo de procedimiento
+    proc_type = _get_text(root, './/cac:TenderingProcess/cac:ProcessJustification/cbc:Description', '')
 
     html = f'''
     <div class="h2" id="section2_3">
@@ -141,9 +196,23 @@ def _render_section_procedure(root) -> str:
         <div>
             <span class="label">Título</span><span>:&nbsp;</span><span class="data">{title}</span>
         </div>
+    '''
+
+    if description:
+        html += f'''
         <div>
             <span class="label">Descripción</span><span>:&nbsp;</span><span class="data">{description}</span>
         </div>
+        '''
+
+    if proc_type:
+        html += f'''
+        <div>
+            <span class="label">Tipo</span><span>:&nbsp;</span><span class="data">{proc_type}</span>
+        </div>
+        '''
+
+    html += f'''
         <div>
             <span class="label">Identificador del procedimiento</span><span>:&nbsp;</span><span class="data">{procedure_id}</span>
         </div>
@@ -166,9 +235,15 @@ def _render_section_lots(root) -> str:
     '''
 
     for i, lot in enumerate(lots, 1):
-        lot_id = _get_text(lot, './/cbc:ID', f'LOT-{i}')
-        lot_title = _get_text(lot, './/cbc:Title', 'Sin título')
-        lot_desc = _get_text(lot, './/cbc:Description', '')
+        lot_id = _get_text(lot, './/cbc:ID', f'LOT-{i:04d}')
+
+        # Título y descripción del lote
+        lot_title = _get_text(lot, './/cac:ProcurementProject/cbc:Name', 'Sin título')
+        lot_desc = _get_text(lot, './/cac:ProcurementProject/cbc:Description', '')
+
+        # Presupuesto
+        budget = _get_text(lot, './/cac:ProcurementProject/cac:RequestedTenderTotal/cbc:EstimatedOverallContractAmount', '')
+        currency = _get_attr(lot, './/cac:ProcurementProject/cac:RequestedTenderTotal/cbc:EstimatedOverallContractAmount', 'currencyID', 'EUR')
 
         html += f'''
         <div class="section-content">
@@ -190,6 +265,13 @@ def _render_section_lots(root) -> str:
             </div>
             '''
 
+        if budget:
+            html += f'''
+            <div>
+                <span class="label">Presupuesto estimado</span><span>:&nbsp;</span><span class="data">{budget} {currency}</span>
+            </div>
+            '''
+
         html += '</div>'
 
     return html
@@ -198,10 +280,6 @@ def _render_section_lots(root) -> str:
 def _render_section_organizations(root) -> str:
     """Renderiza la sección 8. Organizaciones."""
     organizations = root.findall('.//efac:Organization', namespaces=EFORMS_NS)
-
-    if not organizations:
-        # Buscar en otros lugares comunes
-        organizations = root.findall('.//cac:Party', namespaces=EFORMS_NS)
 
     if not organizations:
         return ''
@@ -213,10 +291,21 @@ def _render_section_organizations(root) -> str:
     '''
 
     for i, org in enumerate(organizations, 1):
-        org_name = _get_text(org, './/cbc:Name', 'N/A')
-        org_email = _get_text(org, './/cbc:ElectronicMail', '')
-        org_phone = _get_text(org, './/cbc:Telephone', '')
-        org_website = _get_text(org, './/cbc:WebsiteURI', '')
+        # ID de la organización
+        org_id = _get_text(org, './/efac:Company/cac:PartyIdentification/cbc:ID', f'ORG-{i:04d}')
+
+        # Nombre
+        org_name = _get_text(org, './/efac:Company/cac:PartyName/cbc:Name', 'N/A')
+
+        # Contacto
+        org_email = _get_text(org, './/efac:Company/cac:Contact/cbc:ElectronicMail', '')
+        org_phone = _get_text(org, './/efac:Company/cac:Contact/cbc:Telephone', '')
+        org_website = _get_text(org, './/efac:Company/cac:WebsiteURI', '')
+
+        # Dirección
+        city = _get_text(org, './/efac:Company/cac:PostalAddress/cbc:CityName', '')
+        postal_code = _get_text(org, './/efac:Company/cac:PostalAddress/cbc:PostalZone', '')
+        country = _get_text(org, './/efac:Company/cac:PostalAddress/cac:Country/cbc:Name', '')
 
         html += f'''
         <div class="section-content">
@@ -224,7 +313,7 @@ def _render_section_organizations(root) -> str:
                 <span class="bold">8.{i}. </span>
             </div>
             <div class="sublevel__content">
-                <span class="bold">ORG-{i:04d}</span>
+                <span class="bold">{org_id}</span>
             </div>
             <div>
                 <span class="label">Denominación oficial</span><span>:&nbsp;</span><span class="data">{org_name}</span>
@@ -251,6 +340,14 @@ def _render_section_organizations(root) -> str:
             <div>
                 <span class="label">Dirección de internet</span><span>:&nbsp;</span>
                 <span class="data"><a href="{org_website}" target="_blank">{org_website}</a></span>
+            </div>
+            '''
+
+        if city or postal_code or country:
+            location = ', '.join(filter(None, [city, postal_code, country]))
+            html += f'''
+            <div>
+                <span class="label">Ubicación</span><span>:&nbsp;</span><span class="data">{location}</span>
             </div>
             '''
 
@@ -304,6 +401,28 @@ def _get_text(element, xpath: str, default: str = '') -> str:
         result = element.find(xpath, namespaces=EFORMS_NS)
         if result is not None and result.text:
             return result.text.strip()
+        return default
+    except:
+        return default
+
+
+def _get_attr(element, xpath: str, attr_name: str, default: str = '') -> str:
+    """
+    Obtiene un atributo de un elemento XML usando XPath.
+
+    Args:
+        element: Elemento raíz donde buscar
+        xpath: XPath para buscar el elemento
+        attr_name: Nombre del atributo
+        default: Valor por defecto si no se encuentra
+
+    Returns:
+        Valor del atributo o default
+    """
+    try:
+        result = element.find(xpath, namespaces=EFORMS_NS)
+        if result is not None:
+            return result.get(attr_name, default)
         return default
     except:
         return default
