@@ -609,8 +609,27 @@ class FunctionCallingAgent:
             tool_name = tool_result.get('tool', '')
             result_data = tool_result.get('result', {})
 
-            # Si fue search_tenders, extraer documentos de los resultados
-            if tool_name == 'search_tenders' and result_data.get('success'):
+            # find_best_tender devuelve UN documento (result singular)
+            if tool_name == 'find_best_tender' and result_data.get('success'):
+                tender = result_data.get('result')
+                if tender:  # result puede ser None si no hay resultados
+                    documents.append({
+                        'ojs_notice_id': tender.get('id', 'unknown'),
+                        'section': ', '.join(tender.get('sections_found', ['unknown'])),
+                        'content': tender.get('preview', '')
+                    })
+
+            # find_top_tenders devuelve MÚLTIPLES documentos (results plural)
+            elif tool_name == 'find_top_tenders' and result_data.get('success'):
+                for tender in result_data.get('results', []):
+                    documents.append({
+                        'ojs_notice_id': tender.get('id', 'unknown'),
+                        'section': f"rank_{tender.get('rank', 0)}",
+                        'content': tender.get('preview', '')
+                    })
+
+            # Si fue search_tenders (DEPRECATED), extraer documentos de los resultados
+            elif tool_name == 'search_tenders' and result_data.get('success'):
                 for tender in result_data.get('results', []):
                     documents.append({
                         'ojs_notice_id': tender.get('id', 'unknown'),
