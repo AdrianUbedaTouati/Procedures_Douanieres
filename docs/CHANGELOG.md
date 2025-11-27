@@ -1,5 +1,38 @@
 # Changelog - TenderAI Platform
 
+## [v3.7.2] - 2025-11-27
+
+### Sistema de Logging Mejorado
+- **Trazabilidad completa** de tool calls:
+  - ✅ Logging detallado de parámetros de entrada por tool
+  - ✅ Logging de resultados con indicadores de éxito/fallo (✓/✗)
+  - ✅ Logging de flujo de ejecución por iteración
+  - ✅ Resumen ejecutivo de todas las tools ejecutadas
+- **Nuevos métodos en ChatLogger**:
+  - `log_tool_call()` - Registra llamada con parámetros e iteración
+  - `log_tool_result()` - Registra resultado con estado de éxito
+  - `log_execution_flow()` - Registra decisión del LLM en cada iteración
+  - `log_tool_execution_summary()` - Resumen final de tools usadas
+- **Integración con FunctionCallingAgent**:
+  - Logger pasado como parámetro opcional `chat_logger`
+  - Logging automático en cada iteración del loop
+  - Tracking de tool calls múltiples por iteración
+
+### Documentación
+- **docs/LOGGING_SYSTEM.md**: Guía completa del sistema de logging
+  - Estructura detallada de logs
+  - Casos de uso (debugging, optimización, auditoría)
+  - Ejemplos reales con formato visual
+- **docs/examples/chat_log_example.log**: Ejemplo completo de log con múltiples iteraciones
+
+### Beneficios
+- 🔍 **Debugging mejorado**: Ver exactamente qué falló y por qué
+- 📊 **Análisis de uso**: Identificar tools más usadas y patrones
+- 💰 **Tracking de costos**: Tokens y costos por iteración
+- 🔒 **Auditoría completa**: Registro de todas las decisiones del LLM
+
+---
+
 ## [v3.7.1] - 2025-11-21
 
 ### Reestructuracion de agent_ia_core
