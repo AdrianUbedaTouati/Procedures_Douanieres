@@ -62,7 +62,8 @@ class FunctionCallingAgent:
         max_iterations: int = 5,
         temperature: float = 0.3,
         company_context: str = "",
-        tenders_summary: str = ""
+        tenders_summary: str = "",
+        chat_logger=None
     ):
         """
         Inicializa el agente con function calling.
@@ -78,6 +79,7 @@ class FunctionCallingAgent:
             temperature: Temperatura del LLM
             company_context: (DEPRECATED) Ahora se usa get_company_info tool
             tenders_summary: (DEPRECATED) Ahora se usa get_tenders_summary tool
+            chat_logger: ChatLogger instance para logging detallado (opcional)
         """
         self.llm_provider = llm_provider.lower()
         self.llm_model = llm_model
@@ -85,6 +87,7 @@ class FunctionCallingAgent:
         self.max_iterations = max_iterations
         self.temperature = temperature
         self.user = user
+        self.chat_logger = chat_logger
         # Mantener por compatibilidad pero ya no se usan
         self.company_context = company_context
         self.tenders_summary = tenders_summary
@@ -185,7 +188,16 @@ class FunctionCallingAgent:
         # En el primer mensaje, llamar automáticamente a get_tenders_summary
         if is_first_message and self.user and 'get_tenders_summary' in self.tool_registry.tools:
             logger.info("[QUERY] Primer mensaje - Llamando automáticamente a get_tenders_summary...")
+
+            # LOG: Tool call automático
+            if self.chat_logger:
+                self.chat_logger.log_tool_call('get_tenders_summary', {'limit': 20}, iteration=0)
+
             summary_result = self.tool_registry.execute_tool('get_tenders_summary', limit=20)
+
+            # LOG: Tool result
+            if self.chat_logger:
+                self.chat_logger.log_tool_result('get_tenders_summary', summary_result, iteration=0, success=summary_result.get('success', False))
 
             if summary_result.get('success'):
                 tools_used.append('get_tenders_summary')
@@ -224,6 +236,11 @@ class FunctionCallingAgent:
                 final_answer = response.get('content', '')
                 logger.info(f"[ANSWER] Respuesta final generada")
 
+                # LOG: Flujo de ejecución y resumen final
+                if self.chat_logger:
+                    self.chat_logger.log_execution_flow(iteration, "Generate final answer", [])
+                    self.chat_logger.log_tool_execution_summary(tool_results_history)
+
                 # Extraer documentos usados de los tool results (para compatibilidad con Django)
                 documents = self._extract_documents_from_tool_results(tool_results_history)
 
@@ -244,11 +261,27 @@ class FunctionCallingAgent:
 
             # Ejecutar tool calls
             logger.info(f"[TOOLS] LLM solicitó {len(tool_calls)} tool(s)")
+
+            # LOG: Flujo de ejecución con las tools que se van a llamar
+            if self.chat_logger:
+                tools_to_call = [tc.get('function', {}).get('name', 'unknown') for tc in tool_calls]
+                self.chat_logger.log_execution_flow(iteration, f"Call {len(tool_calls)} tool(s)", tools_to_call)
+
             results = self.tool_registry.execute_tool_calls(tool_calls)
 
-            # Registrar tools usadas
-            for result in results:
+            # Registrar tools usadas y LOG cada una
+            for idx, result in enumerate(results):
                 tool_name = result.get('tool')
+
+                # LOG: Tool call y resultado
+                if self.chat_logger:
+                    tool_args = result.get('arguments', {})
+                    tool_result = result.get('result', {})
+                    success = tool_result.get('success', False) if isinstance(tool_result, dict) else True
+
+                    self.chat_logger.log_tool_call(tool_name, tool_args, iteration=iteration)
+                    self.chat_logger.log_tool_result(tool_name, tool_result, iteration=iteration, success=success)
+
                 if tool_name and tool_name not in tools_used:
                     tools_used.append(tool_name)
                 tool_results_history.append(result)

@@ -119,7 +119,8 @@ class ChatAgentService:
                 max_iterations=15,  # Aumentado de 5 a 15
                 temperature=0.3,
                 company_context=self.company_context,  # Mantener por compatibilidad (deprecated)
-                tenders_summary=self.tenders_summary   # Mantener por compatibilidad (deprecated)
+                tenders_summary=self.tenders_summary,   # Mantener por compatibilidad (deprecated)
+                chat_logger=self.chat_logger  # Pasar logger para logging detallado
             )
 
             print(f"[SERVICE] ✓ FunctionCallingAgent creado con {len(self._agent.tool_registry.tools)} tools", file=sys.stderr)

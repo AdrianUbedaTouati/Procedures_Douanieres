@@ -117,20 +117,27 @@ class ChatLogger:
             self.logger.error(f"Error al serializar respuesta: {e}")
             self.logger.info(str(response))
 
-    def log_tool_call(self, tool_name: str, tool_input: Dict[str, Any]):
-        """Registra una llamada a una tool"""
+    def log_tool_call(self, tool_name: str, tool_input: Dict[str, Any], iteration: int = None):
+        """Registra una llamada a una tool con número de iteración"""
         self.logger.info("-" * 80)
-        self.logger.info(f"TOOL CALL: {tool_name}")
+        if iteration is not None:
+            self.logger.info(f"TOOL CALL: {tool_name} (Iteration {iteration})")
+        else:
+            self.logger.info(f"TOOL CALL: {tool_name}")
         self.logger.info("-" * 80)
-        self.logger.info("INPUT:")
+        self.logger.info("INPUT PARAMETERS:")
         input_json = json.dumps(tool_input, ensure_ascii=False, indent=2)
         for line in input_json.split('\n'):
             self.logger.info(f"  {line}")
 
-    def log_tool_result(self, tool_name: str, result: Any):
-        """Registra el resultado de una tool"""
+    def log_tool_result(self, tool_name: str, result: Any, iteration: int = None, success: bool = True):
+        """Registra el resultado de una tool con estado de éxito"""
         self.logger.info("-" * 80)
-        self.logger.info(f"TOOL RESULT: {tool_name}")
+        status = "✓ SUCCESS" if success else "✗ FAILED"
+        if iteration is not None:
+            self.logger.info(f"TOOL RESULT: {tool_name} [{status}] (Iteration {iteration})")
+        else:
+            self.logger.info(f"TOOL RESULT: {tool_name} [{status}]")
         self.logger.info("-" * 80)
         try:
             if isinstance(result, dict):
@@ -143,6 +150,47 @@ class ChatLogger:
         except Exception as e:
             self.logger.error(f"Error al serializar resultado: {e}")
             self.logger.info(f"  {str(result)}")
+
+    def log_execution_flow(self, iteration: int, decision: str, tools_called: list):
+        """Registra el flujo de ejecución de una iteración"""
+        self.logger.info("=" * 80)
+        self.logger.info(f"ITERATION {iteration} - EXECUTION FLOW")
+        self.logger.info("=" * 80)
+        self.logger.info(f"LLM Decision: {decision}")
+        if tools_called:
+            self.logger.info(f"Tools Called: {', '.join(tools_called)}")
+        else:
+            self.logger.info("Tools Called: None (generating final response)")
+
+    def log_tool_execution_summary(self, tools_history: list):
+        """Registra un resumen completo de todas las tools ejecutadas"""
+        self.logger.info("=" * 80)
+        self.logger.info("TOOL EXECUTION SUMMARY")
+        self.logger.info("=" * 80)
+        self.logger.info(f"Total tools executed: {len(tools_history)}")
+
+        if not tools_history:
+            self.logger.info("No tools were called during this query.")
+            return
+
+        # Agrupar por tool
+        tool_counts = {}
+        for tool_entry in tools_history:
+            tool_name = tool_entry.get('tool', 'unknown')
+            tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
+
+        self.logger.info("\nTool usage breakdown:")
+        for tool_name, count in tool_counts.items():
+            self.logger.info(f"  - {tool_name}: {count}x")
+
+        self.logger.info("\nExecution sequence:")
+        for idx, tool_entry in enumerate(tools_history, 1):
+            tool_name = tool_entry.get('tool', 'unknown')
+            success = tool_entry.get('result', {}).get('success', False)
+            status = "✓" if success else "✗"
+            self.logger.info(f"  {idx}. {status} {tool_name}")
+
+        self.logger.info("=" * 80)
 
     def log_assistant_message(self, message: str, metadata: Optional[Dict] = None):
         """Registra el mensaje final del asistente"""
