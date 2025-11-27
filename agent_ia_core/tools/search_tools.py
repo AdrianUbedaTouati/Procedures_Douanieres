@@ -56,7 +56,7 @@ class FindBestTenderTool(BaseTool):
                 return {
                     'success': True,
                     'count': 0,
-                    'result': None,
+                    'results': [],
                     'message': f'No se encontraron licitaciones para "{query}"'
                 }
 
@@ -115,7 +115,7 @@ class FindBestTenderTool(BaseTool):
             return {
                 'success': True,
                 'count': 1,
-                'result': result,
+                'results': [result],  # Array con un solo elemento para consistencia
                 'message': f'Licitación más relevante: {winner_id} (concentración: {doc_counts[winner_id]}/7 chunks)',
                 'total_candidates': len(doc_counts),
                 'algorithm': 'chunk_concentration'
