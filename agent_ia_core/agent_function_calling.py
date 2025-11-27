@@ -197,43 +197,6 @@ class FunctionCallingAgent:
         tools_used = []
         tool_results_history = []
 
-        # En el primer mensaje, llamar automáticamente a get_tenders_summary
-        if is_first_message and self.user and 'get_tenders_summary' in self.tool_registry.tools:
-            logger.info("[QUERY] Primer mensaje - Llamando automáticamente a get_tenders_summary (todas las licitaciones)...")
-
-            # LOG: Tool call automático
-            if self.chat_logger:
-                self.chat_logger.log_tool_call('get_tenders_summary', {}, iteration=0)
-
-            # Llamar sin límite para obtener TODAS las licitaciones
-            summary_result = self.tool_registry.execute_tool('get_tenders_summary')
-
-            # LOG: Tool result
-            if self.chat_logger:
-                self.chat_logger.log_tool_result('get_tenders_summary', summary_result, iteration=0, success=summary_result.get('success', False))
-
-            if summary_result.get('success'):
-                tools_used.append('get_tenders_summary')
-                tool_results_history.append({
-                    'tool': 'get_tenders_summary',
-                    'arguments': {},
-                    'result': summary_result
-                })
-
-                # Añadir el resultado al contexto de mensajes
-                summary_data = summary_result.get('data', {})
-                formatted_summary = summary_data.get('formatted_summary', '')
-
-                if formatted_summary:
-                    logger.info(f"[QUERY] ✓ Resumen de licitaciones cargado ({summary_data.get('total_count', 0)} licitaciones)")
-                    # Añadir como mensaje del sistema
-                    messages.append({
-                        'role': 'system',
-                        'content': f"CONTEXTO AUTOMÁTICO (resumen de licitaciones disponibles):\n\n{formatted_summary}"
-                    })
-            else:
-                logger.warning(f"[QUERY] ⚠️ Error al cargar resumen automático: {summary_result.get('error')}")
-
         while iteration < self.max_iterations:
             iteration += 1
             logger.info(f"\n--- ITERACIÓN {iteration} ---")
@@ -354,7 +317,7 @@ class FunctionCallingAgent:
                 "- Tienes acceso a la herramienta 'get_company_info' para obtener información sobre la empresa del usuario.",
                 "- Tienes acceso a la herramienta 'get_tenders_summary' para obtener un resumen de las licitaciones disponibles.",
                 "- Usa 'get_company_info' cuando el usuario pregunte sobre su empresa o necesites información para recomendaciones personalizadas.",
-                "- Usa 'get_tenders_summary' al inicio de la conversación o cuando el usuario pregunte qué licitaciones hay disponibles.",
+                "- Usa 'get_tenders_summary' solo cuando el usuario explícitamente pregunte qué licitaciones hay disponibles o pida un resumen general.",
                 ""
             ])
 
