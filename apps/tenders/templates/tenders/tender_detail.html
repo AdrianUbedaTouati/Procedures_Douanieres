@@ -1,4 +1,5 @@
 {% extends 'core/base.html' %}
+{% load custom_filters %}
 
 {% block title %}{{ tender.title }} - TenderAI{% endblock %}
 
@@ -173,7 +174,7 @@
                                 {% for key, value in tender.parsed_summary.OPTIONAL.items %}
                                 <dt class="col-sm-4 text-muted">{{ key|title }}</dt>
                                 <dd class="col-sm-8">
-                                    {% if value is list %}
+                                    {% if value|is_list %}
                                         {% if value %}
                                         <ul class="mb-0">
                                         {% for item in value %}
@@ -183,7 +184,7 @@
                                         {% else %}
                                         <span class="text-muted">Lista vacía</span>
                                         {% endif %}
-                                    {% elif value is dict %}
+                                    {% elif value|is_dict %}
                                         <pre class="bg-light p-2 rounded mb-0" style="font-size: 0.85rem;">{{ value|safe }}</pre>
                                     {% else %}
                                         {{ value|default:"N/A" }}
