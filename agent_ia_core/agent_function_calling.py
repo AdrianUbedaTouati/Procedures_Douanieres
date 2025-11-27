@@ -187,13 +187,14 @@ class FunctionCallingAgent:
 
         # En el primer mensaje, llamar automáticamente a get_tenders_summary
         if is_first_message and self.user and 'get_tenders_summary' in self.tool_registry.tools:
-            logger.info("[QUERY] Primer mensaje - Llamando automáticamente a get_tenders_summary...")
+            logger.info("[QUERY] Primer mensaje - Llamando automáticamente a get_tenders_summary (todas las licitaciones)...")
 
             # LOG: Tool call automático
             if self.chat_logger:
-                self.chat_logger.log_tool_call('get_tenders_summary', {'limit': 20}, iteration=0)
+                self.chat_logger.log_tool_call('get_tenders_summary', {}, iteration=0)
 
-            summary_result = self.tool_registry.execute_tool('get_tenders_summary', limit=20)
+            # Llamar sin límite para obtener TODAS las licitaciones
+            summary_result = self.tool_registry.execute_tool('get_tenders_summary')
 
             # LOG: Tool result
             if self.chat_logger:
@@ -203,7 +204,7 @@ class FunctionCallingAgent:
                 tools_used.append('get_tenders_summary')
                 tool_results_history.append({
                     'tool': 'get_tenders_summary',
-                    'arguments': {'limit': 20},
+                    'arguments': {},
                     'result': summary_result
                 })
 

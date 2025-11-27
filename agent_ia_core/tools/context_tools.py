@@ -138,12 +138,12 @@ class GetTendersSummaryTool(BaseTool):
         super().__init__()
         self.user = user
 
-    def run(self, limit: int = 20) -> Dict[str, Any]:
+    def run(self, limit: int = None) -> Dict[str, Any]:
         """
         Ejecuta la consulta de resumen de licitaciones.
 
         Args:
-            limit: Número máximo de licitaciones a incluir (default: 20)
+            limit: Número máximo de licitaciones a incluir (default: None = todas)
 
         Returns:
             Dict con:
@@ -155,15 +155,19 @@ class GetTendersSummaryTool(BaseTool):
             from apps.tenders.models import Tender
             import json
 
-            # Validar límite
-            limit = min(max(limit, 1), 50)  # Entre 1 y 50
-
             # Obtener licitaciones que tienen parsed_summary
-            tenders = Tender.objects.exclude(
+            tenders_query = Tender.objects.exclude(
                 parsed_summary={}
             ).exclude(
                 parsed_summary__isnull=True
-            ).order_by('-publication_date')[:limit]
+            ).order_by('-publication_date')
+
+            # Aplicar límite solo si se especifica
+            if limit is not None:
+                limit = max(limit, 1)  # Mínimo 1
+                tenders = tenders_query[:limit]
+            else:
+                tenders = tenders_query
 
             if not tenders.exists():
                 return {
@@ -173,10 +177,17 @@ class GetTendersSummaryTool(BaseTool):
                 }
 
             # Construir resumen
-            summary_parts = [
-                f"RESUMEN DE LICITACIONES DISPONIBLES ({tenders.count()} más recientes):",
-                ""
-            ]
+            total_count = tenders.count()
+            if limit is not None:
+                summary_parts = [
+                    f"RESUMEN DE LICITACIONES DISPONIBLES ({total_count} más recientes de {tenders_query.count()} totales):",
+                    ""
+                ]
+            else:
+                summary_parts = [
+                    f"RESUMEN DE TODAS LAS LICITACIONES DISPONIBLES ({total_count} licitaciones):",
+                    ""
+                ]
 
             tenders_list = []
             for idx, tender in enumerate(tenders, 1):
@@ -260,12 +271,10 @@ class GetTendersSummaryTool(BaseTool):
                 'properties': {
                     'limit': {
                         'type': 'integer',
-                        'description': 'Número máximo de licitaciones a incluir en el resumen (1-50)',
-                        'default': 20,
-                        'minimum': 1,
-                        'maximum': 50
+                        'description': 'Número máximo de licitaciones a incluir en el resumen. Si no se especifica, devuelve TODAS las licitaciones disponibles.',
+                        'minimum': 1
                     }
                 },
-                'required': []  # limit es opcional
+                'required': []  # limit es opcional (None = todas)
             }
         }

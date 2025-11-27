@@ -204,15 +204,16 @@ class ChatAgentService:
             from apps.tenders.models import Tender
             import json
 
-            # Obtener licitaciones que tienen parsed_summary
-            tenders = Tender.objects.exclude(parsed_summary={}).exclude(parsed_summary__isnull=True).order_by('-publication_date')[:50]  # Últimas 50
+            # Obtener TODAS las licitaciones que tienen parsed_summary (sin límite)
+            tenders = Tender.objects.exclude(parsed_summary={}).exclude(parsed_summary__isnull=True).order_by('-publication_date')
 
             if not tenders.exists():
                 return ""
 
+            total_count = tenders.count()
             summary_parts = [
                 "LICITACIONES DISPONIBLES EN LA BASE DE DATOS:",
-                f"Total: {tenders.count()} licitaciones más recientes",
+                f"Total: {total_count} licitaciones",
                 ""
             ]
 
