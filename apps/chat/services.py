@@ -432,50 +432,82 @@ class ChatAgentService:
             response_content = result.get('answer', 'No se pudo generar una respuesta.')
 
             # ========================================================================
-            # REVIEW AND IMPROVEMENT LOOP WITH SECOND LLM
+            # REVIEW AND IMPROVEMENT LOOP WITH CONFIGURABLE MAX LOOPS
             # ========================================================================
             from apps.chat.response_reviewer import ResponseReviewer
 
-            print(f"[SERVICE] Iniciando revisión de respuesta...", file=sys.stderr)
+            # Get max_review_loops from user configuration (default: 3)
+            max_review_loops = getattr(self.user, 'max_review_loops', 3)
+            print(f"[SERVICE] Iniciando sistema de revisión (max_loops: {max_review_loops})...", file=sys.stderr)
 
             # Create reviewer with same LLM as agent
             reviewer = ResponseReviewer(agent.llm)
 
-            # Build metadata for reviewer
-            review_metadata_input = {
-                'documents_used': result.get('documents', []),
-                'tools_used': result.get('tools_used', []),
-                'route': result.get('route', 'unknown')
-            }
+            # Initialize review tracking
+            review_history = []  # Historial de todas las revisiones
+            current_loop = 0
+            improvement_applied = False
+            all_review_scores = []
 
-            # Review initial response
-            review_result = reviewer.review_response(
-                user_question=message,
-                conversation_history=formatted_history,
-                initial_response=response_content,
-                metadata=review_metadata_input
-            )
+            # REVIEW-IMPROVE LOOP
+            while current_loop < max_review_loops:
+                current_loop += 1
+                print(f"[SERVICE] === REVIEW LOOP {current_loop}/{max_review_loops} ===", file=sys.stderr)
 
-            print(f"[SERVICE] Revisión completada: {review_result['status']} (score: {review_result['score']}/100)", file=sys.stderr)
+                # Build metadata for reviewer
+                review_metadata_input = {
+                    'documents_used': result.get('documents', []),
+                    'tools_used': result.get('tools_used', []),
+                    'route': result.get('route', 'unknown')
+                }
 
-            # ALWAYS run second iteration for improvement (regardless of score)
-            print(f"[SERVICE] Ejecutando segunda iteración de mejora (siempre activo)...", file=sys.stderr)
-            improvement_applied = True
+                # Review current response
+                review_result = reviewer.review_response(
+                    user_question=message,
+                    conversation_history=formatted_history,
+                    initial_response=response_content,
+                    metadata=review_metadata_input
+                )
 
-            # Build issues list for prompt
-            issues_list = '\n'.join([f"- {issue}" for issue in review_result['issues']])
-            suggestions_list = '\n'.join([f"- {suggestion}" for suggestion in review_result['suggestions']])
+                all_review_scores.append(review_result['score'])
+                review_history.append({
+                    'loop': current_loop,
+                    'status': review_result['status'],
+                    'score': review_result['score'],
+                    'issues': review_result['issues'],
+                    'suggestions': review_result['suggestions']
+                })
 
-            # Build improvement prompt with feedback
-            if review_result['feedback']:
-                feedback_section = f"""**Feedback del revisor:**
+                print(f"[SERVICE] Loop {current_loop} - Review: {review_result['status']} (score: {review_result['score']}/100)", file=sys.stderr)
+
+                # Decision: Should we improve?
+                # Si es el último loop O el score es >= 95 → NO mejorar, retornar respuesta actual
+                if current_loop >= max_review_loops:
+                    print(f"[SERVICE] Límite de loops alcanzado ({max_review_loops}). Retornando respuesta final.", file=sys.stderr)
+                    break
+
+                if review_result['score'] >= 95:
+                    print(f"[SERVICE] Score excelente ({review_result['score']}/100). No se requieren más mejoras.", file=sys.stderr)
+                    break
+
+                # Si llegamos aquí, ejecutamos mejora
+                improvement_applied = True
+                print(f"[SERVICE] Ejecutando iteración de mejora (loop {current_loop})...", file=sys.stderr)
+
+                # Build issues list for prompt
+                issues_list = '\n'.join([f"- {issue}" for issue in review_result['issues']])
+                suggestions_list = '\n'.join([f"- {suggestion}" for suggestion in review_result['suggestions']])
+
+                # Build improvement prompt with feedback
+                if review_result['feedback']:
+                    feedback_section = f"""**Feedback del revisor:**
 {review_result['feedback']}"""
-            else:
-                feedback_section = "**Nota del revisor:** La respuesta está bien estructurada, pero siempre podemos mejorarla."
+                else:
+                    feedback_section = "**Nota del revisor:** La respuesta está bien estructurada, pero podemos mejorarla."
 
-            improvement_prompt = f"""Tu respuesta anterior fue revisada. Vamos a mejorarla.
+                improvement_prompt = f"""Tu respuesta anterior fue revisada (Loop {current_loop}/{max_review_loops}). Vamos a mejorarla.
 
-**Tu respuesta original:**
+**Tu respuesta actual:**
 {response_content}
 
 **Problemas detectados:**
@@ -501,48 +533,55 @@ Genera una respuesta MEJORADA que sea aún más completa y útil.
 
 Genera tu respuesta mejorada:"""
 
-            # Execute second query with improvement prompt
-            # Añadir respuesta original al historial para contexto
-            improvement_history = formatted_history + [
-                {'role': 'user', 'content': message},
-                {'role': 'assistant', 'content': response_content}
-            ]
+                # Execute improvement query
+                # Añadir respuesta actual al historial para contexto
+                improvement_history = formatted_history + [
+                    {'role': 'user', 'content': message},
+                    {'role': 'assistant', 'content': response_content}
+                ]
 
-            print(f"[SERVICE] Ejecutando query de mejora...", file=sys.stderr)
-            improved_result = agent.query(
-                improvement_prompt,
-                conversation_history=improvement_history
-            )
+                print(f"[SERVICE] Ejecutando query de mejora (loop {current_loop})...", file=sys.stderr)
+                improved_result = agent.query(
+                    improvement_prompt,
+                    conversation_history=improvement_history
+                )
 
-            # Update response with improved version
-            response_content = improved_result.get('answer', response_content)
+                # Update response with improved version
+                previous_response_length = len(response_content)
+                response_content = improved_result.get('answer', response_content)
+                new_response_length = len(response_content)
 
-            print(f"[SERVICE] ✓ Respuesta mejorada generada: {len(response_content)} caracteres", file=sys.stderr)
+                print(f"[SERVICE] ✓ Loop {current_loop} - Respuesta mejorada: {previous_response_length} → {new_response_length} caracteres", file=sys.stderr)
 
-            # Update result with improved data (merge documents/tools from both iterations)
-            # Merge documents (avoid duplicates)
-            existing_doc_ids = {doc.get('ojs_notice_id') for doc in result.get('documents', [])}
-            new_docs = [doc for doc in improved_result.get('documents', [])
-                       if doc.get('ojs_notice_id') not in existing_doc_ids]
-            result['documents'] = result.get('documents', []) + new_docs
+                # Merge documents (avoid duplicates)
+                existing_doc_ids = {doc.get('ojs_notice_id') for doc in result.get('documents', [])}
+                new_docs = [doc for doc in improved_result.get('documents', [])
+                           if doc.get('ojs_notice_id') not in existing_doc_ids]
+                result['documents'] = result.get('documents', []) + new_docs
 
-            # Merge tools used
-            result['tools_used'] = list(set(result.get('tools_used', []) + improved_result.get('tools_used', [])))
+                # Merge tools used
+                result['tools_used'] = list(set(result.get('tools_used', []) + improved_result.get('tools_used', [])))
 
-            # Update iterations count
-            result['iterations'] = result.get('iterations', 0) + improved_result.get('iterations', 0)
+                # Update iterations count
+                result['iterations'] = result.get('iterations', 0) + improved_result.get('iterations', 0)
 
-            # Save review metadata for tracking
+            # Save comprehensive review metadata for tracking
             review_tracking = {
                 'review_performed': True,
-                'review_status': review_result['status'],
-                'review_score': review_result['score'],
-                'review_issues': review_result['issues'],
-                'review_suggestions': review_result['suggestions'],
-                'improvement_applied': improvement_applied
+                'max_loops': max_review_loops,
+                'loops_executed': current_loop,
+                'improvement_applied': improvement_applied,
+                'all_scores': all_review_scores,
+                'final_score': all_review_scores[-1] if all_review_scores else 100,
+                'review_history': review_history,
+                # Mantener compatibilidad con código anterior (usar última revisión)
+                'review_status': review_history[-1]['status'] if review_history else 'APPROVED',
+                'review_score': review_history[-1]['score'] if review_history else 100,
+                'review_issues': review_history[-1]['issues'] if review_history else [],
+                'review_suggestions': review_history[-1]['suggestions'] if review_history else []
             }
 
-            print(f"[SERVICE] Review tracking: {review_tracking}", file=sys.stderr)
+            print(f"[SERVICE] Review completado: {current_loop} loops ejecutados, scores: {all_review_scores}", file=sys.stderr)
             # ========================================================================
             # END REVIEW LOOP
             # ========================================================================
@@ -610,11 +649,16 @@ Genera tu respuesta mejorada:"""
                 print(f"[SERVICE] Herramientas usadas ({len(tools_used)}): {' → '.join(tools_used)}", file=sys.stderr)
             print(f"[SERVICE] Tokens totales: {cost_data['total_tokens']} (in: {cost_data['input_tokens']}, out: {cost_data['output_tokens']})", file=sys.stderr)
             print(f"[SERVICE] Costo: €{cost_data['total_cost_eur']:.4f}", file=sys.stderr)
-            # Review metrics
-            print(f"[SERVICE] Review - Status: {review_tracking['review_status']}, Score: {review_tracking['review_score']}/100", file=sys.stderr)
+            # Review metrics (enhanced with loop information)
+            print(f"[SERVICE] Review - Loops: {review_tracking['loops_executed']}/{review_tracking['max_loops']}", file=sys.stderr)
+            print(f"[SERVICE] Review - Final Score: {review_tracking['final_score']}/100 (all scores: {review_tracking['all_scores']})", file=sys.stderr)
+            print(f"[SERVICE] Review - Status: {review_tracking['review_status']}", file=sys.stderr)
             if review_tracking['improvement_applied']:
-                print(f"[SERVICE] Review - Mejora aplicada (2da iteración ejecutada)", file=sys.stderr)
-                print(f"[SERVICE] Review - Issues: {len(review_tracking['review_issues'])}", file=sys.stderr)
+                print(f"[SERVICE] Review - Mejoras aplicadas en {review_tracking['loops_executed']} loops", file=sys.stderr)
+                if review_tracking['review_issues']:
+                    print(f"[SERVICE] Review - Issues detectados: {len(review_tracking['review_issues'])}", file=sys.stderr)
+            else:
+                print(f"[SERVICE] Review - Sin mejoras (score suficientemente alto o límite alcanzado)", file=sys.stderr)
             print(f"", file=sys.stderr)  # Línea en blanco final
 
             # LOG: Mensaje final del asistente con metadata

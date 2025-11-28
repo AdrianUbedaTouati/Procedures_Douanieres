@@ -96,6 +96,11 @@ class User(AbstractUser):
         verbose_name='Activar Verificación XML',
         help_text='Valida campos críticos con el XML original (más preciso pero más lento)'
     )
+    max_review_loops = models.IntegerField(
+        default=3,
+        verbose_name='Máximo de loops de revisión',
+        help_text='Número máximo de veces que el sistema puede revisar y mejorar una respuesta (1-10). Default: 3. Más loops = mejor calidad pero más tiempo y tokens.'
+    )
 
     # Google Search API settings
     use_web_search = models.BooleanField(
