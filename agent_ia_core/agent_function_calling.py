@@ -220,9 +220,13 @@ class FunctionCallingAgent:
                 # Extraer documentos usados de los tool results (para compatibilidad con Django)
                 documents = self._extract_documents_from_tool_results(tool_results_history)
 
+                # Extraer tools fallidas con información de reintentos
+                tools_failed = self._extract_failed_tools(tool_results_history)
+
                 return {
                     'answer': final_answer,
                     'tools_used': tools_used,
+                    'tools_failed': tools_failed,  # Información de tools que fallaron
                     'tool_results': tool_results_history,
                     'iterations': iteration,
                     'documents': documents,  # Para compatibilidad con ChatAgentService
@@ -280,9 +284,13 @@ class FunctionCallingAgent:
         # Extraer documentos usados de los tool results (para compatibilidad con Django)
         documents = self._extract_documents_from_tool_results(tool_results_history)
 
+        # Extraer tools fallidas con información de reintentos
+        tools_failed = self._extract_failed_tools(tool_results_history)
+
         return {
             'answer': 'Lo siento, no pude completar la tarea en el número de pasos permitidos. Intenta hacer la pregunta de otra manera o más específica.',
             'tools_used': tools_used,
+            'tools_failed': tools_failed,  # Información de tools que fallaron
             'tool_results': tool_results_history,
             'iterations': iteration,
             'documents': documents,  # Para compatibilidad con ChatAgentService
@@ -715,6 +723,49 @@ class FunctionCallingAgent:
             logger.info(f"[EXTRACT_DOCS] Doc {idx+1}: ID={doc.get('ojs_notice_id')}, section={doc.get('section')}")
 
         return documents
+
+    def _extract_failed_tools(self, tool_results_history: List[Dict]) -> List[Dict]:
+        """
+        Extrae información de las tools que fallaron para mostrar en el frontend.
+
+        Args:
+            tool_results_history: Lista de resultados de tool calls
+
+        Returns:
+            Lista de diccionarios con información de tools fallidas:
+            [{'name': '...', 'error': '...', 'retries': N, 'retries_exhausted': bool}, ...]
+        """
+        failed_tools = []
+
+        for tool_result in tool_results_history:
+            tool_name = tool_result.get('tool', 'unknown')
+            result_data = tool_result.get('result', {})
+
+            # Verificar si la tool falló
+            if isinstance(result_data, dict):
+                success = result_data.get('success', True)
+                if not success:
+                    # Tool falló
+                    error_msg = result_data.get('error', 'Error desconocido')
+                    total_attempts = result_data.get('total_attempts', 1)
+                    retries_exhausted = result_data.get('retries_exhausted', False)
+
+                    failed_tools.append({
+                        'name': tool_name,
+                        'error': error_msg,
+                        'retries': total_attempts - 1,  # Restar 1 porque el primer intento no es reintento
+                        'total_attempts': total_attempts,
+                        'retries_exhausted': retries_exhausted
+                    })
+
+                    logger.warning(f"[EXTRACT_FAILED] Tool '{tool_name}' falló: {error_msg} (intentos: {total_attempts})")
+
+        if failed_tools:
+            logger.warning(f"[EXTRACT_FAILED] Total tools fallidas: {len(failed_tools)}")
+        else:
+            logger.info(f"[EXTRACT_FAILED] No hubo tools fallidas")
+
+        return failed_tools
 
     def __repr__(self):
         return f"<FunctionCallingAgent(provider='{self.llm_provider}', model='{self.llm_model}', tools={len(self.tool_registry.tools)})>"

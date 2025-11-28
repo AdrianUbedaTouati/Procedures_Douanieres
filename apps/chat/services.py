@@ -592,6 +592,7 @@ Genera tu respuesta mejorada:"""
                 'iterations': result.get('iterations', 0),
                 'num_documents': len(documents_used),
                 'tools_used': result.get('tools_used', []),  # Añadir tools usadas
+                'tools_failed': result.get('tools_failed', []),  # Añadir tools fallidas con info de reintentos
                 # Token and cost tracking
                 'input_tokens': cost_data['input_tokens'],
                 'output_tokens': cost_data['output_tokens'],
