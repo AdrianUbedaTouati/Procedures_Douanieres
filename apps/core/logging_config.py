@@ -204,6 +204,14 @@ class ChatLogger:
             if isinstance(tool_result, dict):
                 self.logger.info(f"     Result:")
 
+                # Información sobre reintentos (si hubo)
+                if 'total_attempts' in tool_result:
+                    attempts = tool_result.get('total_attempts')
+                    if attempts > 1:
+                        self.logger.info(f"       - total_attempts: {attempts} (reintentos: {attempts - 1})")
+                        if tool_result.get('retries_exhausted'):
+                            self.logger.info(f"       - retries_exhausted: True ⚠️")
+
                 # Campos clave del resultado
                 if 'success' in tool_result:
                     self.logger.info(f"       - success: {tool_result.get('success')}")

@@ -21,7 +21,7 @@ class ToolRegistry:
     - Ejecutar tools por nombre
     """
 
-    def __init__(self, retriever, db_session=None, user=None):
+    def __init__(self, retriever, db_session=None, user=None, max_retries: int = 3):
         """
         Inicializa el registro con todas las tools.
 
@@ -29,10 +29,12 @@ class ToolRegistry:
             retriever: Retriever de ChromaDB para búsqueda vectorial
             db_session: Sesión de base de datos Django (opcional)
             user: Usuario de Django para tools de contexto (opcional)
+            max_retries: Número máximo de reintentos por tool en caso de fallo (default: 3)
         """
         self.retriever = retriever
         self.db_session = db_session
         self.user = user
+        self.max_retries = max_retries
         self.tools: Dict[str, BaseTool] = {}
         self._register_all_tools()
 
@@ -211,17 +213,20 @@ class ToolRegistry:
         """
         return [tool.to_ollama_tool() for tool in self.tools.values()]
 
-    def execute_tool(self, name: str, **kwargs) -> Dict[str, Any]:
+    def execute_tool(self, name: str, max_retries: int = None, **kwargs) -> Dict[str, Any]:
         """
-        Ejecuta una tool por nombre.
+        Ejecuta una tool por nombre con sistema de reintentos.
 
         Args:
             name: Nombre de la tool
+            max_retries: Número máximo de reintentos en caso de fallo (default: None = usa self.max_retries)
             **kwargs: Parámetros para la tool
 
         Returns:
             Dict con resultado de la ejecución
         """
+        if max_retries is None:
+            max_retries = self.max_retries
         tool = self.get_tool(name)
 
         if not tool:
@@ -239,8 +244,63 @@ class ToolRegistry:
         # Si la tool es browse_interactive, el LLM ya está inyectado en __init__
         # No necesita inyección en kwargs porque es parte del estado de la tool
 
-        logger.info(f"[REGISTRY] Ejecutando tool '{name}'...")
-        return tool.execute_safe(**kwargs)
+        # Sistema de reintentos
+        last_error = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt > 1:
+                    logger.warning(f"[REGISTRY] Reintento {attempt}/{max_retries} para tool '{name}'")
+                else:
+                    logger.info(f"[REGISTRY] Ejecutando tool '{name}'...")
+
+                result = tool.execute_safe(**kwargs)
+
+                # Verificar si el resultado indica éxito
+                if isinstance(result, dict):
+                    if result.get('success', True):  # Si no hay campo 'success', asumimos éxito
+                        if attempt > 1:
+                            logger.info(f"[REGISTRY] ✓ Tool '{name}' exitosa en intento {attempt}/{max_retries}")
+                            # Añadir información de reintentos al resultado
+                            result['total_attempts'] = attempt
+                            result['retries_exhausted'] = False
+                        return result
+                    else:
+                        # La tool falló, pero devolvió un resultado estructurado
+                        last_error = result.get('error', 'Error desconocido')
+                        logger.warning(f"[REGISTRY] Tool '{name}' falló (intento {attempt}/{max_retries}): {last_error}")
+
+                        # Si es el último intento, devolver el error
+                        if attempt == max_retries:
+                            logger.error(f"[REGISTRY] ✗ Tool '{name}' falló después de {max_retries} intentos")
+                            result['retries_exhausted'] = True
+                            result['total_attempts'] = attempt
+                            return result
+                else:
+                    # Resultado no estructurado, asumir éxito
+                    return result
+
+            except Exception as e:
+                last_error = str(e)
+                logger.error(f"[REGISTRY] Excepción en tool '{name}' (intento {attempt}/{max_retries}): {e}", exc_info=True)
+
+                # Si es el último intento, devolver error
+                if attempt == max_retries:
+                    logger.error(f"[REGISTRY] ✗ Tool '{name}' falló después de {max_retries} intentos con excepción")
+                    return {
+                        'success': False,
+                        'error': f"Error después de {max_retries} intentos: {last_error}",
+                        'retries_exhausted': True,
+                        'total_attempts': attempt,
+                        'last_exception': str(e)
+                    }
+
+        # No debería llegar aquí, pero por seguridad
+        return {
+            'success': False,
+            'error': f"Error desconocido después de {max_retries} intentos: {last_error}",
+            'retries_exhausted': True,
+            'total_attempts': max_retries
+        }
 
     def execute_tool_calls(self, tool_calls: List[Dict]) -> List[Dict[str, Any]]:
         """
