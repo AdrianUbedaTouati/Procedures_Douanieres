@@ -273,6 +273,10 @@ class FunctionCallingAgent:
         # Max iterations alcanzado
         logger.warning(f"[AGENT] Máximo de iteraciones ({self.max_iterations}) alcanzado")
 
+        # LOG: Resumen de tools ejecutadas
+        if self.chat_logger:
+            self.chat_logger.log_tool_execution_summary(tool_results_history)
+
         # Extraer documentos usados de los tool results (para compatibilidad con Django)
         documents = self._extract_documents_from_tool_results(tool_results_history)
 

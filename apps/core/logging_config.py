@@ -183,14 +183,49 @@ class ChatLogger:
         for tool_name, count in tool_counts.items():
             self.logger.info(f"  - {tool_name}: {count}x")
 
-        self.logger.info("\nExecution sequence:")
+        self.logger.info("\nDetailed execution sequence:")
         for idx, tool_entry in enumerate(tools_history, 1):
             tool_name = tool_entry.get('tool', 'unknown')
-            success = tool_entry.get('result', {}).get('success', False)
+            tool_args = tool_entry.get('arguments', {})
+            tool_result = tool_entry.get('result', {})
+            success = tool_result.get('success', False) if isinstance(tool_result, dict) else True
             status = "✓" if success else "✗"
-            self.logger.info(f"  {idx}. {status} {tool_name}")
 
-        self.logger.info("=" * 80)
+            self.logger.info(f"\n  {idx}. {status} {tool_name}")
+
+            # Mostrar parámetros
+            if tool_args:
+                self.logger.info(f"     Parameters:")
+                args_json = json.dumps(tool_args, ensure_ascii=False, indent=6)
+                for line in args_json.split('\n'):
+                    self.logger.info(f"     {line}")
+
+            # Mostrar resumen del resultado
+            if isinstance(tool_result, dict):
+                self.logger.info(f"     Result:")
+
+                # Campos clave del resultado
+                if 'success' in tool_result:
+                    self.logger.info(f"       - success: {tool_result.get('success')}")
+                if 'count' in tool_result:
+                    self.logger.info(f"       - count: {tool_result.get('count')}")
+                if 'message' in tool_result:
+                    self.logger.info(f"       - message: {tool_result.get('message')}")
+                if 'error' in tool_result:
+                    self.logger.info(f"       - error: {tool_result.get('error')}")
+
+                # Para find_best_tender: mostrar ID del documento encontrado
+                if 'result' in tool_result and isinstance(tool_result['result'], dict):
+                    doc_id = tool_result['result'].get('id')
+                    if doc_id:
+                        self.logger.info(f"       - document_id: {doc_id}")
+
+                # Para find_top_tenders: mostrar IDs de documentos encontrados
+                if 'results' in tool_result and isinstance(tool_result['results'], list):
+                    doc_ids = [r.get('id', 'unknown') for r in tool_result['results']]
+                    self.logger.info(f"       - document_ids: {doc_ids}")
+
+        self.logger.info("\n" + "=" * 80)
 
     def log_assistant_message(self, message: str, metadata: Optional[Dict] = None):
         """Registra el mensaje final del asistente"""
