@@ -177,8 +177,8 @@ SUGGESTIONS:
 (Si no hay sugerencias, escribe: Ninguna)
 
 TOOL_SUGGESTIONS:
-- tool: [nombre_tool], params: {parametros}, reason: [razón por la que debe llamarla]
-- tool: [nombre_tool], params: {parametros}, reason: [razón]
+- tool: [nombre_tool], params: {{parametros}}, reason: [razón por la que debe llamarla]
+- tool: [nombre_tool], params: {{parametros}}, reason: [razón]
 (Si no necesita llamar tools adicionales, escribe: Ninguna)
 
 PARAM_VALIDATION:
