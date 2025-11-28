@@ -91,13 +91,14 @@ class FindBestTenderTool(BaseTool):
             first_chunk = winner_chunks[0]
             meta = first_chunk.metadata
 
+            sections = [doc.metadata.get('section', 'N/A') for doc in winner_chunks]
             result = {
                 'id': winner_id,
                 'buyer': meta.get('buyer_name', 'N/A'),
                 'chunk_count': doc_counts[winner_id],
                 'score': doc_scores[winner_id],
                 'preview': first_chunk.page_content[:300],
-                'sections_found': [doc.metadata.get('section', 'N/A') for doc in winner_chunks]
+                'sections_found': sections
             }
 
             # Añadir campos opcionales
@@ -111,6 +112,8 @@ class FindBestTenderTool(BaseTool):
                 result['location'] = meta.get('nuts_regions')
             if meta.get('publication_date'):
                 result['published'] = meta.get('publication_date')
+
+            logger.info(f"[FIND_BEST] Ganador: {winner_id}, sections: {sections}, chunk_count: {doc_counts[winner_id]}")
 
             return {
                 'success': True,

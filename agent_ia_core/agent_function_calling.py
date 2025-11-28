@@ -604,6 +604,8 @@ class FunctionCallingAgent:
             [{'ojs_notice_id': '...', 'section': '...', 'content': '...'}, ...]
         """
         documents = []
+        logger.info(f"[EXTRACT_DOCS] Procesando {len(tool_results_history)} tool results")
+        logger.info(f"[EXTRACT_DOCS] Tools llamadas: {[tr.get('tool') for tr in tool_results_history]}")
 
         for tool_result in tool_results_history:
             tool_name = tool_result.get('tool', '')
@@ -613,11 +615,13 @@ class FunctionCallingAgent:
             if tool_name == 'find_best_tender' and result_data.get('success'):
                 tender = result_data.get('result')
                 if tender:  # result puede ser None si no hay resultados
-                    documents.append({
+                    doc_entry = {
                         'ojs_notice_id': tender.get('id', 'unknown'),
                         'section': ', '.join(tender.get('sections_found', ['unknown'])),
                         'content': tender.get('preview', '')
-                    })
+                    }
+                    logger.info(f"[EXTRACT_DOCS] find_best_tender: Añadiendo documento {doc_entry['ojs_notice_id']} con sections: {doc_entry['section']}")
+                    documents.append(doc_entry)
 
             # find_top_tenders devuelve MÚLTIPLES documentos (results plural)
             elif tool_name == 'find_top_tenders' and result_data.get('success'):
@@ -701,6 +705,10 @@ class FunctionCallingAgent:
                     })
 
             # get_statistics no devuelve documentos específicos, solo estadísticas
+
+        logger.info(f"[EXTRACT_DOCS] Total documentos extraídos: {len(documents)}")
+        for idx, doc in enumerate(documents):
+            logger.info(f"[EXTRACT_DOCS] Doc {idx+1}: ID={doc.get('ojs_notice_id')}, section={doc.get('section')}")
 
         return documents
 
