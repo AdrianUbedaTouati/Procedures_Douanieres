@@ -481,22 +481,44 @@ class ChatAgentService:
                 print(f"[SERVICE] Loop {current_loop} - Review: {review_result['status']} (score: {review_result['score']}/100)", file=sys.stderr)
 
                 # Decision: Should we improve?
-                # Si es el último loop O el score es >= 95 → NO mejorar, retornar respuesta actual
+                # REGLA: SIEMPRE ejecutar AL MENOS 1 reformulación (loop 1)
+                # Después del loop 1, aplicar condiciones de salida normales
+
                 if current_loop >= max_review_loops:
                     print(f"[SERVICE] Límite de loops alcanzado ({max_review_loops}). Retornando respuesta final.", file=sys.stderr)
                     break
 
-                if review_result['score'] >= 95:
-                    print(f"[SERVICE] Score excelente ({review_result['score']}/100). No se requieren más mejoras.", file=sys.stderr)
+                # Solo permitir salida por score alto DESPUÉS del primer loop
+                if current_loop > 1 and review_result['score'] >= 95:
+                    print(f"[SERVICE] Score excelente ({review_result['score']}/100) después de {current_loop-1} mejoras. No se requieren más.", file=sys.stderr)
                     break
 
                 # Si llegamos aquí, ejecutamos mejora
                 improvement_applied = True
-                print(f"[SERVICE] Ejecutando iteración de mejora (loop {current_loop})...", file=sys.stderr)
+                if current_loop == 1:
+                    print(f"[SERVICE] Ejecutando mejora obligatoria (loop {current_loop}/{max_review_loops})...", file=sys.stderr)
+                else:
+                    print(f"[SERVICE] Ejecutando iteración de mejora adicional (loop {current_loop}/{max_review_loops})...", file=sys.stderr)
 
-                # Build issues list for prompt
+                # Build lists for prompt
                 issues_list = '\n'.join([f"- {issue}" for issue in review_result['issues']])
                 suggestions_list = '\n'.join([f"- {suggestion}" for suggestion in review_result['suggestions']])
+
+                # Build tool suggestions section
+                tool_suggestions_section = ""
+                if review_result.get('tool_suggestions'):
+                    tool_suggestions_section = "\n**Herramientas recomendadas por el revisor:**\n"
+                    for ts in review_result['tool_suggestions']:
+                        tool_suggestions_section += f"- {ts['tool']}: {ts['reason']}\n"
+                        tool_suggestions_section += f"  Parámetros sugeridos: {ts['params']}\n"
+
+                # Build param validation section
+                param_validation_section = ""
+                if review_result.get('param_validation'):
+                    param_validation_section = "\n**Validación de parámetros de tools ya ejecutadas:**\n"
+                    for pv in review_result['param_validation']:
+                        param_validation_section += f"- {pv['tool']} - parámetro '{pv['param']}': {pv['issue']}\n"
+                        param_validation_section += f"  Valor sugerido: {pv['suggested']}\n"
 
                 # Build improvement prompt with feedback
                 if review_result['feedback']:
@@ -515,7 +537,7 @@ class ChatAgentService:
 
 **Sugerencias:**
 {suggestions_list if suggestions_list else '- Mantener el buen formato actual'}
-
+{tool_suggestions_section}{param_validation_section}
 {feedback_section}
 
 **Tu tarea:**
@@ -523,7 +545,8 @@ Genera una respuesta MEJORADA que sea aún más completa y útil.
 
 **IMPORTANTE:**
 - Usa herramientas (tools) si necesitas buscar más información
-- Si faltan datos específicos (presupuestos, plazos, etc.), búscalos
+- El revisor ha sugerido herramientas específicas arriba - ÚSALAS si son relevantes
+- Si faltan datos específicos (presupuestos, plazos, etc.), búscalos con las tools apropiadas
 - Si el formato es incorrecto, corrígelo (usa ## para licitaciones múltiples, NO listas numeradas)
 - Si falta análisis, justifica tus recomendaciones con datos concretos
 - Si ya está bien, puedes añadir más detalles útiles o mejorar la presentación

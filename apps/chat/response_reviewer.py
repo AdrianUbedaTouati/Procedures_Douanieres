@@ -52,7 +52,9 @@ class ResponseReviewer:
                 'feedback': str,  # Solo si NEEDS_IMPROVEMENT
                 'score': float (0-100),
                 'issues': List[str],  # Problemas detectados
-                'suggestions': List[str]  # Sugerencias de mejora
+                'suggestions': List[str],  # Sugerencias de mejora
+                'tool_suggestions': List[Dict],  # Tools que debería llamar
+                'param_validation': List[Dict]  # Validación de parámetros de tools ya ejecutadas
             }
         """
         logger.info("[REVIEWER] Iniciando revisión de respuesta...")
@@ -174,6 +176,15 @@ SUGGESTIONS:
 - [Sugerencia 2 si existe]
 (Si no hay sugerencias, escribe: Ninguna)
 
+TOOL_SUGGESTIONS:
+- tool: [nombre_tool], params: {parametros}, reason: [razón por la que debe llamarla]
+- tool: [nombre_tool], params: {parametros}, reason: [razón]
+(Si no necesita llamar tools adicionales, escribe: Ninguna)
+
+PARAM_VALIDATION:
+- tool: [nombre_tool_ya_ejecutada], param: [nombre_parametro], issue: [problema con el parámetro], suggested: [valor sugerido]
+(Si los parámetros de las tools ejecutadas están bien, escribe: Ninguna)
+
 FEEDBACK:
 [Si STATUS = NEEDS_IMPROVEMENT, explica QUÉ debe mejorar el agente principal.
 Si STATUS = APPROVED, deja esta sección vacía o escribe "Respuesta correcta"]
@@ -183,10 +194,21 @@ Si STATUS = APPROVED, deja esta sección vacía o escribe "Respuesta correcta"]
 - Si score >= 75 → STATUS debe ser APPROVED
 - Si score < 75 → STATUS debe ser NEEDS_IMPROVEMENT
 - En FEEDBACK, sé específico: "Falta incluir el presupuesto de la licitación 00123456"
+- En TOOL_SUGGESTIONS, recomienda tools específicas que ayudarían a mejorar la respuesta
+- En PARAM_VALIDATION, verifica si los parámetros de las tools ya ejecutadas fueron óptimos
 - NO reescribas la respuesta, solo da feedback al agente para que él la mejore
 
-**NOTA:** El agente SIEMPRE ejecutará una segunda iteración de mejora independientemente del score.
-Así que incluso si la respuesta está bien (APPROVED), proporciona sugerencias constructivas para hacerla aún mejor.
+**HERRAMIENTAS DISPONIBLES:**
+- find_best_tender(query): Encuentra LA mejor licitación (singular)
+- find_top_tenders(query, limit): Encuentra X mejores licitaciones (plural)
+- get_tender_details(tender_id): Obtiene información detallada de una licitación específica
+- find_by_budget(min_budget, max_budget): Busca por rango de presupuesto
+- find_by_deadline(days_ahead): Busca por fecha límite
+- get_company_info(): Obtiene información de la empresa del usuario
+- compare_tenders(tender_ids): Compara múltiples licitaciones
+
+**NOTA:** El agente ejecutará al menos UNA iteración de mejora.
+Proporciona sugerencias constructivas y específicas sobre qué tools llamar o qué mejorar.
 """
 
         return prompt
@@ -223,6 +245,8 @@ Así que incluso si la respuesta está bien (APPROVED), proporciona sugerencias 
             score = 100
             issues = []
             suggestions = []
+            tool_suggestions = []
+            param_validation = []
             feedback = ''
 
             lines = review_text.strip().split('\n')
@@ -254,17 +278,29 @@ Así que incluso si la respuesta está bien (APPROVED), proporciona sugerencias 
                 elif line.startswith('SUGGESTIONS:'):
                     current_section = 'suggestions'
 
+                elif line.startswith('TOOL_SUGGESTIONS:'):
+                    current_section = 'tool_suggestions'
+
+                elif line.startswith('PARAM_VALIDATION:'):
+                    current_section = 'param_validation'
+
                 elif line.startswith('FEEDBACK:'):
                     current_section = 'feedback'
 
                 # Agregar contenido a secciones
-                elif line.startswith('-') and current_section in ['issues', 'suggestions']:
+                elif line.startswith('-') and current_section in ['issues', 'suggestions', 'tool_suggestions', 'param_validation']:
                     content = line[1:].strip()
                     if content.lower() not in ['ninguno', 'ninguna', 'none']:
                         if current_section == 'issues':
                             issues.append(content)
                         elif current_section == 'suggestions':
                             suggestions.append(content)
+                        elif current_section == 'tool_suggestions':
+                            # Parse: tool: nombre, params: {...}, reason: ...
+                            tool_suggestions.append(self._parse_tool_suggestion(content))
+                        elif current_section == 'param_validation':
+                            # Parse: tool: nombre, param: ..., issue: ..., suggested: ...
+                            param_validation.append(self._parse_param_validation(content))
 
                 elif current_section == 'feedback' and line:
                     if not line.startswith('```'):  # Ignorar marcadores de código
@@ -288,7 +324,9 @@ Así que incluso si la respuesta está bien (APPROVED), proporciona sugerencias 
                 'feedback': feedback,
                 'score': score,
                 'issues': issues,
-                'suggestions': suggestions
+                'suggestions': suggestions,
+                'tool_suggestions': tool_suggestions,
+                'param_validation': param_validation
             }
 
         except Exception as e:
@@ -300,5 +338,81 @@ Así que incluso si la respuesta está bien (APPROVED), proporciona sugerencias 
                 'score': 100,
                 'issues': [],
                 'suggestions': [],
+                'tool_suggestions': [],
+                'param_validation': [],
                 'parse_error': str(e)
             }
+
+    def _parse_tool_suggestion(self, content: str) -> Dict[str, Any]:
+        """
+        Parsea una sugerencia de tool.
+        Formato esperado: tool: nombre, params: {...}, reason: ...
+        """
+        try:
+            parts = {}
+            # Dividir por comas pero respetando {...}
+            current_key = None
+            current_value = ""
+            in_braces = 0
+
+            for char in content:
+                if char == '{':
+                    in_braces += 1
+                    current_value += char
+                elif char == '}':
+                    in_braces -= 1
+                    current_value += char
+                elif char == ',' and in_braces == 0:
+                    # Fin de un par key:value
+                    if ':' in current_value:
+                        key, val = current_value.split(':', 1)
+                        parts[key.strip()] = val.strip()
+                    current_value = ""
+                else:
+                    current_value += char
+
+            # Último par
+            if current_value and ':' in current_value:
+                key, val = current_value.split(':', 1)
+                parts[key.strip()] = val.strip()
+
+            return {
+                'tool': parts.get('tool', 'unknown'),
+                'params': parts.get('params', '{}'),
+                'reason': parts.get('reason', '')
+            }
+        except Exception as e:
+            logger.warning(f"[REVIEWER] Error parseando tool suggestion: {e}")
+            return {'tool': content, 'params': '{}', 'reason': ''}
+
+    def _parse_param_validation(self, content: str) -> Dict[str, Any]:
+        """
+        Parsea una validación de parámetro.
+        Formato esperado: tool: nombre, param: ..., issue: ..., suggested: ...
+        """
+        try:
+            parts = {}
+            current_value = ""
+
+            for char in content:
+                if char == ',' and ':' in current_value:
+                    key, val = current_value.split(':', 1)
+                    parts[key.strip()] = val.strip()
+                    current_value = ""
+                else:
+                    current_value += char
+
+            # Último par
+            if current_value and ':' in current_value:
+                key, val = current_value.split(':', 1)
+                parts[key.strip()] = val.strip()
+
+            return {
+                'tool': parts.get('tool', 'unknown'),
+                'param': parts.get('param', ''),
+                'issue': parts.get('issue', ''),
+                'suggested': parts.get('suggested', '')
+            }
+        except Exception as e:
+            logger.warning(f"[REVIEWER] Error parseando param validation: {e}")
+            return {'tool': content, 'param': '', 'issue': '', 'suggested': ''}
