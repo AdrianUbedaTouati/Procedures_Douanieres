@@ -488,6 +488,252 @@ class ChatLogger:
         self.logger_detailed.exception(error)  # Solo detailed tiene traceback completo
 
     # =========================================================================
+    # MÉTODOS ESPECÍFICOS PARA BÚSQUEDA ITERATIVA
+    # =========================================================================
+
+    def log_iterative_search_start(self, query: str, mode: str, limit: int, context: Dict):
+        """Registra el inicio de una búsqueda iterativa (5 búsquedas secuenciales)"""
+        # SIMPLE
+        self.logger_simple.info("=" * 80)
+        self.logger_simple.info(f"🔍 ITERATIVE SEARCH START - Mode: {mode}")
+        self.logger_simple.info("=" * 80)
+        self.logger_simple.info(f"Original query: {query[:100]}...")
+        self.logger_simple.info(f"Target documents: {limit if mode == 'multiple' else 1}")
+        self.logger_simple.info(f"Company info available: {bool(context.get('company_info'))}")
+        self.logger_simple.info(f"Conversation history: {len(context.get('conversation_history', []))} messages")
+        self.logger_simple.info(f"Tool calls history: {len(context.get('tool_calls_history', []))} calls")
+
+        # DETALLADO
+        self.logger_detailed.info("=" * 80)
+        self.logger_detailed.info(f"🔍 ITERATIVE SEARCH START")
+        self.logger_detailed.info(f"Timestamp: {datetime.now().isoformat()}")
+        self.logger_detailed.info("=" * 80)
+        self.logger_detailed.info(f"Original query: {query}")
+        self.logger_detailed.info(f"Mode: {mode}")
+        self.logger_detailed.info(f"Limit: {limit}")
+
+        self.logger_detailed.info("\nCONTEXT:")
+        context_json = json.dumps(context, ensure_ascii=False, indent=2, default=str)
+        for line in context_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+    def log_search_iteration_start(self, iteration: int, total: int):
+        """Registra el inicio de una iteración de búsqueda"""
+        # SIMPLE
+        self.logger_simple.info("-" * 80)
+        self.logger_simple.info(f"📍 SEARCH ITERATION {iteration}/{total}")
+        self.logger_simple.info("-" * 80)
+
+        # DETALLADO
+        self.logger_detailed.info("-" * 80)
+        self.logger_detailed.info(f"📍 SEARCH ITERATION {iteration}/{total}")
+        self.logger_detailed.info(f"Timestamp: {datetime.now().isoformat()}")
+        self.logger_detailed.info("-" * 80)
+
+    def log_query_optimization(self, iteration: int, optimized_query: str, llm_request: Dict, llm_response: Dict):
+        """Registra la optimización de query por el LLM intermediario"""
+        # SIMPLE
+        self.logger_simple.info(f"🧠 Query Optimization (Iteration {iteration})")
+        self.logger_simple.info(f"Optimized query: {optimized_query[:150]}...")
+        self.logger_simple.info(f"Query length: {len(optimized_query)} characters")
+
+        # DETALLADO
+        self.logger_detailed.info(f"🧠 QUERY OPTIMIZATION (Iteration {iteration})")
+        self.logger_detailed.info("\nLLM REQUEST:")
+        request_json = json.dumps(llm_request, ensure_ascii=False, indent=2, default=str)
+        for line in request_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+        self.logger_detailed.info("\nLLM RESPONSE:")
+        response_json = json.dumps(llm_response, ensure_ascii=False, indent=2, default=str)
+        for line in response_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+        self.logger_detailed.info(f"\nOPTIMIZED QUERY:")
+        self.logger_detailed.info(f"  {optimized_query}")
+
+    def log_semantic_search(self, iteration: int, query: str, k: int, results: Dict):
+        """Registra la búsqueda semántica en ChromaDB"""
+        # SIMPLE
+        self.logger_simple.info(f"🔎 Semantic Search (Iteration {iteration})")
+        self.logger_simple.info(f"Query: {query[:100]}...")
+        self.logger_simple.info(f"Top-K: {k}")
+        if results.get('success'):
+            doc = results.get('document', {})
+            self.logger_simple.info(f"Result: {doc.get('id', 'unknown')} ({doc.get('chunk_count', 0)} chunks)")
+        else:
+            self.logger_simple.info(f"Result: NO RESULTS")
+
+        # DETALLADO
+        self.logger_detailed.info(f"🔎 SEMANTIC SEARCH (Iteration {iteration})")
+        self.logger_detailed.info(f"Query: {query}")
+        self.logger_detailed.info(f"Top-K: {k}")
+        self.logger_detailed.info("\nRESULTS:")
+        results_json = json.dumps(results, ensure_ascii=False, indent=2, default=str)
+        for line in results_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+    def log_document_retrieval(self, iteration: int, doc_id: str, retrieval_result: Dict):
+        """Registra la obtención del documento completo via get_tender_details"""
+        # SIMPLE
+        self.logger_simple.info(f"📄 Document Retrieval (Iteration {iteration})")
+        self.logger_simple.info(f"Document ID: {doc_id}")
+        success = retrieval_result.get('success', False)
+        self.logger_simple.info(f"Status: {'✓ SUCCESS' if success else '✗ FAILED'}")
+        if success:
+            data = retrieval_result.get('data', {})
+            self.logger_simple.info(f"Title: {data.get('title', 'N/A')[:80]}...")
+            self.logger_simple.info(f"Buyer: {data.get('buyer_name', 'N/A')}")
+            self.logger_simple.info(f"Budget: {data.get('budget_eur', 'N/A')} EUR")
+
+        # DETALLADO
+        self.logger_detailed.info(f"📄 DOCUMENT RETRIEVAL (Iteration {iteration})")
+        self.logger_detailed.info(f"Document ID: {doc_id}")
+        self.logger_detailed.info("\nRETRIEVAL RESULT:")
+        result_json = json.dumps(retrieval_result, ensure_ascii=False, indent=2, default=str)
+        for line in result_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+    def log_content_verification(self, iteration: int, doc_id: str, verification_request: Dict, verification_response: Dict, parsed_analysis: Dict):
+        """Registra la verificación de contenido por el LLM"""
+        # SIMPLE
+        self.logger_simple.info(f"✓ Content Verification (Iteration {iteration})")
+        self.logger_simple.info(f"Document: {doc_id}")
+        self.logger_simple.info(f"Corresponds: {parsed_analysis.get('corresponds', False)}")
+        self.logger_simple.info(f"LLM Score: {parsed_analysis.get('score', 0)}/10")
+        reasoning = parsed_analysis.get('reasoning', '')
+        self.logger_simple.info(f"Reasoning: {reasoning[:100]}...")
+
+        # DETALLADO
+        self.logger_detailed.info(f"✓ CONTENT VERIFICATION (Iteration {iteration})")
+        self.logger_detailed.info(f"Document: {doc_id}")
+
+        self.logger_detailed.info("\nVERIFICATION REQUEST TO LLM:")
+        request_json = json.dumps(verification_request, ensure_ascii=False, indent=2, default=str)
+        for line in request_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+        self.logger_detailed.info("\nLLM RESPONSE (RAW):")
+        response_json = json.dumps(verification_response, ensure_ascii=False, indent=2, default=str)
+        for line in response_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+        self.logger_detailed.info("\nPARSED ANALYSIS:")
+        analysis_json = json.dumps(parsed_analysis, ensure_ascii=False, indent=2, default=str)
+        for line in analysis_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+    def log_iteration_feedback(self, iteration: int, feedback: str, next_iteration: int):
+        """Registra el feedback dado al LLM para la próxima iteración"""
+        # SIMPLE
+        self.logger_simple.info(f"💬 Feedback for Next Iteration (→ {next_iteration})")
+        self.logger_simple.info(f"Feedback: {feedback[:150]}...")
+
+        # DETALLADO
+        self.logger_detailed.info(f"💬 FEEDBACK FOR ITERATION {next_iteration}")
+        self.logger_detailed.info("\nFEEDBACK MESSAGE:")
+        for line in feedback.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+    def log_iteration_result(self, iteration: int, result: Dict):
+        """Registra el resultado completo de una iteración"""
+        # SIMPLE
+        self.logger_simple.info(f"📊 Iteration {iteration} Result Summary")
+        self.logger_simple.info(f"Document: {result.get('doc_id', 'NONE')}")
+        self.logger_simple.info(f"Chunks: {result.get('chunk_count', 0)}")
+        self.logger_simple.info(f"Reliability: {result.get('reliability', 'N/A')}")
+        self.logger_simple.info(f"Corresponds: {result.get('corresponds', False)}")
+        self.logger_simple.info(f"LLM Score: {result.get('llm_score', 0)}/10")
+
+        # DETALLADO
+        self.logger_detailed.info(f"📊 ITERATION {iteration} COMPLETE RESULT")
+        result_json = json.dumps(result, ensure_ascii=False, indent=2, default=str)
+        for line in result_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+    def log_final_selection(self, selection_request: Dict, selection_response: Dict, final_analysis: Dict, selected_documents: list):
+        """Registra el análisis final y selección de documentos"""
+        # SIMPLE
+        self.logger_simple.info("=" * 80)
+        self.logger_simple.info("🎯 FINAL SELECTION")
+        self.logger_simple.info("=" * 80)
+        self.logger_simple.info(f"Documents selected: {len(selected_documents)}")
+        self.logger_simple.info(f"Confidence: {final_analysis.get('confidence_score', 0.0)}")
+        self.logger_simple.info(f"Is reliable: {final_analysis.get('is_reliable', False)}")
+        reasoning = final_analysis.get('reasoning', '')
+        self.logger_simple.info(f"Reasoning: {reasoning[:200]}...")
+
+        # DETALLADO
+        self.logger_detailed.info("=" * 80)
+        self.logger_detailed.info("🎯 FINAL SELECTION ANALYSIS")
+        self.logger_detailed.info("=" * 80)
+
+        self.logger_detailed.info("\nSELECTION REQUEST TO LLM:")
+        request_json = json.dumps(selection_request, ensure_ascii=False, indent=2, default=str)
+        for line in request_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+        self.logger_detailed.info("\nLLM RESPONSE (RAW):")
+        response_json = json.dumps(selection_response, ensure_ascii=False, indent=2, default=str)
+        for line in response_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+        self.logger_detailed.info("\nFINAL ANALYSIS (PARSED):")
+        analysis_json = json.dumps(final_analysis, ensure_ascii=False, indent=2, default=str)
+        for line in analysis_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+        self.logger_detailed.info(f"\nSELECTED DOCUMENTS ({len(selected_documents)}):")
+        for idx, doc in enumerate(selected_documents, 1):
+            self.logger_detailed.info(f"  {idx}. {doc.get('id', 'unknown')} (chunks: {doc.get('chunk_count', 0)})")
+
+    def log_iterative_search_end(self, total_iterations: int, success: bool, analysis: Dict, documents_found: int):
+        """Registra el fin de la búsqueda iterativa"""
+        # SIMPLE
+        self.logger_simple.info("=" * 80)
+        self.logger_simple.info(f"🏁 ITERATIVE SEARCH END")
+        self.logger_simple.info("=" * 80)
+        self.logger_simple.info(f"Status: {'✓ SUCCESS' if success else '✗ FAILED'}")
+        self.logger_simple.info(f"Total iterations: {total_iterations}")
+        self.logger_simple.info(f"Documents found: {documents_found}")
+        self.logger_simple.info(f"Unique documents: {analysis.get('unique_documents', 0)}")
+        self.logger_simple.info(f"Confidence: {analysis.get('confidence_score', 0.0)}")
+        self.logger_simple.info(f"Is reliable: {analysis.get('is_reliable', False)}")
+
+        # DETALLADO
+        self.logger_detailed.info("=" * 80)
+        self.logger_detailed.info(f"🏁 ITERATIVE SEARCH END")
+        self.logger_detailed.info(f"Timestamp: {datetime.now().isoformat()}")
+        self.logger_detailed.info("=" * 80)
+        self.logger_detailed.info(f"Status: {'✓ SUCCESS' if success else '✗ FAILED'}")
+        self.logger_detailed.info(f"Total iterations: {total_iterations}")
+        self.logger_detailed.info(f"Documents found: {documents_found}")
+
+        self.logger_detailed.info("\nFINAL ANALYSIS:")
+        analysis_json = json.dumps(analysis, ensure_ascii=False, indent=2, default=str)
+        for line in analysis_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+    def log_fallback_search(self, reason: str, fallback_result: Dict):
+        """Registra cuando se usa búsqueda de respaldo (fallback)"""
+        # SIMPLE
+        self.logger_simple.info("=" * 80)
+        self.logger_simple.info("⚠️ FALLBACK SEARCH ACTIVATED")
+        self.logger_simple.info("=" * 80)
+        self.logger_simple.info(f"Reason: {reason}")
+        self.logger_simple.info(f"Documents found: {len(fallback_result.get('best_documents', []))}")
+
+        # DETALLADO
+        self.logger_detailed.info("=" * 80)
+        self.logger_detailed.info("⚠️ FALLBACK SEARCH ACTIVATED")
+        self.logger_detailed.info("=" * 80)
+        self.logger_detailed.info(f"Reason: {reason}")
+        self.logger_detailed.info("\nFALLBACK RESULT:")
+        result_json = json.dumps(fallback_result, ensure_ascii=False, indent=2, default=str)
+        for line in result_json.split('\n'):
+            self.logger_detailed.info(f"  {line}")
+
+    # =========================================================================
     # MÉTODOS ESPECÍFICOS PARA EL REVISOR
     # =========================================================================
 

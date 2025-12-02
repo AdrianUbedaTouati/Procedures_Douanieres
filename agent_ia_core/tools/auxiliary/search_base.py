@@ -219,7 +219,8 @@ def optimize_and_search_iterative_with_verification(
     llm=None,
     user=None,
     mode: str = "single",
-    limit: int = 5
+    limit: int = 5,
+    chat_logger=None  # ChatLogger para logging detallado
 ) -> Dict[str, Any]:
     """
     Realiza 5 búsquedas SECUENCIALES con verificación de contenido completo.
