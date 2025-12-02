@@ -59,6 +59,7 @@ def find_top_tenders(
     user=None,
     conversation_history: Optional[List[Dict]] = None,
     tool_calls_history: Optional[List[Dict]] = None,
+    chat_logger=None,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -107,7 +108,8 @@ def find_top_tenders(
             llm=llm,
             user=user,
             mode="multiple",  # Múltiples documentos
-            limit=limit
+            limit=limit,
+            chat_logger=chat_logger  # Pasar chat_logger para logging completo
         )
 
         if not search_result['success'] or not search_result['best_documents']:

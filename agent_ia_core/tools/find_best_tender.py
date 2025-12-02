@@ -56,6 +56,7 @@ def find_best_tender(
     user=None,
     conversation_history: Optional[List[Dict]] = None,
     tool_calls_history: Optional[List[Dict]] = None,
+    chat_logger=None,
     **kwargs
 ) -> Dict[str, Any]:
     """
@@ -107,7 +108,8 @@ def find_best_tender(
             vectorstore=retriever,
             llm=llm,
             user=user,
-            mode="single"  # Solo 1 documento
+            mode="single",  # Solo 1 documento
+            chat_logger=chat_logger  # Pasar chat_logger para logging completo
         )
 
         if not search_result['success'] or not search_result['best_documents']:
