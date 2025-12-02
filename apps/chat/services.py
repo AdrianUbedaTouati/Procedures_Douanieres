@@ -543,6 +543,22 @@ class ChatAgentService:
                 else:
                     feedback_section = "**Nota del revisor:** La respuesta está bien estructurada, pero podemos mejorarla."
 
+                # Determinar si el revisor sugirió tools
+                has_tool_suggestions = bool(review_result.get('tool_suggestions'))
+
+                if has_tool_suggestions:
+                    # El revisor sugirió tools - permitir llamarlas
+                    tools_instruction = """**IMPORTANTE - USO DE HERRAMIENTAS:**
+- El revisor ha detectado que NECESITAS llamar herramientas para obtener información adicional
+- DEBES usar las herramientas sugeridas arriba para completar la información faltante
+- NO generes respuesta final hasta haber obtenido los datos necesarios con las tools"""
+                else:
+                    # El revisor NO sugirió tools - solo reformular
+                    tools_instruction = """**IMPORTANTE - REFORMULACIÓN:**
+- NO uses herramientas/tools para esta mejora
+- SOLO reformula y mejora la respuesta actual con la información que YA TIENES
+- Corrige formato, añade claridad, mejora redacción, pero NO busques nueva información"""
+
                 improvement_prompt = f"""Tu respuesta anterior fue revisada (Loop {current_loop}/{max_review_loops}). Vamos a mejorarla.
 
 **Tu respuesta actual:**
@@ -551,21 +567,12 @@ class ChatAgentService:
 **Problemas detectados:**
 {issues_list if issues_list else '- Ningún problema grave detectado'}
 
-**Sugerencias:**
+**Sugerencias de mejora:**
 {suggestions_list if suggestions_list else '- Mantener el buen formato actual'}
 {tool_suggestions_section}{param_validation_section}
 {feedback_section}
 
-**Tu tarea:**
-Genera una respuesta MEJORADA que sea aún más completa y útil.
-
-**IMPORTANTE:**
-- Usa herramientas (tools) si necesitas buscar más información
-- El revisor ha sugerido herramientas específicas arriba - ÚSALAS si son relevantes
-- Si faltan datos específicos (presupuestos, plazos, etc.), búscalos con las tools apropiadas
-- Si el formato es incorrecto, corrígelo (usa ## para licitaciones múltiples, NO listas numeradas)
-- Si falta análisis, justifica tus recomendaciones con datos concretos
-- Si ya está bien, puedes añadir más detalles útiles o mejorar la presentación
+{tools_instruction}
 
 **Pregunta original del usuario:**
 {message}

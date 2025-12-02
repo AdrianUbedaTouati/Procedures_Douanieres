@@ -477,8 +477,31 @@ class FunctionCallingAgent:
             # Bind tools al LLM
             llm_with_tools = self.llm.bind_tools(tools)
 
+            # Log ANTES de llamar al LLM (si hay chat_logger)
+            if self.chat_logger:
+                # Convertir lc_messages a formato dict para logging
+                messages_for_log = []
+                for msg in lc_messages:
+                    if hasattr(msg, 'content'):
+                        messages_for_log.append({
+                            'role': getattr(msg, 'type', 'unknown'),
+                            'content': msg.content
+                        })
+
+                self.chat_logger.log_llm_request(
+                    provider=self.llm_provider,
+                    model=self.llm_model,
+                    messages=messages_for_log,
+                    tools=tools,
+                    context="AGENT"
+                )
+
             # Llamar al LLM
             response = llm_with_tools.invoke(lc_messages)
+
+            # Log DESPUÉS de recibir respuesta del LLM (si hay chat_logger)
+            if self.chat_logger:
+                self.chat_logger.log_llm_response(response, context="AGENT")
 
             # Extraer tool calls si existen
             tool_calls = []
@@ -546,8 +569,31 @@ class FunctionCallingAgent:
             # Bind tools al LLM
             llm_with_tools = self.llm.bind_tools(tools)
 
+            # Log ANTES de llamar al LLM (si hay chat_logger)
+            if self.chat_logger:
+                # Convertir lc_messages a formato dict para logging
+                messages_for_log = []
+                for msg in lc_messages:
+                    if hasattr(msg, 'content'):
+                        messages_for_log.append({
+                            'role': getattr(msg, 'type', 'unknown'),
+                            'content': msg.content
+                        })
+
+                self.chat_logger.log_llm_request(
+                    provider=self.llm_provider,
+                    model=self.llm_model,
+                    messages=messages_for_log,
+                    tools=tools,
+                    context="AGENT"
+                )
+
             # Llamar al LLM
             response = llm_with_tools.invoke(lc_messages)
+
+            # Log DESPUÉS de recibir respuesta del LLM (si hay chat_logger)
+            if self.chat_logger:
+                self.chat_logger.log_llm_response(response, context="AGENT")
 
             # Extraer tool calls si existen
             tool_calls = []
