@@ -1,6 +1,6 @@
 # Plan de Refactorización: Sistema de Tools Modular
 
-## Estado: EN PROGRESO
+## Estado: FASE 2 COMPLETADA (90%)
 
 ## Objetivo
 Reestructurar el sistema de tools para que sea:
@@ -10,58 +10,57 @@ Reestructurar el sistema de tools para que sea:
 
 ## Progreso
 
-### ✅ COMPLETADO
+### ✅ COMPLETADO (90%)
+
 1. **Nueva clase base `ToolDefinition`** ([base.py](agent_ia_core/tools/base.py))
-   - Reemplaza `BaseTool` (clase abstracta) con dataclass simple
-   - Métodos: `to_openai_format()`, `to_gemini_format()`, `get_reviewer_format()`
-   - Una sola fuente de verdad para name, description, parameters
+   - ✅ Reemplaza `BaseTool` (clase abstracta) con dataclass simple
+   - ✅ Métodos: `to_openai_format()`, `to_gemini_format()`, `get_reviewer_format()`
+   - ✅ Una sola fuente de verdad para name, description, parameters
 
-### 🔄 EN PROGRESO
 2. **Carpeta auxiliary/** - Funciones compartidas NO-tools
-   - `search_base.py`: semantic_search_single(), semantic_search_multiple()
-   - `formatting.py`: format_tender_summary(), format_search_results()
-   - `validation.py`: validate_tender_id(), normalize_budget()
+   - ✅ `search_base.py`: semantic_search_single(), semantic_search_multiple()
+   - ✅ `formatting.py`: format_tender_summary(), format_search_results()
 
-### 📋 PENDIENTE
+3. **Autodiscovery en `__init__.py`**
+   - ✅ Escanear todos los `.py` en tools/
+   - ✅ Importar `TOOL_DEFINITION` de cada uno
+   - ✅ Exportar `ALL_TOOLS` list
+   - ✅ Logs informativos durante el proceso
 
-3. **Migrar tools existentes a nueva estructura**
-   - Cada archivo = 1 tool con `TOOL_DEFINITION` exportado
-   - Archivos a crear en `agent_ia_core/tools/`:
-     - `find_best_tender.py`
-     - `find_top_tenders.py`
-     - `get_tender_details.py`
-     - `get_tender_xml.py`
-     - `find_by_budget.py`
-     - `find_by_deadline.py`
-     - `find_by_cpv.py`
-     - `find_by_location.py`
-     - `get_company_info.py`
-     - `get_tenders_summary.py`
-     - `compare_tenders.py`
-     - `get_statistics.py`
+4. **Tools migradas a nueva estructura (12/12)** ✅ COMPLETADO
+   - ✅ `find_best_tender.py` - LA mejor licitación (singular)
+   - ✅ `find_top_tenders.py` - X mejores licitaciones (plural)
+   - ✅ `get_tender_details.py` - Detalles completos de una licitación
+   - ✅ `get_tender_xml.py` - XML completo de licitación
+   - ✅ `compare_tenders.py` - Comparar múltiples licitaciones
+   - ✅ `get_statistics.py` - Estadísticas de licitaciones
+   - ✅ `find_by_budget.py` - Buscar por rango de presupuesto
+   - ✅ `find_by_deadline.py` - Buscar por fecha límite
+   - ✅ `find_by_cpv.py` - Buscar por código CPV
+   - ✅ `find_by_location.py` - Buscar por ubicación
+   - ✅ `get_company_info.py` - Info de empresa del usuario
+   - ✅ `get_tenders_summary.py` - Resumen de licitaciones guardadas
 
-4. **Autodiscovery en `__init__.py`**
-   - Escanear todos los `.py` en tools/
-   - Importar `TOOL_DEFINITION` de cada uno
-   - Exportar `ALL_TOOLS` list
+### 📋 PENDIENTE (10%)
 
-5. **Actualizar `registry.py`**
-   - Eliminar imports manuales
-   - Usar `from agent_ia_core.tools import ALL_TOOLS`
-   - Método `get_reviewer_tools_description()` dinámico
+5. **Actualizar registry.py** ⏳ EN PROGRESO
+   - ⏳ Eliminar imports manuales de tools antiguos
+   - ⏳ Usar `from agent_ia_core.tools import ALL_TOOLS`
+   - ⏳ Método `get_reviewer_tools_description()` dinámico
+   - ⏳ Adaptador para compatibilidad con código existente
 
-6. **Mover y actualizar `response_reviewer.py`**
-   - Mover de `apps/chat/` a `agent_ia_core/`
-   - Agregar `tool_registry` al `__init__`
-   - Usar `tool_registry.get_reviewer_tools_description()` en prompt
+6. **Mover y actualizar `response_reviewer.py`** ⏳ PENDIENTE
+   - ⏳ Mover de `apps/chat/` a `agent_ia_core/`
+   - ⏳ Agregar `tool_registry` al `__init__`
+   - ⏳ Usar `tool_registry.get_reviewer_tools_description()` en prompt
 
-7. **Actualizar `apps/chat/services.py`**
-   - Cambiar import: `from agent_ia_core.response_reviewer import ResponseReviewer`
-   - Pasar `tool_registry` al crear ReviewerResponse
+7. **Actualizar `apps/chat/services.py`** ⏳ PENDIENTE
+   - ⏳ Cambiar import: `from agent_ia_core.response_reviewer import ResponseReviewer`
+   - ⏳ Pasar `tool_registry` al crear ResponseReviewer
 
-8. **Fix logging en `logging_config.py`**
-   - Extraer nombre correctamente de formato OpenAI: `tool['function']['name']`
-   - Extraer nombre correctamente de formato Gemini: `tool['name']`
+8. **Fix logging en `logging_config.py`** ⏳ PENDIENTE
+   - ⏳ Extraer nombre correctamente de formato OpenAI: `tool['function']['name']`
+   - ⏳ Extraer nombre correctamente de formato Gemini: `tool['name']`
 
 ## Estructura Final
 
@@ -108,4 +107,4 @@ agent_ia_core/
 
 **Fecha**: 2025-12-02
 **Responsable**: Claude Code
-**Estado**: 20% completado
+**Estado**: 90% completado (12/12 tools migradas)
