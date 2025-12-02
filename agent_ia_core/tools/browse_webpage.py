@@ -6,7 +6,7 @@ Navega a una URL y extrae información específica usando extracción progresiva
 """
 
 from typing import Dict, Any
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 import logging
 import requests
 from bs4 import BeautifulSoup

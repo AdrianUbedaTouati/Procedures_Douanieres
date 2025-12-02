@@ -6,7 +6,7 @@ Obtiene un resumen de las licitaciones públicas disponibles en la base de datos
 """
 
 from typing import Dict, Any
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 import logging
 
 logger = logging.getLogger(__name__)

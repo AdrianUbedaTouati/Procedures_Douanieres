@@ -13,7 +13,7 @@ from datetime import datetime
 
 # Importar tools
 sys.path.append(str(Path(__file__).parent))
-from tools.registry import ToolRegistry
+from .tools import ToolRegistry, ALL_TOOLS
 
 # Imports de LLMs
 try:
@@ -117,7 +117,20 @@ class FunctionCallingAgent:
 
         # Inicializar tool registry con usuario
         logger.info(f"[AGENT] Inicializando tool registry...")
-        self.tool_registry = ToolRegistry(retriever, db_session, user=user)
+
+        # Extraer credenciales de Google para web tools
+        google_api_key = getattr(user, 'google_search_api_key', None) if user else None
+        google_engine_id = getattr(user, 'google_search_engine_id', None) if user else None
+
+        self.tool_registry = ToolRegistry(
+            all_tools=ALL_TOOLS,
+            retriever=retriever,
+            db_session=db_session,
+            user=user,
+            llm=self.llm,
+            google_api_key=google_api_key,
+            google_engine_id=google_engine_id
+        )
 
         # Inicializar grading tool con el LLM (si el usuario la activó)
         if user and getattr(user, 'use_grading', False):

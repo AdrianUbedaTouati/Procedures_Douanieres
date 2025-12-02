@@ -6,7 +6,7 @@ Búsqueda web usando Google Custom Search API para encontrar información actual
 """
 
 from typing import Dict, Any
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 import logging
 
 logger = logging.getLogger(__name__)

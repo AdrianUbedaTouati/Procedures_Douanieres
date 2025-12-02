@@ -6,7 +6,7 @@ Busca licitaciones por código CPV (sector/tipo de contrato).
 """
 
 from typing import Dict, Any
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 import logging
 
 logger = logging.getLogger(__name__)

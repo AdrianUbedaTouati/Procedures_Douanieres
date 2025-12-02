@@ -6,7 +6,7 @@ Obtiene información sobre la empresa y perfil del usuario para recomendaciones 
 """
 
 from typing import Dict, Any
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 import logging
 
 logger = logging.getLogger(__name__)

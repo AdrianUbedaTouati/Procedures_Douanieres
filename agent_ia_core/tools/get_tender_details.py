@@ -6,7 +6,7 @@ Obtiene información completa y detallada de una licitación específica por su 
 """
 
 from typing import Dict, Any
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 import logging
 
 logger = logging.getLogger(__name__)

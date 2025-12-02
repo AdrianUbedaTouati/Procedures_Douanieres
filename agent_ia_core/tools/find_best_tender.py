@@ -7,7 +7,7 @@ Usa análisis de concentración de chunks para determinar relevancia.
 """
 
 from typing import Dict, Any
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 from .auxiliary.search_base import semantic_search_single
 import logging
 

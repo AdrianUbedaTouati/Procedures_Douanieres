@@ -14,7 +14,7 @@ import os
 import importlib
 from pathlib import Path
 from typing import List
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,8 +42,8 @@ def autodiscover_tools() -> List[ToolDefinition]:
 
     # Obtener todos los archivos .py en la carpeta tools/
     for file_path in tools_dir.glob("*.py"):
-        # Ignorar archivos especiales y carpetas
-        if file_path.name in ["__init__.py", "base.py"]:
+        # Ignorar archivos especiales
+        if file_path.name == "__init__.py":
             continue
 
         module_name = file_path.stem  # Nombre sin .py
@@ -92,7 +92,7 @@ logger.info(f"\n[AUTODISCOVERY] ✅ Total de tools autodescubiertas: {len(ALL_TO
 for tool in ALL_TOOLS:
     logger.info(f"  - {tool.name}: {tool.description[:60]}...")
 
-# Exportar también la clase base para retrocompatibilidad
-from .base import ToolDefinition
+# Exportar clases base desde tools_base
+from .auxiliary.tools_base import ToolDefinition, ToolRegistry
 
-__all__ = ['ALL_TOOLS', 'ToolDefinition', 'autodiscover_tools']
+__all__ = ['ALL_TOOLS', 'ToolDefinition', 'ToolRegistry', 'autodiscover_tools']

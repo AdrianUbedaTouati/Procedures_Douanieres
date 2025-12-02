@@ -5,7 +5,6 @@ Registro central de todas las tools disponibles con autodiscovery.
 
 from typing import Dict, List, Any, Optional, Callable
 from .base import ToolDefinition
-from . import ALL_TOOLS  # Autodiscovery de todas las tools
 import logging
 
 logger = logging.getLogger(__name__)
@@ -22,12 +21,13 @@ class ToolRegistry:
     - Generar descripción para el reviewer
     """
 
-    def __init__(self, retriever, db_session=None, user=None, max_retries: int = 3,
+    def __init__(self, all_tools: List[ToolDefinition], retriever, db_session=None, user=None, max_retries: int = 3,
                  llm=None, google_api_key: str = None, google_engine_id: str = None):
         """
         Inicializa el registro con autodiscovery de todas las tools.
 
         Args:
+            all_tools: Lista de ToolDefinition autodescubiertos
             retriever: Retriever de ChromaDB para búsqueda vectorial
             db_session: Sesión de base de datos Django (opcional)
             user: Usuario de Django para tools de contexto (opcional)
@@ -44,14 +44,14 @@ class ToolRegistry:
         self.google_api_key = google_api_key
         self.google_engine_id = google_engine_id
         self.tool_definitions: Dict[str, ToolDefinition] = {}
-        self._register_all_tools()
+        self._register_all_tools(all_tools)
 
-    def _register_all_tools(self):
+    def _register_all_tools(self, all_tools: List[ToolDefinition]):
         """Registra todas las tools autodescubiertas."""
         logger.info("[REGISTRY] Registrando tools con autodiscovery...")
 
-        # Registrar todas las tools descubiertas automáticamente
-        for tool_def in ALL_TOOLS:
+        # Registrar todas the tools descubiertas automáticamente
+        for tool_def in all_tools:
             self.tool_definitions[tool_def.name] = tool_def
 
         logger.info(f"[REGISTRY] {len(self.tool_definitions)} tools autodescubiertas: {list(self.tool_definitions.keys())}")

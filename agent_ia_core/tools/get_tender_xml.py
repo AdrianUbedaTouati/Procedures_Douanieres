@@ -6,7 +6,7 @@ Obtiene el archivo XML completo de una licitación para análisis detallado.
 """
 
 from typing import Dict, Any
-from .base import ToolDefinition
+from .auxiliary.tools_base import ToolDefinition
 import logging
 
 logger = logging.getLogger(__name__)
