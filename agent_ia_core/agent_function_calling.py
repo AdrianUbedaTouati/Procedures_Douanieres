@@ -132,11 +132,7 @@ class FunctionCallingAgent:
             google_engine_id=google_engine_id
         )
 
-        # Inicializar grading tool con el LLM (si el usuario la activó)
-        if user and getattr(user, 'use_grading', False):
-            self.tool_registry.initialize_grading_tool(self.llm)
-
-        logger.info(f"[AGENT] Agente inicializado con {len(self.tool_registry.tools)} tools")
+        logger.info(f"[AGENT] Agente inicializado con {len(self.tool_registry.tool_definitions)} tools")
 
     def _create_llm(self):
         """Crea la instancia del LLM según el proveedor."""
@@ -363,7 +359,7 @@ class FunctionCallingAgent:
         ])
 
         # Añadir web_search y browse_webpage si están disponibles
-        if 'web_search' in self.tool_registry.tools:
+        if 'web_search' in self.tool_registry.tool_definitions:
             system_prompt_parts.extend([
                 "- web_search: Buscar información en internet (clima, noticias, precios, datos actuales)",
                 "- browse_webpage: Navegar a una URL específica para extraer contenido detallado",
@@ -378,7 +374,7 @@ class FunctionCallingAgent:
         ])
 
         # Instrucciones para web_search
-        if 'web_search' in self.tool_registry.tools:
+        if 'web_search' in self.tool_registry.tool_definitions:
             system_prompt_parts.extend([
                 "- \"¿Qué tiempo hace en París?\" → USA web_search",
                 "- \"Precio del Bitcoin\" → USA web_search",
@@ -827,4 +823,4 @@ class FunctionCallingAgent:
         return failed_tools
 
     def __repr__(self):
-        return f"<FunctionCallingAgent(provider='{self.llm_provider}', model='{self.llm_model}', tools={len(self.tool_registry.tools)})>"
+        return f"<FunctionCallingAgent(provider='{self.llm_provider}', model='{self.llm_model}', tools={len(self.tool_registry.tool_definitions)})>"
