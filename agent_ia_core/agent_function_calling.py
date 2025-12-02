@@ -129,7 +129,8 @@ class FunctionCallingAgent:
             user=user,
             llm=self.llm,
             google_api_key=google_api_key,
-            google_engine_id=google_engine_id
+            google_engine_id=google_engine_id,
+            chat_logger=self.chat_logger
         )
 
         logger.info(f"[AGENT] Agente inicializado con {len(self.tool_registry.tool_definitions)} tools")
