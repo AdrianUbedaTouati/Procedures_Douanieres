@@ -102,9 +102,10 @@ class ToolDefinition:
         """
         Genera formato de texto para mostrar en el prompt del reviewer.
         Extrae automáticamente los parámetros del schema JSON.
+        Trunca la descripción a la primera línea o primeras 150 caracteres.
 
         Returns:
-            String con formato: "- nombre(param1: type, param2: type): descripción"
+            String con formato: "- nombre(param1: type, param2: type): descripción breve"
 
         Example:
             "- find_best_tender(query: string): Encuentra LA mejor licitación..."
@@ -116,7 +117,14 @@ class ToolDefinition:
                 params.append(f"{param_name}: {param_type}")
 
         params_str = ", ".join(params) if params else ""
-        return f"- {self.name}({params_str}): {self.description}"
+
+        # Extraer solo la primera línea o primera oración de la descripción
+        # Eliminar saltos de línea y limitar a 200 caracteres
+        short_desc = self.description.split('\n')[0].strip()
+        if len(short_desc) > 200:
+            short_desc = short_desc[:197] + "..."
+
+        return f"- {self.name}({params_str}): {short_desc}"
 
     def __repr__(self):
         return f"<ToolDefinition(name='{self.name}', category='{self.category}')>"
