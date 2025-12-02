@@ -457,10 +457,10 @@ class ChatAgentService:
                 # Log inicio del loop de revisión
                 self.chat_logger.log_review_start(current_loop, max_review_loops)
 
-                # Build metadata for reviewer
+                # Build metadata for reviewer (con tools ejecutadas completas)
                 review_metadata_input = {
                     'documents_used': result.get('documents', []),
-                    'tools_used': result.get('tools_used', []),
+                    'tools_executed': result.get('tool_results', []),  # Información COMPLETA de tools
                     'route': result.get('route', 'unknown')
                 }
 
@@ -469,43 +469,52 @@ class ChatAgentService:
                     user_question=message,
                     conversation_history=formatted_history,
                     initial_response=response_content,
-                    metadata=review_metadata_input
+                    metadata=review_metadata_input,
+                    current_loop_num=current_loop,
+                    max_loops=max_review_loops
                 )
 
                 all_review_scores.append(review_result['score'])
                 review_history.append({
                     'loop': current_loop,
-                    'status': review_result['status'],
                     'score': review_result['score'],
+                    'feedback': review_result.get('feedback', ''),
                     'issues': review_result['issues'],
-                    'suggestions': review_result['suggestions']
+                    'suggestions': review_result['suggestions'],
+                    'tool_suggestions': review_result.get('tool_suggestions', []),
+                    'continue_improving': review_result.get('continue_improving', True)
                 })
 
-                print(f"[SERVICE] Loop {current_loop} - Review: {review_result['status']} (score: {review_result['score']}/100)", file=sys.stderr)
+                print(f"[SERVICE] Loop {current_loop} - Review completada (score: {review_result['score']}/100)", file=sys.stderr)
+                print(f"[SERVICE] Revisor dice continue_improving: {review_result.get('continue_improving', True)}", file=sys.stderr)
 
-                # Decision: Should we improve?
-                # REGLA: SIEMPRE ejecutar AL MENOS 1 reformulación (loop 1)
-                # Después del loop 1, aplicar condiciones de salida normales
+                # ========================================================================
+                # DECISIONES DE SALIDA DEL LOOP
+                # ========================================================================
 
+                # 1. Límite de loops alcanzado
                 if current_loop >= max_review_loops:
                     reason = f"Límite de loops alcanzado ({max_review_loops})"
                     print(f"[SERVICE] {reason}. Retornando respuesta final.", file=sys.stderr)
                     self.chat_logger.log_review_end(current_loop, "COMPLETED", reason)
                     break
 
-                # Solo permitir salida por score alto DESPUÉS del primer loop
-                if current_loop > 1 and review_result['score'] >= 95:
-                    reason = f"Score excelente ({review_result['score']}/100) después de {current_loop-1} mejoras"
-                    print(f"[SERVICE] {reason}. No se requieren más.", file=sys.stderr)
-                    self.chat_logger.log_review_end(current_loop, "APPROVED", reason)
-                    break
-
-                # Si llegamos aquí, ejecutamos mejora
-                improvement_applied = True
+                # 2. Loop 1 SIEMPRE ejecuta mejora (obligatorio)
                 if current_loop == 1:
-                    print(f"[SERVICE] Ejecutando mejora obligatoria (loop {current_loop}/{max_review_loops})...", file=sys.stderr)
-                else:
-                    print(f"[SERVICE] Ejecutando iteración de mejora adicional (loop {current_loop}/{max_review_loops})...", file=sys.stderr)
+                    print(f"[SERVICE] Loop 1 obligatorio - Ejecutando mejora...", file=sys.stderr)
+                    improvement_applied = True
+                    # No hacer break, continuar a ejecutar mejora
+
+                # 3. Loop 2+: Revisor decide si continuar
+                elif current_loop >= 2:
+                    if not review_result.get('continue_improving', True):
+                        reason = f"Revisor decidió NO continuar mejorando (respuesta suficientemente buena)"
+                        print(f"[SERVICE] {reason}", file=sys.stderr)
+                        self.chat_logger.log_review_end(current_loop, "APPROVED", reason)
+                        break
+                    else:
+                        print(f"[SERVICE] Revisor decidió continuar mejorando. Ejecutando Loop {current_loop} mejora...", file=sys.stderr)
+                        improvement_applied = True
 
                 # Build lists for prompt
                 issues_list = '\n'.join([f"- {issue}" for issue in review_result['issues']])
@@ -603,7 +612,10 @@ Genera tu respuesta mejorada:"""
                            if doc.get('ojs_notice_id') not in existing_doc_ids]
                 result['documents'] = result.get('documents', []) + new_docs
 
-                # Merge tools used
+                # Merge tool results (información completa de tools ejecutadas)
+                result['tool_results'] = result.get('tool_results', []) + improved_result.get('tool_results', [])
+
+                # Merge tools used (nombres únicos para compatibilidad)
                 result['tools_used'] = list(set(result.get('tools_used', []) + improved_result.get('tools_used', [])))
 
                 # Update iterations count

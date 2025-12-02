@@ -36,7 +36,9 @@ class ResponseReviewer:
         user_question: str,
         conversation_history: List[Dict[str, str]],
         initial_response: str,
-        metadata: Dict[str, Any]
+        metadata: Dict[str, Any],
+        current_loop_num: int = 1,
+        max_loops: int = 3
     ) -> Dict[str, Any]:
         """
         Revisa una respuesta del agente principal.
@@ -45,18 +47,20 @@ class ResponseReviewer:
             user_question: Pregunta original del usuario
             conversation_history: Historial de la conversación
             initial_response: Respuesta inicial generada por el agente
-            metadata: Metadatos (documentos usados, tools, etc.)
+            metadata: Metadatos (documentos usados, tools ejecutadas completas, etc.)
+            current_loop_num: Número de loop actual (para contexto del revisor)
+            max_loops: Máximo de loops configurados (para contexto del revisor)
 
         Returns:
             Dict con formato:
             {
-                'status': 'APPROVED' | 'NEEDS_IMPROVEMENT',
-                'feedback': str,  # Solo si NEEDS_IMPROVEMENT
-                'score': float (0-100),
+                'feedback': str,  # SIEMPRE presente
+                'score': float (0-100),  # Solo informativo
                 'issues': List[str],  # Problemas detectados
                 'suggestions': List[str],  # Sugerencias de mejora
                 'tool_suggestions': List[Dict],  # Tools que debería llamar
-                'param_validation': List[Dict]  # Validación de parámetros de tools ya ejecutadas
+                'param_validation': List[Dict],  # Validación de parámetros de tools ya ejecutadas
+                'continue_improving': bool  # Si debe continuar mejorando (Loop 2+)
             }
         """
         logger.info("[REVIEWER] Iniciando revisión de respuesta...")
@@ -67,7 +71,9 @@ class ResponseReviewer:
                 user_question=user_question,
                 conversation_history=conversation_history,
                 initial_response=initial_response,
-                metadata=metadata
+                metadata=metadata,
+                current_loop_num=current_loop_num,
+                max_loops=max_loops
             )
 
             # Log del prompt del revisor (si chat_logger disponible)
@@ -113,21 +119,23 @@ class ResponseReviewer:
                 )
 
             logger.info(
-                f"[REVIEWER] Revisión completada: {parsed_review['status']} "
-                f"(score: {parsed_review['score']}/100)"
+                f"[REVIEWER] Revisión completada "
+                f"(score: {parsed_review['score']}/100, continue_improving: {parsed_review.get('continue_improving', True)})"
             )
 
             return parsed_review
 
         except Exception as e:
             logger.error(f"[REVIEWER] Error en revisión: {e}", exc_info=True)
-            # Fallback: aprobar respuesta si hay error
+            # Fallback: retornar valores por defecto si hay error
             return {
-                'status': 'APPROVED',
-                'feedback': '',
+                'feedback': 'Error en revisión, usando valores por defecto',
                 'score': 100,
                 'issues': [],
                 'suggestions': [],
+                'tool_suggestions': [],
+                'param_validation': [],
+                'continue_improving': False,  # No continuar si hay error
                 'error': str(e)
             }
 
@@ -136,7 +144,9 @@ class ResponseReviewer:
         user_question: str,
         conversation_history: List[Dict[str, str]],
         initial_response: str,
-        metadata: Dict[str, Any]
+        metadata: Dict[str, Any],
+        current_loop_num: int,
+        max_loops: int
     ) -> str:
         """Construye el prompt de revisión para el LLM revisor."""
 
@@ -150,14 +160,35 @@ class ResponseReviewer:
             docs_ids = [doc.get('ojs_notice_id', 'unknown') for doc in metadata['documents_used'][:5]]
             docs_info += f"\nIDs: {', '.join(docs_ids)}"
 
-        # Información de tools
+        # Información de tools ejecutadas (con parámetros y resultados)
         tools_info = ""
-        if metadata.get('tools_used'):
-            tools_info = f"\n\n**Herramientas usadas:** {', '.join(metadata['tools_used'])}"
+        tools_executed = metadata.get('tools_executed', [])
+        if tools_executed:
+            tools_info = f"\n\n**Herramientas ejecutadas:** {len(tools_executed)} tools\n"
+            for idx, tool_exec in enumerate(tools_executed[:5], 1):  # Mostrar max 5
+                tool_name = tool_exec.get('tool', 'unknown')
+                tool_args = tool_exec.get('arguments', {})
+                tool_result = tool_exec.get('result', {})
+                success = tool_result.get('success', False) if isinstance(tool_result, dict) else True
+                status_emoji = "✓" if success else "✗"
+
+                tools_info += f"{idx}. {status_emoji} {tool_name}"
+                if tool_args:
+                    args_str = str(tool_args)[:100] + "..." if len(str(tool_args)) > 100 else str(tool_args)
+                    tools_info += f" (params: {args_str})"
+                tools_info += "\n"
+
+        # Contexto del loop para el revisor
+        loop_context = ""
+        if current_loop_num == 1:
+            loop_context = f"\n**CONTEXTO:** Este es el Loop 1/{max_loops} (obligatorio). El agente SIEMPRE ejecutará una mejora después de esta revisión."
+        else:
+            loop_context = f"\n**CONTEXTO:** Este es el Loop {current_loop_num}/{max_loops}. Tu decisión de CONTINUE_IMPROVING determinará si se ejecuta otra iteración."
 
         prompt = f"""Eres un **revisor experto de respuestas de chatbot sobre licitaciones públicas**.
 
-Tu tarea es revisar la respuesta generada por el agente principal y determinar si está bien o necesita mejoras.
+Tu tarea es revisar la respuesta generada por el agente principal.
+{loop_context}
 
 **CONTEXTO DE LA CONVERSACIÓN:**
 
@@ -200,8 +231,8 @@ Analiza la respuesta y evalúa:
 Responde EXACTAMENTE en este formato:
 
 ```
-STATUS: [APPROVED o NEEDS_IMPROVEMENT]
 SCORE: [0-100]
+(El score es SOLO informativo, NO afecta decisiones del sistema)
 
 ISSUES:
 - [Problema 1 si existe]
@@ -222,17 +253,27 @@ PARAM_VALIDATION:
 - tool: [nombre_tool_ya_ejecutada], param: [nombre_parametro], issue: [problema con el parámetro], suggested: [valor sugerido]
 (Si los parámetros de las tools ejecutadas están bien, escribe: Ninguna)
 
+CONTINUE_IMPROVING: [YES o NO]
+(YES si la respuesta aún puede mejorar significativamente con otra iteración.
+ NO si la respuesta ya es suficientemente buena y completa.
+ En Loop 1, tu decisión no afecta - siempre se ejecuta mejora.
+ En Loop 2+, NO detendrá el proceso de mejora.)
+
 FEEDBACK:
-[Si STATUS = NEEDS_IMPROVEMENT o APPROVED, explica como podria mejorar el agente principal]
+[SIEMPRE explica cómo podría mejorar el agente principal.
+Sé específico y constructivo. Este feedback se usará para la siguiente iteración.
+Ejemplo: "Falta incluir el presupuesto de la licitación 123456-2024"]
 ```
 
 **IMPORTANTE:**
-- Si score >= 75 → STATUS debe ser APPROVED
-- Si score < 75 → STATUS debe ser NEEDS_IMPROVEMENT
-- En FEEDBACK, sé específico: "Falta incluir el presupuesto de la licitación 00123456"
-- En TOOL_SUGGESTIONS, recomienda tools específicas que ayudarían a mejorar la respuesta
-- En PARAM_VALIDATION, verifica si los parámetros de las tools ya ejecutadas fueron óptimos
-- NO reescribas la respuesta, solo da feedback al agente para que él la mejore
+- El SCORE es SOLO para análisis, NO determina si continuar o no
+- CONTINUE_IMPROVING es TU decisión como revisor experto:
+  * YES: La respuesta puede mejorar significativamente
+  * NO: La respuesta ya es suficientemente buena
+- El FEEDBACK es OBLIGATORIO siempre, incluso si dices NO a continuar
+- En TOOL_SUGGESTIONS, recomienda tools específicas que ayudarían
+- En PARAM_VALIDATION, verifica si los parámetros usados fueron óptimos
+- NO reescribas la respuesta, solo da feedback para que el agente la mejore
 
 **HERRAMIENTAS DISPONIBLES:**
 - find_best_tender(query): Encuentra LA mejor licitación (singular)
@@ -242,9 +283,6 @@ FEEDBACK:
 - find_by_deadline(days_ahead): Busca por fecha límite
 - get_company_info(): Obtiene información de la empresa del usuario
 - compare_tenders(tender_ids): Compara múltiples licitaciones
-
-**NOTA:** El agente ejecutará al menos UNA iteración de mejora.
-Proporciona sugerencias constructivas y específicas sobre qué tools llamar o qué mejorar.
 """
 
         return prompt
@@ -273,17 +311,17 @@ Proporciona sugerencias constructivas y específicas sobre qué tools llamar o q
             review_text: Texto de respuesta del LLM revisor
 
         Returns:
-            Dict con status, feedback, score, issues, suggestions
+            Dict con feedback, score, issues, suggestions, continue_improving
         """
         try:
             # Valores por defecto
-            status = 'APPROVED'
             score = 100
             issues = []
             suggestions = []
             tool_suggestions = []
             param_validation = []
             feedback = ''
+            continue_improving = True  # Default: continuar mejorando
 
             lines = review_text.strip().split('\n')
 
@@ -293,18 +331,13 @@ Proporciona sugerencias constructivas y específicas sobre qué tools llamar o q
                 line = line.strip()
 
                 # Detectar secciones
-                if line.startswith('STATUS:'):
-                    status_text = line.replace('STATUS:', '').strip()
-                    if 'NEEDS_IMPROVEMENT' in status_text.upper():
-                        status = 'NEEDS_IMPROVEMENT'
-                    else:
-                        status = 'APPROVED'
-                    current_section = None
-
-                elif line.startswith('SCORE:'):
+                if line.startswith('SCORE:'):
                     try:
-                        score = float(line.replace('SCORE:', '').strip())
-                    except ValueError:
+                        # Extraer solo el número
+                        score_text = line.replace('SCORE:', '').strip()
+                        # Tomar primer token numérico
+                        score = float(score_text.split()[0])
+                    except (ValueError, IndexError):
                         score = 75  # Default si no se puede parsear
                     current_section = None
 
@@ -319,6 +352,14 @@ Proporciona sugerencias constructivas y específicas sobre qué tools llamar o q
 
                 elif line.startswith('PARAM_VALIDATION:'):
                     current_section = 'param_validation'
+
+                elif line.startswith('CONTINUE_IMPROVING:'):
+                    decision_text = line.replace('CONTINUE_IMPROVING:', '').strip().upper()
+                    if 'NO' in decision_text:
+                        continue_improving = False
+                    else:
+                        continue_improving = True
+                    current_section = None
 
                 elif line.startswith('FEEDBACK:'):
                     current_section = 'feedback'
@@ -344,38 +385,29 @@ Proporciona sugerencias constructivas y específicas sobre qué tools llamar o q
 
             # Limpiar feedback
             feedback = feedback.strip()
-            if feedback.lower() in ['respuesta correcta', 'ninguno', 'ninguna']:
-                feedback = ''
-
-            # Ajustar status según score si hay inconsistencia
-            if score >= 75 and status == 'NEEDS_IMPROVEMENT':
-                logger.warning(f"[REVIEWER] Inconsistencia: score={score} pero status=NEEDS_IMPROVEMENT. Ajustando a APPROVED")
-                status = 'APPROVED'
-            elif score < 75 and status == 'APPROVED':
-                logger.warning(f"[REVIEWER] Inconsistencia: score={score} pero status=APPROVED. Ajustando a NEEDS_IMPROVEMENT")
-                status = 'NEEDS_IMPROVEMENT'
+            # No limpiar feedback vacío - SIEMPRE debe haber feedback
 
             return {
-                'status': status,
                 'feedback': feedback,
                 'score': score,
                 'issues': issues,
                 'suggestions': suggestions,
                 'tool_suggestions': tool_suggestions,
-                'param_validation': param_validation
+                'param_validation': param_validation,
+                'continue_improving': continue_improving
             }
 
         except Exception as e:
             logger.error(f"[REVIEWER] Error parseando respuesta del revisor: {e}")
             # Fallback seguro
             return {
-                'status': 'APPROVED',
-                'feedback': '',
+                'feedback': 'Error al parsear respuesta del revisor',
                 'score': 100,
                 'issues': [],
                 'suggestions': [],
                 'tool_suggestions': [],
                 'param_validation': [],
+                'continue_improving': False,  # No continuar si hay error
                 'parse_error': str(e)
             }
 
