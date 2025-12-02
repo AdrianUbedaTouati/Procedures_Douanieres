@@ -147,7 +147,7 @@ class ResponseReviewer:
         docs_info = ""
         if metadata.get('documents_used'):
             docs_info = f"\n\n**Documentos consultados:** {len(metadata['documents_used'])} documentos"
-            docs_ids = [doc.get('id', 'unknown') for doc in metadata['documents_used'][:5]]
+            docs_ids = [doc.get('ojs_notice_id', 'unknown') for doc in metadata['documents_used'][:5]]
             docs_info += f"\nIDs: {', '.join(docs_ids)}"
 
         # Información de tools
@@ -223,8 +223,7 @@ PARAM_VALIDATION:
 (Si los parámetros de las tools ejecutadas están bien, escribe: Ninguna)
 
 FEEDBACK:
-[Si STATUS = NEEDS_IMPROVEMENT, explica QUÉ debe mejorar el agente principal.
-Si STATUS = APPROVED, deja esta sección vacía o escribe "Respuesta correcta"]
+[Si STATUS = NEEDS_IMPROVEMENT o APPROVED, explica como podria mejorar el agente principal]
 ```
 
 **IMPORTANTE:**
