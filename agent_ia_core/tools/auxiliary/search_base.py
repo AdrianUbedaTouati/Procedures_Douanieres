@@ -362,7 +362,7 @@ Responde SOLO con la query, sin explicaciones adicionales."""
                 logger.info(f"[ITERATIVE_SEARCH] Documento encontrado: {doc_id} ({chunk_count} chunks)")
 
                 # 3. Obtener detalles completos del documento
-                tender_details_result = get_tender_details(document_id=doc_id, user=user)
+                tender_details_result = get_tender_details(tender_id=doc_id, user=user)
 
                 if tender_details_result.get('success'):
                     tender_data = tender_details_result.get('data', {})
@@ -691,7 +691,15 @@ def _fallback_search(original_query, vectorstore, mode, limit):
             'success': result['success'],
             'best_documents': [result['document']] if result['success'] else [],
             'search_iterations': [],
-            'analysis': {'fallback': True, 'is_reliable': True}
+            'analysis': {
+                'fallback': True,
+                'is_reliable': True,
+                'confidence_score': 0.5,
+                'total_searches': 1,
+                'unique_documents': 1 if result['success'] else 0,
+                'selected_count': 1 if result['success'] else 0,
+                'reasoning': 'Búsqueda de respaldo (sin optimización iterativa)'
+            }
         }
     else:
         result = semantic_search_multiple(query=original_query, vectorstore=vectorstore, limit=limit, k_per_doc=7)
@@ -699,5 +707,13 @@ def _fallback_search(original_query, vectorstore, mode, limit):
             'success': result['success'],
             'best_documents': result['documents'],
             'search_iterations': [],
-            'analysis': {'fallback': True, 'is_reliable': True}
+            'analysis': {
+                'fallback': True,
+                'is_reliable': True,
+                'confidence_score': 0.5,
+                'total_searches': 1,
+                'unique_documents': len(result['documents']) if result['success'] else 0,
+                'selected_count': len(result['documents']) if result['success'] else 0,
+                'reasoning': 'Búsqueda de respaldo (sin optimización iterativa)'
+            }
         }

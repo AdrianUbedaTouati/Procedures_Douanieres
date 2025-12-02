@@ -154,22 +154,22 @@ def find_best_tender(
             base_msg += f'\n\n💡 JUSTIFICACIÓN: {analysis["reasoning"]}'
 
         # Fiabilidad
-        reliability_status = "✓ FIABLE" if analysis['is_reliable'] else "⚠️ POCO FIABLE"
-        base_msg += f'\n\n🔍 FIABILIDAD: {reliability_status} (confianza: {analysis["confidence_score"]:.2f})'
+        reliability_status = "✓ FIABLE" if analysis.get('is_reliable', True) else "⚠️ POCO FIABLE"
+        base_msg += f'\n\n🔍 FIABILIDAD: {reliability_status} (confianza: {analysis.get("confidence_score", 0.5):.2f})'
 
         # Advertencia si no es fiable
-        if not analysis['is_reliable'] and analysis.get('clarification_request'):
+        if not analysis.get('is_reliable', True) and analysis.get('clarification_request'):
             base_msg += f'\n⚠️ {analysis["clarification_request"]}'
 
         # Métricas de búsqueda
         chunk_prog = analysis.get('chunk_progression', {})
         doc_progression = chunk_prog.get(result['id'], [])
         if doc_progression:
-            base_msg += f'\n\n📊 Análisis: {analysis["total_searches"]} búsquedas realizadas, {analysis["unique_documents"]} documentos únicos encontrados.'
-            base_msg += f'\nDocumento apareció en {analysis["best_doc_appearances"]}/{analysis["total_searches"]} búsquedas con evolución de chunks: {doc_progression}'
+            base_msg += f'\n\n📊 Análisis: {analysis.get("total_searches", 1)} búsquedas realizadas, {analysis.get("unique_documents", 1)} documentos únicos encontrados.'
+            base_msg += f'\nDocumento apareció en {analysis.get("best_doc_appearances", 1)}/{analysis.get("total_searches", 1)} búsquedas con evolución de chunks: {doc_progression}'
 
         logger.info(f"[FIND_BEST_TENDER] ✓ Licitación encontrada: {result['id']} "
-                   f"(confianza: {analysis['confidence_score']}, fiable: {analysis['is_reliable']})")
+                   f"(confianza: {analysis.get('confidence_score', 0.5)}, fiable: {analysis.get('is_reliable', True)})")
 
         return {
             'success': True,
@@ -178,12 +178,12 @@ def find_best_tender(
             'message': base_msg,
             'algorithm': 'iterative_search_5x_with_verification',
             'search_metrics': {
-                'iterations': analysis['total_searches'],
-                'unique_docs_found': analysis['unique_documents'],
-                'best_doc_appearances': analysis['best_doc_appearances'],
+                'iterations': analysis.get('total_searches', 1),
+                'unique_docs_found': analysis.get('unique_documents', 1),
+                'best_doc_appearances': analysis.get('best_doc_appearances', 1),
                 'chunk_progression': doc_progression,
-                'confidence': analysis['confidence_score'],
-                'is_reliable': analysis['is_reliable'],
+                'confidence': analysis.get('confidence_score', 0.5),
+                'is_reliable': analysis.get('is_reliable', True),
                 'reasoning': analysis.get('reasoning')
             }
         }

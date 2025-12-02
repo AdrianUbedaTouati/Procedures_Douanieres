@@ -157,19 +157,19 @@ def find_top_tenders(
             base_msg += f'\n\n💡 JUSTIFICACIÓN: {analysis["reasoning"]}'
 
         # Fiabilidad
-        reliability_status = "✓ FIABLE" if analysis['is_reliable'] else "⚠️ POCO FIABLE"
-        base_msg += f'\n\n🔍 FIABILIDAD: {reliability_status} (confianza: {analysis["confidence_score"]:.2f})'
+        reliability_status = "✓ FIABLE" if analysis.get('is_reliable', True) else "⚠️ POCO FIABLE"
+        base_msg += f'\n\n🔍 FIABILIDAD: {reliability_status} (confianza: {analysis.get("confidence_score", 0.5):.2f})'
 
         # Advertencia si no es fiable
-        if not analysis['is_reliable'] and analysis.get('clarification_request'):
+        if not analysis.get('is_reliable', True) and analysis.get('clarification_request'):
             base_msg += f'\n⚠️ {analysis["clarification_request"]}'
 
         # Métricas de búsqueda
-        base_msg += f'\n\n📊 Análisis: {analysis["total_searches"]} búsquedas realizadas, {analysis["unique_documents"]} documentos únicos encontrados'
-        base_msg += f'\nDocumentos seleccionados: {analysis["selected_count"]}/{analysis["unique_documents"]}'
+        base_msg += f'\n\n📊 Análisis: {analysis.get("total_searches", 1)} búsquedas realizadas, {analysis.get("unique_documents", len(results))} documentos únicos encontrados'
+        base_msg += f'\nDocumentos seleccionados: {analysis.get("selected_count", len(results))}/{analysis.get("unique_documents", len(results))}'
 
         logger.info(f"[FIND_TOP_TENDERS] ✓ {len(results)} licitaciones encontradas "
-                   f"(confianza: {analysis['confidence_score']}, fiable: {analysis['is_reliable']})")
+                   f"(confianza: {analysis.get('confidence_score', 0.5)}, fiable: {analysis.get('is_reliable', True)})")
 
         return {
             'success': True,
@@ -178,11 +178,11 @@ def find_top_tenders(
             'message': base_msg,
             'algorithm': 'iterative_search_5x_with_verification',
             'search_metrics': {
-                'iterations': analysis['total_searches'],
-                'unique_docs_found': analysis['unique_documents'],
-                'selected_count': analysis['selected_count'],
-                'confidence': analysis['confidence_score'],
-                'is_reliable': analysis['is_reliable'],
+                'iterations': analysis.get('total_searches', 1),
+                'unique_docs_found': analysis.get('unique_documents', len(results)),
+                'selected_count': analysis.get('selected_count', len(results)),
+                'confidence': analysis.get('confidence_score', 0.5),
+                'is_reliable': analysis.get('is_reliable', True),
                 'reasoning': analysis.get('reasoning')
             }
         }
