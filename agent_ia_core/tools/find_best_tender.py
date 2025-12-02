@@ -6,9 +6,9 @@ Encuentra LA mejor licitación (singular) más relevante según la consulta del 
 Usa análisis de concentración de chunks para determinar relevancia.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from .auxiliary.tools_base import ToolDefinition
-from .auxiliary.search_base import semantic_search_single
+from .auxiliary.search_base import optimize_and_search_iterative_with_verification
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,11 +21,10 @@ logger = logging.getLogger(__name__)
 TOOL_DEFINITION = ToolDefinition(
     name="find_best_tender",
     description=(
-        "Encuentra LA MEJOR licitación (singular) para una consulta usando análisis de concentración. "
-        "USA ESTA TOOL cuando el usuario pida 'LA mejor', 'LA más relevante', 'cuál es LA que más me conviene', "
-        "'cuál me recomiendas', 'LA más interesante'. "
-        "Esta herramienta analiza los 7 chunks más relevantes y selecciona el documento con mayor concentración. "
-        "Ideal para recomendaciones personalizadas donde solo se necesita UNA respuesta."
+        "Encuentra LA MEJOR licitación mediante 5 búsquedas secuenciales optimizadas en ChromaDB con verificación de contenido. "
+        "Cada búsqueda obtiene el documento completo para validar correspondencia real (no solo chunks). "
+        "Analiza chunk_count (1=poco fiable, 2+=fiable) y contenido verificado para seleccionar el mejor documento. "
+        "Usa contexto empresarial, historial conversacional y tool calls previas para optimizar búsquedas."
     ),
     parameters={
         "type": "object",
@@ -50,22 +49,35 @@ TOOL_DEFINITION = ToolDefinition(
 # IMPLEMENTACIÓN DE LA FUNCIÓN
 # ============================================================================
 
-def find_best_tender(query: str, retriever=None, **kwargs) -> Dict[str, Any]:
+def find_best_tender(
+    query: str,
+    retriever=None,
+    llm=None,
+    user=None,
+    conversation_history: Optional[List[Dict]] = None,
+    tool_calls_history: Optional[List[Dict]] = None,
+    **kwargs
+) -> Dict[str, Any]:
     """
-    Encuentra la mejor licitación según la query usando concentración de chunks.
+    Encuentra LA mejor licitación con 5 búsquedas secuenciales optimizadas y verificación de contenido.
 
     Args:
         query: Consulta de búsqueda semántica
-        retriever: Retriever de ChromaDB
-        **kwargs: Argumentos adicionales (ignorados)
+        retriever: Retriever de ChromaDB (inyectado)
+        llm: Instancia del LLM (inyectado)
+        user: Usuario de Django (inyectado)
+        conversation_history: Historial de mensajes del chat (inyectado)
+        tool_calls_history: Historial de tool calls (inyectado)
+        **kwargs: Argumentos adicionales
 
     Returns:
         Dict con formato:
         {
             'success': bool,
             'count': int (0 o 1),
-            'result': dict | None,  # Información de la licitación
-            'message': str
+            'result': dict | None,
+            'message': str,
+            'search_metrics': {...}
         }
     """
     try:
@@ -76,20 +88,41 @@ def find_best_tender(query: str, retriever=None, **kwargs) -> Dict[str, Any]:
                 'message': 'No se pudo realizar la búsqueda'
             }
 
-        logger.info(f"[FIND_BEST_TENDER] Buscando para: '{query[:50]}...'")
+        logger.info(f"[FIND_BEST_TENDER] Iniciando búsqueda iterativa para: '{query[:50]}...'")
 
-        # Usar función auxiliar de búsqueda semántica
-        search_result = semantic_search_single(query=query, vectorstore=retriever, k=7)
+        # Obtener info de empresa
+        company_info = None
+        if user:
+            from .get_company_info import get_company_info
+            company_result = get_company_info(user=user)
+            if company_result.get('success'):
+                company_info = company_result.get('data', {})
 
-        if not search_result['success']:
+        # Realizar búsqueda iterativa con verificación (5 búsquedas secuenciales)
+        search_result = optimize_and_search_iterative_with_verification(
+            original_query=query,
+            conversation_history=conversation_history,
+            tool_calls_history=tool_calls_history,
+            company_info=company_info,
+            vectorstore=retriever,
+            llm=llm,
+            user=user,
+            mode="single"  # Solo 1 documento
+        )
+
+        if not search_result['success'] or not search_result['best_documents']:
+            clarification = search_result['analysis'].get('clarification_request')
             return {
-                'success': True,  # La tool ejecutó correctamente, solo que no hay resultados
+                'success': True,
                 'count': 0,
                 'result': None,
-                'message': f'No se encontraron licitaciones para "{query}"'
+                'message': f'No se encontraron licitaciones para "{query}"',
+                'clarification_needed': clarification
             }
 
-        document = search_result['document']
+        # Mejor documento seleccionado
+        document = search_result['best_documents'][0]
+        analysis = search_result['analysis']
 
         # Formatear resultado
         result = {
@@ -98,7 +131,6 @@ def find_best_tender(query: str, retriever=None, **kwargs) -> Dict[str, Any]:
             'chunk_count': document['chunk_count'],
             'score': document['best_score'],
             'preview': document['content'][:300],
-            'sections_found': [chunk['content'][:50] for chunk in document.get('chunks', [])[:3]]
         }
 
         # Añadir campos opcionales desde metadata
@@ -114,15 +146,38 @@ def find_best_tender(query: str, retriever=None, **kwargs) -> Dict[str, Any]:
         if meta.get('publication_date'):
             result['published'] = meta.get('publication_date')
 
+        # Construir mensaje con métricas
+        base_msg = f'Licitación más relevante: {result["id"]} (concentración: {result["chunk_count"]}/7 chunks)'
+
+        # Advertencia si no es fiable
+        if not analysis['is_reliable'] and analysis.get('clarification_request'):
+            base_msg += f'\n\n⚠️ ADVERTENCIA: {analysis["clarification_request"]}'
+
+        # Métricas de búsqueda
+        chunk_prog = analysis.get('chunk_progression', {})
+        doc_progression = chunk_prog.get(result['id'], [])
+        if doc_progression:
+            base_msg += f'\n\n📊 Análisis: {analysis["total_searches"]} búsquedas realizadas, {analysis["unique_documents"]} documentos únicos encontrados.'
+            base_msg += f'\nDocumento apareció en {analysis["best_doc_appearances"]}/{analysis["total_searches"]} búsquedas con evolución de chunks: {doc_progression}'
+
         logger.info(f"[FIND_BEST_TENDER] ✓ Licitación encontrada: {result['id']} "
-                   f"(concentración: {result['chunk_count']}/7 chunks)")
+                   f"(confianza: {analysis['confidence_score']}, fiable: {analysis['is_reliable']})")
 
         return {
             'success': True,
             'count': 1,
-            'result': result,  # Objeto único (no array)
-            'message': f'Licitación más relevante: {result["id"]} (concentración: {result["chunk_count"]}/7 chunks)',
-            'algorithm': 'chunk_concentration'
+            'result': result,
+            'message': base_msg,
+            'algorithm': 'iterative_search_5x_with_verification',
+            'search_metrics': {
+                'iterations': analysis['total_searches'],
+                'unique_docs_found': analysis['unique_documents'],
+                'best_doc_appearances': analysis['best_doc_appearances'],
+                'chunk_progression': doc_progression,
+                'confidence': analysis['confidence_score'],
+                'is_reliable': analysis['is_reliable'],
+                'reasoning': analysis.get('reasoning')
+            }
         }
 
     except Exception as e:

@@ -157,13 +157,15 @@ class ToolRegistry:
 
         return "\n".join(tools_list)
 
-    def execute_tool(self, name: str, max_retries: int = None, **kwargs) -> Dict[str, Any]:
+    def execute_tool(self, name: str, max_retries: int = None, conversation_history=None, tool_calls_history=None, **kwargs) -> Dict[str, Any]:
         """
         Ejecuta una tool por nombre con sistema de reintentos.
 
         Args:
             name: Nombre de la tool
             max_retries: Número máximo de reintentos en caso de fallo (default: None = usa self.max_retries)
+            conversation_history: Historial de mensajes del chat (para optimización contextual)
+            tool_calls_history: Historial de tool calls [{tool_name, parameters, result}, ...]
             **kwargs: Parámetros para la tool
 
         Returns:
@@ -205,6 +207,14 @@ class ToolRegistry:
             injected_kwargs['api_key'] = self.google_api_key
         if 'engine_id' in tool_def.function.__code__.co_varnames:
             injected_kwargs['engine_id'] = self.google_engine_id
+
+        # Inyectar conversation_history para tools que lo requieren
+        if 'conversation_history' in tool_def.function.__code__.co_varnames:
+            injected_kwargs['conversation_history'] = conversation_history
+
+        # Inyectar tool_calls_history para tools que lo requieren
+        if 'tool_calls_history' in tool_def.function.__code__.co_varnames:
+            injected_kwargs['tool_calls_history'] = tool_calls_history
 
         # Sistema de reintentos
         last_error = None
@@ -261,7 +271,7 @@ class ToolRegistry:
             'total_attempts': max_retries
         }
 
-    def execute_tool_calls(self, tool_calls: List[Dict]) -> List[Dict[str, Any]]:
+    def execute_tool_calls(self, tool_calls: List[Dict], conversation_history=None, tool_calls_history=None) -> List[Dict[str, Any]]:
         """
         Ejecuta múltiples tool calls.
 
@@ -276,6 +286,8 @@ class ToolRegistry:
                     },
                     ...
                 ]
+            conversation_history: Historial de mensajes del chat
+            tool_calls_history: Historial de tool calls previas
 
         Returns:
             Lista de resultados
@@ -294,7 +306,13 @@ class ToolRegistry:
                 })
                 continue
 
-            result = self.execute_tool(name, **arguments)
+            # Pasar conversation_history y tool_calls_history al execute_tool
+            result = self.execute_tool(
+                name,
+                conversation_history=conversation_history,
+                tool_calls_history=tool_calls_history,
+                **arguments
+            )
             results.append({
                 'tool': name,
                 'arguments': arguments,

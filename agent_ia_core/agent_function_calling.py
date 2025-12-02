@@ -256,7 +256,12 @@ class FunctionCallingAgent:
                 tools_to_call = [tc.get('function', {}).get('name', 'unknown') for tc in tool_calls]
                 self.chat_logger.log_execution_flow(iteration, f"Call {len(tool_calls)} tool(s)", tools_to_call)
 
-            results = self.tool_registry.execute_tool_calls(tool_calls)
+            # Pasar conversation_history y tool_calls_history al registry
+            results = self.tool_registry.execute_tool_calls(
+                tool_calls,
+                conversation_history=conversation_history,
+                tool_calls_history=tool_results_history
+            )
 
             # Registrar tools usadas y LOG cada una
             for idx, result in enumerate(results):
