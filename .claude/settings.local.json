@@ -1,17 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)",
-      "Bash(timeout 10 python:*)",
-      "Bash(del test_template.py appstenderstemplatestenderstest_simple.html appstenderstemplatestenderstender_detail_half.html 2)",
-      "Bash(nul)",
-      "Bash(git tag -a v3.8.0-pre-search-refactor -m \"$(cat <<''EOF''\nRelease v3.8.0-pre-search-refactor - Pre-refactorización del sistema de búsqueda\n\nEstado Actual (v3.7.2):\n========================\n- Sistema de búsqueda basado en `search_tenders` con deduplicación simple\n- Retorna documentos únicos sin análisis de concentración de chunks\n- Límites configurables añadidos a todas las herramientas de búsqueda\n\nPróximos Cambios (v3.8.0):\n===========================\nSe reemplazará el sistema de búsqueda actual con un algoritmo mejorado basado en:\n\n1. **Ranking por Concentración de Chunks**\n   - Análisis de top-K chunks (ventanas de 7 chunks)\n   - Selección basada en frecuencia de aparición por documento\n   - Mejor relevancia: documentos con más chunks en top-K son más relevantes\n\n2. **Nuevas Herramientas de Búsqueda**\n   - `find_best_tender`: Retorna LA mejor licitación (ventana de 7 chunks)\n   - `find_top_tenders`: Retorna X mejores licitaciones (7*X chunks, selección iterativa)\n   - Eliminación de repeticiones: cada documento seleccionado solo una vez\n\n3. **Ventajas del Nuevo Sistema**\n   - Mejor precisión en recomendaciones personalizadas\n   - Justificación objetiva basada en concentración de chunks relevantes\n   - Manejo inteligente de casos con disponibilidad limitada\n   - Una sola consulta al vectorstore por búsqueda (eficiencia)\n\nMejoras Incluidas en Este Release:\n===================================\n- ✅ Añadido contexto temporal al LLM (fecha/hora actual)\n- ✅ Corregidos errores de sintaxis en templates Django\n- ✅ Eliminada sección \"Documento Completo\" de vista de licitaciones\n- ✅ Mejorados límites configurables en todas las herramientas\n- ✅ Documentación de sistema de indexación y chunking\n\nPróximo Paso:\n=============\nImplementación de find_best_tender y find_top_tenders con algoritmo de ranking por concentración.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\nEOF\n)\")",
-      "Bash(del nul 2)",
-      "Bash(dir nul)",
-      "Bash(cat:*)",
-      "Bash(.gitignore)",
-      "Bash(git tag:*)",
-      "Bash(git add:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(python:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
