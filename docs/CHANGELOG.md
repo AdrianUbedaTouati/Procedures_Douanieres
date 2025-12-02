@@ -1,5 +1,62 @@
 # Changelog - TenderAI Platform
 
+## [v3.8.0] - 2025-12-02
+
+### Sistema de Búsqueda Iterativa con Verificación de Contenido
+- **5 búsquedas secuenciales optimizadas** con LLM intermediario:
+  - ✅ Cada búsqueda usa query optimizada por LLM considerando resultados previos
+  - ✅ Verificación de contenido completo (no solo chunks)
+  - ✅ Análisis de correspondencia real con puntuación 0-10
+  - ✅ Feedback iterativo para mejorar búsquedas siguientes
+- **find_best_tender**: Retorna LA mejor licitación (singular)
+  - Selección basada en chunk_count + puntuación LLM + apariciones múltiples
+- **find_top_tenders**: Retorna X mejores licitaciones (plural)
+  - Selección iterativa con eliminación de duplicados
+  - Máximo 10 documentos únicos
+
+### Sistema de Logging Completo para Búsqueda Iterativa
+- **11 nuevos métodos en ChatLogger** (doble archivo: simple + detallado):
+  - `log_iterative_search_start()` - Inicio con contexto completo
+  - `log_search_iteration_start()` - Inicio de cada búsqueda
+  - `log_query_optimization()` - Query optimizada por LLM
+  - `log_semantic_search()` - Resultados de ChromaDB
+  - `log_document_retrieval()` - Documento completo via get_tender_details
+  - `log_content_verification()` - Análisis de correspondencia por LLM
+  - `log_iteration_feedback()` - Feedback para próxima búsqueda
+  - `log_iteration_result()` - Resultado completo de iteración
+  - `log_final_selection()` - Selección final con análisis LLM
+  - `log_iterative_search_end()` - Fin con métricas completas
+  - `log_fallback_search()` - Búsqueda de respaldo si falla sistema
+- **Integración completa** en `search_base.py`:
+  - Logging de prompts completos del LLM intermediario
+  - Logging de respuestas raw antes de parsear
+  - Logging de verificación de contenido con análisis completo
+
+### Fix Metadata de Contacto en Chunks
+- **Problema detectado**: Campos de contacto faltantes en chunks 2-4
+  - `chunking.py`: Modificado `_extract_common_metadata()` para extraer contact_email, contact_phone, contact_url, contact_fax
+  - `index_build.py`: Modificado `_chunks_to_documents()` para indexar campos de contacto
+- **Resultado**: Metadata completa en TODOS los chunks (0-4)
+- **Script de verificación**: `verify_metadata_fix.py`
+
+### Documentación Completa
+- **ANALISIS_REVISION_DETALLADO.md**: Análisis exhaustivo del sistema de revisión
+  - Flujo completo con diagramas
+  - Prompts completos del revisor y de mejora
+  - Detalles técnicos de todos los parámetros
+  - Ejemplo de ejecución completa con logs
+- **LOGGING_SYSTEM.md**: Documentación del sistema de logging dual
+- **CHANGELOG.md**: Actualizado con últimas mejoras
+
+### Beneficios
+- 🎯 **Mejor precisión**: Verificación de contenido real, no solo similitud semántica
+- 🔍 **Transparencia total**: Logging completo de todas las decisiones del LLM
+- 📊 **Métricas detalladas**: Confianza, fiabilidad, apariciones, progresión de chunks
+- 💡 **Justificación objetiva**: LLM explica por qué seleccionó cada documento
+- ✅ **Metadata completa**: Todos los campos de contacto en todos los chunks
+
+---
+
 ## [v3.7.2] - 2025-11-27
 
 ### Sistema de Logging Mejorado
