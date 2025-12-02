@@ -149,12 +149,20 @@ def find_top_tenders(
 
             results.append(result)
 
-        # Construir mensaje con métricas
+        # Construir mensaje con métricas y justificación
         base_msg = f'Se encontraron {len(results)} licitaciones relevantes'
+
+        # Justificación del LLM sobre por qué son los mejores
+        if analysis.get('reasoning'):
+            base_msg += f'\n\n💡 JUSTIFICACIÓN: {analysis["reasoning"]}'
+
+        # Fiabilidad
+        reliability_status = "✓ FIABLE" if analysis['is_reliable'] else "⚠️ POCO FIABLE"
+        base_msg += f'\n\n🔍 FIABILIDAD: {reliability_status} (confianza: {analysis["confidence_score"]:.2f})'
 
         # Advertencia si no es fiable
         if not analysis['is_reliable'] and analysis.get('clarification_request'):
-            base_msg += f'\n\n⚠️ ADVERTENCIA: {analysis["clarification_request"]}'
+            base_msg += f'\n⚠️ {analysis["clarification_request"]}'
 
         # Métricas de búsqueda
         base_msg += f'\n\n📊 Análisis: {analysis["total_searches"]} búsquedas realizadas, {analysis["unique_documents"]} documentos únicos encontrados'

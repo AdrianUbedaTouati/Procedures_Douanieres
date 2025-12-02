@@ -146,12 +146,20 @@ def find_best_tender(
         if meta.get('publication_date'):
             result['published'] = meta.get('publication_date')
 
-        # Construir mensaje con métricas
+        # Construir mensaje con métricas y justificación
         base_msg = f'Licitación más relevante: {result["id"]} (concentración: {result["chunk_count"]}/7 chunks)'
+
+        # Justificación del LLM sobre por qué es el mejor
+        if analysis.get('reasoning'):
+            base_msg += f'\n\n💡 JUSTIFICACIÓN: {analysis["reasoning"]}'
+
+        # Fiabilidad
+        reliability_status = "✓ FIABLE" if analysis['is_reliable'] else "⚠️ POCO FIABLE"
+        base_msg += f'\n\n🔍 FIABILIDAD: {reliability_status} (confianza: {analysis["confidence_score"]:.2f})'
 
         # Advertencia si no es fiable
         if not analysis['is_reliable'] and analysis.get('clarification_request'):
-            base_msg += f'\n\n⚠️ ADVERTENCIA: {analysis["clarification_request"]}'
+            base_msg += f'\n⚠️ {analysis["clarification_request"]}'
 
         # Métricas de búsqueda
         chunk_prog = analysis.get('chunk_progression', {})
