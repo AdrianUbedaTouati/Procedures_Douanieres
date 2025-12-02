@@ -1,6 +1,6 @@
-# 🛠️ Referencia de Tools del Sistema TenderAI v3.7
+# 🛠️ Referencia de Tools del Sistema TenderAI v3.8
 
-**Sistema de Function Calling Multi-Proveedor**
+**Sistema de Function Calling Multi-Proveedor con Búsqueda Iterativa Avanzada**
 
 ---
 
@@ -8,12 +8,13 @@
 
 1. [Resumen de Tools](#resumen-de-tools)
 2. [Tools de Contexto](#tools-de-contexto)
-3. [Tools de Búsqueda](#tools-de-búsqueda)
-4. [Tools de Información](#tools-de-información)
-5. [Tools de Análisis](#tools-de-análisis)
-6. [Tools de Calidad (Opcionales)](#tools-de-calidad-opcionales)
-7. [Tools de Web (Opcionales)](#tools-de-web-opcionales)
-8. [Ejemplos de Uso](#ejemplos-de-uso)
+3. [Tools de Búsqueda Avanzada (NUEVO v3.8)](#tools-de-búsqueda-avanzada-nuevo-v38)
+4. [Tools de Búsqueda Clásica](#tools-de-búsqueda-clásica)
+5. [Tools de Información](#tools-de-información)
+6. [Tools de Análisis](#tools-de-análisis)
+7. [Tools de Calidad (Opcionales)](#tools-de-calidad-opcionales)
+8. [Tools de Web (Opcionales)](#tools-de-web-opcionales)
+9. [Ejemplos de Uso](#ejemplos-de-uso)
 
 ---
 
@@ -24,7 +25,8 @@ El sistema cuenta con **16 tools especializadas** organizadas en 6 categorías:
 | Categoría | Tools | Estado | Descripción |
 |-----------|-------|--------|-------------|
 | **🏢 Contexto** | 2 | Siempre activas | Información del usuario |
-| **🔍 Búsqueda** | 5 | Siempre activas | Búsqueda y filtrado |
+| **🔍 Búsqueda Avanzada** | 2 | Siempre activas | ⭐ **NUEVO v3.8**: Búsqueda iterativa con verificación |
+| **🔍 Búsqueda Clásica** | 3 | Siempre activas | Búsqueda y filtrado tradicional |
 | **📄 Información** | 2 | Siempre activas | Detalles completos |
 | **📊 Análisis** | 2 | Siempre activas | Estadísticas y comparaciones |
 | **🎯 Calidad** | 2 | Opcionales | Grading y verification |
@@ -111,9 +113,151 @@ El sistema cuenta con **16 tools especializadas** organizadas en 6 categorías:
 
 ---
 
-## 🔍 Tools de Búsqueda
+## 🔍 Tools de Búsqueda Avanzada (NUEVO v3.8)
 
-### 3. `search_tenders`
+⭐ **Sistema de búsqueda iterativa con verificación de contenido** - El agente realiza 5 búsquedas secuenciales optimizadas, obtiene documentos completos y verifica correspondencia real antes de seleccionar los mejores resultados.
+
+### 3. `find_best_tender` ⭐ NUEVO
+
+**Descripción:** Encuentra LA mejor licitación (singular) mediante 5 búsquedas secuenciales optimizadas con verificación de contenido completo.
+
+**Algoritmo:**
+1. **5 Búsquedas Secuenciales** - LLM intermediario genera queries optimizadas considerando resultados previos
+2. **Verificación de Contenido** - Para cada resultado, obtiene el documento completo via `get_tender_details`
+3. **Análisis de Correspondencia** - LLM analiza si el contenido REALMENTE corresponde (no solo similitud semántica)
+4. **Feedback Iterativo** - Cada búsqueda informa a la siguiente para explorar diferentes enfoques
+5. **Selección Inteligente** - Elige el mejor basándose en:
+   - Puntuación LLM (0-10) de correspondencia verificada
+   - Chunk_count (concentración de chunks relevantes en top-7)
+   - Apariciones múltiples (documento que aparece en varias búsquedas = más confiable)
+
+**Cuándo se usa:**
+- "Cuál es LA mejor licitación para mi empresa?"
+- "Dame la licitación más relevante de software IA"
+- "Encuentra LA oportunidad más adecuada"
+
+**Parámetros:**
+```python
+{
+  "query": str  # Consulta de búsqueda (requerido)
+}
+```
+
+**Ejemplo:**
+```python
+find_best_tender(query="licitación de desarrollo de software con IA")
+```
+
+**Respuesta incluye:**
+```json
+{
+  "success": true,
+  "count": 1,
+  "result": {
+    "id": "00123456-2025",
+    "buyer": "Ministerio de Economía",
+    "chunk_count": 5,
+    "score": 0.92,
+    "preview": "...",
+    "budget": 500000.0,
+    "deadline": "2025-03-15",
+    "cpv": ["72000000"],
+    "location": ["ES300"]
+  },
+  "message": "Licitación más relevante: 00123456-2025 (concentración: 5/7 chunks)\n\n💡 JUSTIFICACIÓN: El documento corresponde perfectamente...\n\n🔍 FIABILIDAD: ✓ FIABLE (confianza: 0.95)\n\n📊 Análisis: 5 búsquedas realizadas, 3 documentos únicos encontrados.\nDocumento apareció en 3/5 búsquedas con evolución de chunks: [3, 5, 5]",
+  "algorithm": "iterative_search_5x_with_verification",
+  "search_metrics": {
+    "iterations": 5,
+    "unique_docs_found": 3,
+    "best_doc_appearances": 3,
+    "chunk_progression": [3, 5, 5],
+    "confidence": 0.95,
+    "is_reliable": true,
+    "reasoning": "El documento 00123456-2025 apareció consistentemente..."
+  }
+}
+```
+
+**Ventajas:**
+- 🎯 **Precisión superior**: Verifica contenido real, no solo similitud vectorial
+- 🧠 **Inteligencia contextual**: Usa perfil de empresa, historial conversacional y tools previas
+- 📊 **Justificación objetiva**: LLM explica por qué es el mejor con datos verificados
+- 🔍 **Fiabilidad medible**: Score de confianza + análisis de fiabilidad
+
+**Logging:**
+- Sistema de logging dual (simple + detallado) con 11 métodos específicos
+- Ver [LOGGING_SYSTEM.md](LOGGING_SYSTEM.md) para detalles
+
+---
+
+### 4. `find_top_tenders` ⭐ NUEVO
+
+**Descripción:** Encuentra las X mejores licitaciones (plural) mediante 5 búsquedas secuenciales optimizadas con verificación de contenido.
+
+**Algoritmo:**
+- Mismo proceso que `find_best_tender`
+- Selección iterativa de los mejores N documentos únicos
+- Eliminación automática de duplicados
+
+**Cuándo se usa:**
+- "Dame las 5 mejores licitaciones de IT"
+- "Encuentra las mejores oportunidades de construcción"
+- "Qué licitaciones son más relevantes para mi perfil?"
+
+**Parámetros:**
+```python
+{
+  "query": str,    # Consulta de búsqueda (requerido)
+  "limit": int     # Número de resultados (opcional, default: 5, max: 10)
+}
+```
+
+**Ejemplo:**
+```python
+find_top_tenders(query="licitaciones de infraestructura cloud", limit=5)
+```
+
+**Respuesta incluye:**
+```json
+{
+  "success": true,
+  "count": 5,
+  "results": [
+    {
+      "id": "00123456-2025",
+      "buyer": "Ministerio",
+      "chunk_count": 5,
+      "score": 0.92,
+      "preview": "...",
+      "budget": 500000.0,
+      "deadline": "2025-03-15"
+    },
+    // ... más resultados ...
+  ],
+  "message": "Se encontraron 5 licitaciones relevantes\n\n💡 JUSTIFICACIÓN: Los documentos seleccionados...\n\n🔍 FIABILIDAD: ✓ FIABLE (confianza: 0.88)\n\n📊 Análisis: 5 búsquedas realizadas, 8 documentos únicos encontrados\nDocumentos seleccionados: 5/8",
+  "algorithm": "iterative_search_5x_with_verification",
+  "search_metrics": {
+    "iterations": 5,
+    "unique_docs_found": 8,
+    "selected_count": 5,
+    "confidence": 0.88,
+    "is_reliable": true,
+    "reasoning": "Se seleccionaron los 5 documentos con mayor correspondencia..."
+  }
+}
+```
+
+**Ventajas:**
+- 🎯 **Múltiples resultados de calidad**: Cada uno verificado individualmente
+- 🔄 **Exploración exhaustiva**: 5 búsquedas diferentes encuentran más documentos relevantes
+- 📊 **Ranking justificado**: Orden basado en verificación real, no solo scores de similitud
+- ⚡ **Eficiente**: Una sola ejecución para múltiples resultados
+
+---
+
+## 🔍 Tools de Búsqueda Clásica
+
+### 5. `search_tenders`
 
 **Descripción:** Búsqueda semántica vectorial usando ChromaDB.
 
@@ -132,7 +276,7 @@ search_tenders(query="desarrollo de software cloud", limit=5)
 
 ---
 
-### 4. `find_by_budget`
+### 6. `find_by_budget`
 
 **Descripción:** Filtra licitaciones por rango de presupuesto.
 
@@ -152,7 +296,7 @@ find_by_budget(min_budget=50000, max_budget=200000, limit=10)
 
 ---
 
-### 5. `find_by_deadline`
+### 7. `find_by_deadline`
 
 **Descripción:** Filtra licitaciones por fecha límite.
 
@@ -172,7 +316,7 @@ find_by_deadline(date_from="2025-02-01", date_to="2025-02-29", limit=15)
 
 ---
 
-### 6. `find_by_cpv`
+### 8. `find_by_cpv`
 
 **Descripción:** Filtra licitaciones por código CPV (sector).
 
@@ -199,7 +343,7 @@ find_by_cpv(cpv_code="software", limit=5)  # Mapeo inteligente
 
 ---
 
-### 7. `find_by_location`
+### 9. `find_by_location`
 
 **Descripción:** Filtra licitaciones por ubicación geográfica (NUTS).
 
@@ -227,7 +371,7 @@ find_by_location(location="ES3", limit=10)
 
 ## 📄 Tools de Información
 
-### 8. `get_tender_details`
+### 10. `get_tender_details`
 
 **Descripción:** Obtiene información completa de una licitación específica.
 
@@ -256,7 +400,7 @@ get_tender_details(tender_id="00668461-2025")
 
 ---
 
-### 9. `get_tender_xml`
+### 11. `get_tender_xml`
 
 **Descripción:** Obtiene el archivo XML completo de una licitación.
 
@@ -278,7 +422,7 @@ get_tender_xml(tender_id="00668461-2025")
 
 ## 📊 Tools de Análisis
 
-### 10. `get_statistics`
+### 12. `get_statistics`
 
 **Descripción:** Obtiene estadísticas agregadas sobre licitaciones.
 
@@ -305,7 +449,7 @@ get_statistics(stat_type="all")
 
 ---
 
-### 11. `compare_tenders`
+### 13. `compare_tenders`
 
 **Descripción:** Compara 2-5 licitaciones lado a lado.
 
@@ -331,7 +475,7 @@ compare_tenders(tender_ids=["00668461-2025", "00677736-2025"])
 
 ## 🎯 Tools de Calidad (Opcionales)
 
-### 12. `grade_documents` ⭐ OPCIONAL
+### 14. `grade_documents` ⭐ OPCIONAL
 
 **Descripción:** Filtra documentos irrelevantes usando LLM.
 
@@ -352,7 +496,7 @@ compare_tenders(tender_ids=["00668461-2025", "00677736-2025"])
 
 ---
 
-### 13. `verify_fields` ⭐ OPCIONAL
+### 15. `verify_fields` ⭐ OPCIONAL
 
 **Descripción:** Verifica campos críticos con XML original.
 
@@ -372,7 +516,7 @@ compare_tenders(tender_ids=["00668461-2025", "00677736-2025"])
 
 ## 🌐 Tools de Web (Opcionales)
 
-### 14. `web_search` ⭐ OPCIONAL
+### 16. `web_search` ⭐ OPCIONAL
 
 **Descripción:** Búsqueda web usando Google Custom Search API.
 
@@ -406,7 +550,7 @@ web_search(query="regulaciones licitaciones España", limit=3)
 
 ---
 
-### 15. `browse_webpage` ⭐ OPCIONAL
+### 17. `browse_webpage` ⭐ OPCIONAL
 
 **Descripción:** Extrae contenido completo de páginas web estáticas.
 
@@ -443,7 +587,7 @@ browse_webpage(
 
 ---
 
-### 16. `browse_interactive` ⭐ OPCIONAL ⭐ NUEVO v3.7
+### 18. `browse_interactive` ⭐ OPCIONAL ⭐ NUEVO v3.7
 
 **Descripción:** Navegador interactivo con Playwright para sitios JavaScript.
 
@@ -630,9 +774,10 @@ browse_interactive(
 
 ---
 
-**Versión**: 3.7.0
-**Última actualización**: 2025-01-19
-**Total tools**: 16 (11 siempre activas + 5 opcionales)
+**Versión**: 3.8.0
+**Última actualización**: 2025-12-02
+**Total tools**: 18 (13 siempre activas + 5 opcionales)
+**Nuevo en v3.8**: `find_best_tender` y `find_top_tenders` con búsqueda iterativa y verificación de contenido
 
 **🤖 Generated with [Claude Code](https://claude.com/claude-code)**
 

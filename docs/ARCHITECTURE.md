@@ -1,6 +1,6 @@
-# 🏗️ Arquitectura del Sistema TenderAI v3.7.1
+# 🏗️ Arquitectura del Sistema TenderAI v3.8.0
 
-**Sistema de Function Calling Multi-Proveedor con Review Loop Automático**
+**Sistema de Function Calling Multi-Proveedor con Búsqueda Iterativa Avanzada**
 
 ---
 
@@ -11,21 +11,25 @@
 3. [Estructura de agent_ia_core](#estructura-de-agent_ia_core)
 4. [Componentes Principales](#componentes-principales)
 5. [Sistema de Tools](#sistema-de-tools)
-6. [Sistema de Review y Mejora](#sistema-de-review-y-mejora)
-7. [Flujo de Datos Completo](#flujo-de-datos-completo)
-8. [Proveedores LLM](#proveedores-llm)
-9. [Base de Datos](#base-de-datos)
+6. [Sistema de Búsqueda Iterativa (NUEVO v3.8)](#sistema-de-búsqueda-iterativa-nuevo-v38)
+7. [Sistema de Review y Mejora](#sistema-de-review-y-mejora)
+8. [Flujo de Datos Completo](#flujo-de-datos-completo)
+9. [Proveedores LLM](#proveedores-llm)
+10. [Base de Datos](#base-de-datos)
 
 ---
 
 ## 🎯 Visión General
 
-TenderAI es una plataforma Django que utiliza **Function Calling** para permitir que los LLMs interactúen dinámicamente con datos de licitaciones públicas mediante **16 tools especializadas** y un **sistema de auto-mejora** con doble LLM.
+TenderAI es una plataforma Django que utiliza **Function Calling** para permitir que los LLMs interactúen dinámicamente con datos de licitaciones públicas mediante **18 tools especializadas**, un **sistema de búsqueda iterativa con verificación de contenido** y un **sistema de auto-mejora** con doble LLM.
 
-### Características Clave v3.7
+### Características Clave v3.8
 
 - ✅ **3 proveedores LLM**: Ollama (local), OpenAI, Google Gemini
-- ✅ **16 tools especializadas**: Búsqueda, análisis, web, navegación interactiva
+- ✅ **18 tools especializadas**: Búsqueda iterativa, análisis, web, navegación interactiva
+- ✅ **Búsqueda iterativa avanzada**: 5 búsquedas secuenciales con verificación de contenido (NUEVO)
+- ✅ **Verificación de contenido real**: LLM analiza documentos completos, no solo chunks (NUEVO)
+- ✅ **Logging dual completo**: Simple + detallado con 11 métodos para búsqueda iterativa (NUEVO)
 - ✅ **Review Loop automático**: Segunda iteración SIEMPRE ejecutada
 - ✅ **Navegador interactivo**: Playwright para sitios JavaScript
 - ✅ **Web Search**: Google Custom Search API
@@ -184,7 +188,11 @@ class FunctionCallingAgent:
 - get_company_info: Información de empresa del usuario
 - get_tenders_summary: Resumen de licitaciones guardadas
 
-# Tools de búsqueda (5)
+# Tools de búsqueda avanzada (2) - NUEVO v3.8
+- find_best_tender: LA mejor licitación (5 búsquedas + verificación)
+- find_top_tenders: X mejores licitaciones (5 búsquedas + verificación)
+
+# Tools de búsqueda clásica (3)
 - search_tenders: Búsqueda vectorial ChromaDB
 - find_by_budget: Filtrado por presupuesto
 - find_by_deadline: Filtrado por fecha
@@ -315,9 +323,210 @@ class HybridRetriever:
 
 ---
 
+## 🔍 Sistema de Búsqueda Iterativa (NUEVO v3.8)
+
+⭐ **Búsqueda iterativa con verificación de contenido** - Sistema avanzado que realiza 5 búsquedas secuenciales optimizadas, verifica contenido completo y selecciona los mejores resultados con justificación del LLM.
+
+### Componentes del Sistema
+
+#### 1. LLM Intermediario (Query Optimization)
+**Responsabilidad**: Generar queries optimizadas para cada iteración
+
+```python
+# Prompt al LLM intermediario
+"""Eres un experto en optimización de búsquedas semánticas.
+
+CONTEXTO DISPONIBLE:
+- Perfil de empresa: {company_info}
+- Historial conversacional: {conversation_history}
+- Tool calls previas: {tool_calls_history}
+
+QUERY ORIGINAL: "{original_query}"
+
+BÚSQUEDAS PREVIAS:
+- Búsqueda 1: query="...", resultado={doc_id, chunk_count, score}
+- Búsqueda 2: query="...", resultado={doc_id, chunk_count, score}
+
+Genera una query optimizada para BÚSQUEDA 3/5 con un enfoque diferente.
+Responde SOLO con la query."""
+```
+
+#### 2. Semantic Search (ChromaDB)
+**Responsabilidad**: Buscar top-7 chunks más relevantes
+
+```python
+from agent_ia_core.tools.auxiliary.search_base import semantic_search_single
+
+result = semantic_search_single(
+    query=optimized_query,
+    vectorstore=retriever,
+    k=7
+)
+# Retorna: {success, document: {id, chunk_count, metadata, best_score}}
+```
+
+#### 3. Document Retrieval (get_tender_details)
+**Responsabilidad**: Obtener documento completo, no solo chunks
+
+```python
+tender_details = get_tender_details(tender_id=doc_id, user=user)
+# Retorna: título, descripción completa, presupuesto, plazos, etc.
+```
+
+#### 4. Content Verification (LLM Verifier)
+**Responsabilidad**: Analizar si el contenido REALMENTE corresponde
+
+```python
+# Prompt al LLM verificador
+"""Usuario busca: "{original_query}"
+
+Documento encontrado:
+- Chunk_count: {chunk_count} (1=poco fiable, 2=fiable, 3+=muy fiable)
+
+CONTENIDO COMPLETO:
+ID: {tender_id}
+Título: {title}
+Descripción: {description}
+Comprador: {buyer}
+CPV: {cpv_codes}
+Ubicación: {nuts_regions}
+Presupuesto: {budget_eur} EUR
+Fecha límite: {tender_deadline_date}
+
+¿Este documento REALMENTE corresponde a lo que busca el usuario?
+
+Responde en formato JSON:
+{
+  "corresponds": true/false,
+  "score": 0-10,
+  "reasoning": "explicación breve",
+  "missing_info": "qué falta (null si todo OK)"
+}
+"""
+```
+
+#### 5. Final Selection (LLM Selector)
+**Responsabilidad**: Seleccionar el/los mejor(es) documento(s)
+
+```python
+# Prompt al LLM selector
+"""Has completado 5 búsquedas secuenciales. Aquí está el resumen:
+
+- Búsqueda 1: doc_A - Chunks: 3, Corresponde: true, Puntuación: 9/10
+- Búsqueda 2: doc_B - Chunks: 2, Corresponde: false, Puntuación: 4/10
+- Búsqueda 3: doc_A - Chunks: 5, Corresponde: true, Puntuación: 9/10
+- Búsqueda 4: doc_C - Chunks: 4, Corresponde: true, Puntuación: 7/10
+- Búsqueda 5: doc_A - Chunks: 5, Corresponde: true, Puntuación: 9/10
+
+Selecciona {"EL MEJOR" if mode == "single" else f"LOS {limit} MEJORES"}.
+
+CRITERIOS:
+1. Mayor puntuación LLM (verificación de contenido)
+2. Mayor chunk_count (relevancia semántica)
+3. Apariciones múltiples = más confiable
+4. Documentos con "corresponds: true"
+
+Responde en formato JSON:
+{
+  "selected_document_ids": ["doc_A"],
+  "reasoning": "doc_A apareció 3 veces con puntuación alta...",
+  "is_reliable": true,
+  "clarification_request": null,
+  "confidence_score": 0.95
+}
+"""
+```
+
+### Flujo Completo de Búsqueda Iterativa
+
+```
+find_best_tender(query="licitación software IA")
+│
+├─ FASE 1: CONTEXTO
+│  ├─ get_company_info() → perfil empresa
+│  ├─ conversation_history → últimos mensajes
+│  └─ tool_calls_history → tools usadas
+│
+├─ FASE 2: 5 BÚSQUEDAS SECUENCIALES
+│  │
+│  ├─ BÚSQUEDA 1:
+│  │  ├─ LLM genera query: "desarrollo software inteligencia artificial"
+│  │  ├─ semantic_search_single() → doc_A (3 chunks, score 0.89)
+│  │  ├─ get_tender_details(doc_A) → contenido completo
+│  │  ├─ LLM verifica: corresponds=true, score=9/10
+│  │  └─ Feedback: "✓ Buen resultado"
+│  │
+│  ├─ BÚSQUEDA 2:
+│  │  ├─ LLM genera query diferente: "machine learning deep learning"
+│  │  ├─ semantic_search_single() → doc_B (2 chunks, score 0.82)
+│  │  ├─ get_tender_details(doc_B) → contenido completo
+│  │  ├─ LLM verifica: corresponds=false, score=4/10
+│  │  └─ Feedback: "✗ Resultado débil"
+│  │
+│  ├─ BÚSQUEDA 3:
+│  │  ├─ LLM genera query: "sistema inteligente análisis datos"
+│  │  ├─ semantic_search_single() → doc_A (5 chunks, score 0.92)
+│  │  ├─ get_tender_details(doc_A) → contenido completo
+│  │  ├─ LLM verifica: corresponds=true, score=9/10
+│  │  └─ Feedback: "✓ Mismo doc, mejor chunk_count"
+│  │
+│  ├─ BÚSQUEDA 4: ... → doc_C (4 chunks, score=7/10)
+│  │
+│  └─ BÚSQUEDA 5: ... → doc_A (5 chunks, score=9/10)
+│
+└─ FASE 3: SELECCIÓN FINAL
+   ├─ Análisis de resultados:
+   │  - doc_A: 3 apariciones, chunk_count [3, 5, 5], score promedio 9/10
+   │  - doc_B: 1 aparición, chunk_count [2], score 4/10
+   │  - doc_C: 1 aparición, chunk_count [4], score 7/10
+   │
+   ├─ LLM selecciona: doc_A
+   │  - Razón: "Apareció 3 veces con puntuación consistente 9/10"
+   │  - Confianza: 0.95
+   │  - Fiable: true
+   │
+   └─ Retorna: {
+        success: true,
+        result: {id: doc_A, ...},
+        search_metrics: {
+          iterations: 5,
+          unique_docs: 3,
+          best_doc_appearances: 3,
+          chunk_progression: [3, 5, 5],
+          confidence: 0.95
+        }
+      }
+```
+
+### Sistema de Logging Dual
+
+**Ubicación**: `apps/core/logging_config.py`
+
+**11 nuevos métodos** para logging completo:
+
+1. `log_iterative_search_start()` - Inicio con contexto
+2. `log_search_iteration_start()` - Inicio de cada iteración
+3. `log_query_optimization()` - Query optimizada por LLM
+4. `log_semantic_search()` - Resultados de ChromaDB
+5. `log_document_retrieval()` - Documento completo
+6. `log_content_verification()` - Verificación por LLM
+7. `log_iteration_feedback()` - Feedback para próxima
+8. `log_iteration_result()` - Resultado completo
+9. `log_final_selection()` - Selección final
+10. `log_iterative_search_end()` - Fin con métricas
+11. `log_fallback_search()` - Búsqueda de respaldo
+
+**Doble archivo de log**:
+- `*_simple.log`: Trazas concisas (funciones, parámetros clave)
+- `*_detailed.log`: JSON completo (prompts, respuestas raw, metadata)
+
+Ver [LOGGING_SYSTEM.md](LOGGING_SYSTEM.md) para detalles.
+
+---
+
 ## 🛠️ Sistema de Tools
 
-### Categorización Completa (16 Tools)
+### Categorización Completa (18 Tools)
 
 #### 🏢 Tools de Contexto (2)
 **Descripción**: Información específica del usuario
@@ -327,14 +536,22 @@ class HybridRetriever:
 
 **Activación**: Automática si hay usuario autenticado
 
-#### 🔍 Tools de Búsqueda (5)
-**Descripción**: Búsqueda y filtrado de licitaciones
+#### 🔍 Tools de Búsqueda Avanzada (2) - NUEVO v3.8
+**Descripción**: Búsqueda iterativa con verificación de contenido
 
-3. **search_tenders**: Búsqueda vectorial semántica (ChromaDB)
-4. **find_by_budget**: Filtrado por rango de presupuesto (SQL)
-5. **find_by_deadline**: Filtrado por fecha límite (SQL)
-6. **find_by_cpv**: Filtrado por sector CPV (ChromaDB)
-7. **find_by_location**: Filtrado geográfico NUTS (ChromaDB)
+3. **find_best_tender**: LA mejor licitación (5 búsquedas + verificación)
+4. **find_top_tenders**: X mejores licitaciones (5 búsquedas + verificación)
+
+**Activación**: Siempre disponibles
+
+#### 🔍 Tools de Búsqueda Clásica (3)
+**Descripción**: Búsqueda y filtrado tradicional
+
+5. **search_tenders**: Búsqueda vectorial semántica (ChromaDB)
+6. **find_by_budget**: Filtrado por rango de presupuesto (SQL)
+7. **find_by_deadline**: Filtrado por fecha límite (SQL)
+8. **find_by_cpv**: Filtrado por sector CPV (ChromaDB)
+9. **find_by_location**: Filtrado geográfico NUTS (ChromaDB)
 
 **Activación**: Siempre disponibles
 
@@ -686,9 +903,9 @@ class ChatMessage(Model):
 
 ---
 
-**Versión**: 3.7.0
-**Última actualización**: 2025-01-19
-**Features destacadas**: Review Loop automático, Playwright Interactive Browser, 16 tools
+**Versión**: 3.8.0
+**Última actualización**: 2025-12-02
+**Features destacadas**: Búsqueda iterativa con verificación, Review Loop automático, 18 tools
 
 **🤖 Generated with [Claude Code](https://claude.com/claude-code)**
 
