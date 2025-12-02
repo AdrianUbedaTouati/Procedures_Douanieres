@@ -440,8 +440,8 @@ class ChatAgentService:
             max_review_loops = getattr(self.user, 'max_review_loops', 3)
             print(f"[SERVICE] Iniciando sistema de revisión (max_loops: {max_review_loops})...", file=sys.stderr)
 
-            # Create reviewer with same LLM as agent
-            reviewer = ResponseReviewer(agent.llm)
+            # Create reviewer with same LLM as agent AND pass chat_logger
+            reviewer = ResponseReviewer(agent.llm, chat_logger=chat_logger)
 
             # Initialize review tracking
             review_history = []  # Historial de todas las revisiones
@@ -453,6 +453,9 @@ class ChatAgentService:
             while current_loop < max_review_loops:
                 current_loop += 1
                 print(f"[SERVICE] === REVIEW LOOP {current_loop}/{max_review_loops} ===", file=sys.stderr)
+
+                # Log inicio del loop de revisión
+                chat_logger.log_review_start(current_loop, max_review_loops)
 
                 # Build metadata for reviewer
                 review_metadata_input = {
@@ -485,12 +488,16 @@ class ChatAgentService:
                 # Después del loop 1, aplicar condiciones de salida normales
 
                 if current_loop >= max_review_loops:
-                    print(f"[SERVICE] Límite de loops alcanzado ({max_review_loops}). Retornando respuesta final.", file=sys.stderr)
+                    reason = f"Límite de loops alcanzado ({max_review_loops})"
+                    print(f"[SERVICE] {reason}. Retornando respuesta final.", file=sys.stderr)
+                    chat_logger.log_review_end(current_loop, "COMPLETED", reason)
                     break
 
                 # Solo permitir salida por score alto DESPUÉS del primer loop
                 if current_loop > 1 and review_result['score'] >= 95:
-                    print(f"[SERVICE] Score excelente ({review_result['score']}/100) después de {current_loop-1} mejoras. No se requieren más.", file=sys.stderr)
+                    reason = f"Score excelente ({review_result['score']}/100) después de {current_loop-1} mejoras"
+                    print(f"[SERVICE] {reason}. No se requieren más.", file=sys.stderr)
+                    chat_logger.log_review_end(current_loop, "APPROVED", reason)
                     break
 
                 # Si llegamos aquí, ejecutamos mejora
@@ -556,6 +563,13 @@ Genera una respuesta MEJORADA que sea aún más completa y útil.
 
 Genera tu respuesta mejorada:"""
 
+                # Log del improvement prompt
+                chat_logger.log_improvement_prompt(
+                    prompt=improvement_prompt,
+                    loop_num=current_loop,
+                    review_result=review_result
+                )
+
                 # Execute improvement query
                 # Añadir respuesta actual al historial para contexto
                 improvement_history = formatted_history + [
@@ -575,6 +589,13 @@ Genera tu respuesta mejorada:"""
                 new_response_length = len(response_content)
 
                 print(f"[SERVICE] ✓ Loop {current_loop} - Respuesta mejorada: {previous_response_length} → {new_response_length} caracteres", file=sys.stderr)
+
+                # Log fin del loop con mejora aplicada
+                chat_logger.log_review_end(
+                    current_loop,
+                    "IMPROVED",
+                    f"Mejora aplicada: {previous_response_length} → {new_response_length} caracteres"
+                )
 
                 # Merge documents (avoid duplicates)
                 existing_doc_ids = {doc.get('ojs_notice_id') for doc in result.get('documents', [])}

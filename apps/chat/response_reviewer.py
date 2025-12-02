@@ -5,7 +5,7 @@ Revisa formato y contenido de las respuestas del agente principal.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +20,16 @@ class ResponseReviewer:
     - Coherencia: Responde la pregunta, usa documentos correctamente
     """
 
-    def __init__(self, llm):
+    def __init__(self, llm, chat_logger: Optional[Any] = None):
         """
         Inicializa el revisor con un LLM.
 
         Args:
             llm: Instancia del LLM (ChatOllama, ChatOpenAI, ChatGemini, etc.)
+            chat_logger: Instancia de ChatLogger para logging detallado (opcional)
         """
         self.llm = llm
+        self.chat_logger = chat_logger
 
     def review_response(
         self,
@@ -68,12 +70,47 @@ class ResponseReviewer:
                 metadata=metadata
             )
 
+            # Log del prompt del revisor (si chat_logger disponible)
+            if self.chat_logger:
+                self.chat_logger.log_reviewer_prompt(
+                    prompt=review_prompt,
+                    user_question=user_question,
+                    conversation_history=conversation_history,
+                    metadata=metadata
+                )
+
             # Llamar al LLM revisor
             logger.info("[REVIEWER] Llamando al LLM revisor...")
+
+            # Log de la request al LLM revisor (si chat_logger disponible)
+            if self.chat_logger:
+                # Extraer provider y model del LLM
+                model_name = getattr(self.llm, 'model_name', getattr(self.llm, 'model', 'unknown'))
+                provider = self.llm.__class__.__name__.replace('Chat', '').lower()
+
+                self.chat_logger.log_llm_request(
+                    provider=provider,
+                    model=model_name,
+                    messages=[{'role': 'user', 'content': review_prompt}],
+                    tools=None,
+                    context="REVIEWER"
+                )
+
             review_result = self.llm.invoke(review_prompt)
+
+            # Log de la response del LLM revisor (si chat_logger disponible)
+            if self.chat_logger:
+                self.chat_logger.log_llm_response(review_result, context="REVIEWER")
 
             # Parsear respuesta del revisor
             parsed_review = self._parse_review_response(review_result.content)
+
+            # Log de la respuesta parseada del revisor (si chat_logger disponible)
+            if self.chat_logger:
+                self.chat_logger.log_reviewer_response(
+                    raw_response=review_result.content,
+                    parsed_result=parsed_review
+                )
 
             logger.info(
                 f"[REVIEWER] Revisión completada: {parsed_review['status']} "
