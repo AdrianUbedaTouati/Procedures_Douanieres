@@ -22,7 +22,7 @@ def semantic_search_single(query: str, vectorstore, k: int = 7) -> Dict[str, Any
 
     Args:
         query: Consulta de búsqueda semántica
-        vectorstore: ChromaDB vectorstore
+        vectorstore: ChromaDB vectorstore o HybridRetriever
         k: Número de chunks a buscar (default: 7)
 
     Returns:
@@ -42,8 +42,14 @@ def semantic_search_single(query: str, vectorstore, k: int = 7) -> Dict[str, Any
     try:
         logger.info(f"[SEARCH_SINGLE] Buscando top-{k} chunks para: '{query[:50]}...'")
 
+        # Si es HybridRetriever, extraer el vectorstore interno
+        if hasattr(vectorstore, 'vectorstore'):
+            actual_vectorstore = vectorstore.vectorstore
+        else:
+            actual_vectorstore = vectorstore
+
         # Buscar top K chunks
-        results = vectorstore.similarity_search_with_score(query, k=k)
+        results = actual_vectorstore.similarity_search_with_score(query, k=k)
 
         if not results:
             logger.warning("[SEARCH_SINGLE] No se encontraron resultados")
@@ -113,7 +119,7 @@ def semantic_search_multiple(
 
     Args:
         query: Consulta de búsqueda semántica
-        vectorstore: ChromaDB vectorstore
+        vectorstore: ChromaDB vectorstore o HybridRetriever
         limit: Número máximo de documentos a retornar (default: 5)
         k_per_doc: Chunks por documento a considerar (default: 7)
 
@@ -138,7 +144,13 @@ def semantic_search_multiple(
         total_k = limit * k_per_doc
         logger.info(f"[SEARCH_MULTIPLE] Buscando top-{total_k} chunks para: '{query[:50]}...'")
 
-        results = vectorstore.similarity_search_with_score(query, k=total_k)
+        # Si es HybridRetriever, extraer el vectorstore interno
+        if hasattr(vectorstore, 'vectorstore'):
+            actual_vectorstore = vectorstore.vectorstore
+        else:
+            actual_vectorstore = vectorstore
+
+        results = actual_vectorstore.similarity_search_with_score(query, k=total_k)
 
         if not results:
             logger.warning("[SEARCH_MULTIPLE] No se encontraron resultados")
