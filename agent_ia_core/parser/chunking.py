@@ -186,7 +186,7 @@ class EFormsChunker:
             cpv_codes.extend(optional["cpv_additional"])
         cpv_codes = [c for c in cpv_codes if c]  # Filtrar vacíos
 
-        return {
+        metadata = {
             "ojs_notice_id": required.get("ojs_notice_id", ""),
             "source_path": required.get("source_path", ""),
             "buyer_name": required.get("buyer_name", ""),
@@ -198,6 +198,22 @@ class EFormsChunker:
             "contract_type": optional.get("contract_type"),
             "procedure_type": optional.get("procedure_type"),
         }
+
+        # ✅ AÑADIR: Extraer campos de contacto del OPTIONAL
+        # Estos campos ahora estarán disponibles en TODOS los chunks (0-4)
+        if optional.get("contact_email"):
+            metadata["contact_email"] = optional["contact_email"]
+
+        if optional.get("contact_phone"):
+            metadata["contact_phone"] = optional["contact_phone"]
+
+        if optional.get("contact_url"):
+            metadata["contact_url"] = optional["contact_url"]
+
+        if optional.get("contact_fax"):
+            metadata["contact_fax"] = optional["contact_fax"]
+
+        return metadata
 
     def _create_title_chunk(
         self,

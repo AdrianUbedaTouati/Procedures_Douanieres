@@ -325,6 +325,20 @@ class IndexBuilder:
             if chunk.tender_deadline_date:
                 metadata["tender_deadline_date"] = chunk.tender_deadline_date
 
+            # ✅ AÑADIR: Extraer campos de contacto del objeto Chunk
+            # Si chunking.py los incluyó, ahora se indexarán en ChromaDB
+            if hasattr(chunk, 'contact_email') and chunk.contact_email:
+                metadata["contact_email"] = chunk.contact_email
+
+            if hasattr(chunk, 'contact_phone') and chunk.contact_phone:
+                metadata["contact_phone"] = chunk.contact_phone
+
+            if hasattr(chunk, 'contact_url') and chunk.contact_url:
+                metadata["contact_url"] = chunk.contact_url
+
+            if hasattr(chunk, 'contact_fax') and chunk.contact_fax:
+                metadata["contact_fax"] = chunk.contact_fax
+
             # Crear documento
             doc = Document(
                 page_content=chunk.text,
