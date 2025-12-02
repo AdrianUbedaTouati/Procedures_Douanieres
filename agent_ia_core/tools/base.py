@@ -1,106 +1,122 @@
 # -*- coding: utf-8 -*-
 """
-Clase base para todas las tools del sistema de Function Calling.
+Definición base para herramientas del agente.
+
+Esta es la ÚNICA FUENTE DE VERDAD para cada tool:
+- Nombre, descripción y parámetros se definen una sola vez aquí
+- Se usa en LLM principal (OpenAI/Gemini function calling)
+- Se usa en Response Reviewer (prompt con herramientas disponibles)
+- Se usa en Logs (registro de tools con descripciones)
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any
+from dataclasses import dataclass
+from typing import Dict, Any, Callable
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class BaseTool(ABC):
+@dataclass
+class ToolDefinition:
     """
-    Clase base abstracta para todas las tools.
+    Definición completa de una herramienta del agente.
 
-    Cada tool debe:
-    1. Definir name y description
-    2. Implementar run() para ejecutar la acción
-    3. Implementar get_schema() para definir los parámetros
+    Esta clase centraliza TODA la información de una tool en un solo lugar.
+    El sistema usa autodiscovery: cada archivo .py en tools/ (excepto __init__, base, auxiliary/)
+    debe exportar una variable TOOL_DEFINITION de este tipo.
+
+    Atributos:
+        name: Nombre único de la función (debe coincidir con el nombre del archivo .py)
+        description: Descripción para el LLM (UNA SOLA FUENTE DE VERDAD)
+        parameters: JSON Schema de parámetros (compatible con OpenAI/Gemini)
+        function: Función Python real a ejecutar
+        category: Categoría opcional para organización (search, detail, company, etc.)
+
+    Example:
+        ```python
+        # En find_best_tender.py:
+        TOOL_DEFINITION = ToolDefinition(
+            name="find_best_tender",
+            description="Encuentra LA mejor licitación...",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "..."}
+                },
+                "required": ["query"]
+            },
+            function=find_best_tender_impl,
+            category="search"
+        )
+        ```
     """
+    name: str
+    description: str
+    parameters: Dict[str, Any]
+    function: Callable
+    category: str = "general"
 
-    # Cada subclase debe definir estos atributos
-    name: str = None
-    description: str = None
-
-    def __init__(self):
-        """Inicializa la tool."""
-        if not self.name:
-            raise ValueError(f"{self.__class__.__name__} debe definir 'name'")
-        if not self.description:
-            raise ValueError(f"{self.__class__.__name__} debe definir 'description'")
-
-    @abstractmethod
-    def run(self, **kwargs) -> Dict[str, Any]:
+    def to_openai_format(self) -> Dict[str, Any]:
         """
-        Ejecuta la tool con los parámetros dados.
-
-        Args:
-            **kwargs: Parámetros específicos de cada tool
+        Convierte la definición a formato OpenAI function calling.
 
         Returns:
-            Dict con el resultado de la ejecución
-            Formato estándar: {'success': bool, 'data': Any, 'error': str (opcional)}
-        """
-        pass
-
-    @abstractmethod
-    def get_schema(self) -> Dict[str, Any]:
-        """
-        Retorna el schema de la tool en formato OpenAI Function Calling.
-
-        Returns:
-            Dict con estructura:
+            Dict con formato:
             {
-                'name': str,
-                'description': str,
-                'parameters': {
-                    'type': 'object',
-                    'properties': {...},
-                    'required': [...]
+                "type": "function",
+                "function": {
+                    "name": "...",
+                    "description": "...",
+                    "parameters": {...}
                 }
             }
         """
-        pass
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters
+            }
+        }
 
-    def to_ollama_tool(self) -> Dict[str, Any]:
+    def to_gemini_format(self) -> Dict[str, Any]:
         """
-        Convierte el schema a formato de Ollama.
+        Convierte la definición a formato Gemini function calling.
 
         Returns:
-            Dict en formato Ollama:
+            Dict con formato:
             {
-                'type': 'function',
-                'function': {...schema...}
+                "name": "...",
+                "description": "...",
+                "parameters": {...}
             }
         """
         return {
-            'type': 'function',
-            'function': self.get_schema()
+            "name": self.name,
+            "description": self.description,
+            "parameters": self.parameters
         }
 
-    def execute_safe(self, **kwargs) -> Dict[str, Any]:
+    def get_reviewer_format(self) -> str:
         """
-        Ejecuta la tool con manejo de errores.
-
-        Args:
-            **kwargs: Parámetros de la tool
+        Genera formato de texto para mostrar en el prompt del reviewer.
+        Extrae automáticamente los parámetros del schema JSON.
 
         Returns:
-            Dict con resultado o error
+            String con formato: "- nombre(param1: type, param2: type): descripción"
+
+        Example:
+            "- find_best_tender(query: string): Encuentra LA mejor licitación..."
         """
-        try:
-            logger.info(f"[TOOL] Ejecutando {self.name} con args: {kwargs}")
-            result = self.run(**kwargs)
-            logger.info(f"[TOOL] {self.name} completado exitosamente")
-            return result
-        except Exception as e:
-            logger.error(f"[TOOL] Error en {self.name}: {str(e)}", exc_info=True)
-            return {
-                'success': False,
-                'error': f'Error ejecutando {self.name}: {str(e)}'
-            }
+        params = []
+        if "properties" in self.parameters:
+            for param_name, param_info in self.parameters["properties"].items():
+                param_type = param_info.get("type", "any")
+                params.append(f"{param_name}: {param_type}")
+
+        params_str = ", ".join(params) if params else ""
+        return f"- {self.name}({params_str}): {self.description}"
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(name='{self.name}')>"
+        return f"<ToolDefinition(name='{self.name}', category='{self.category}')>"
