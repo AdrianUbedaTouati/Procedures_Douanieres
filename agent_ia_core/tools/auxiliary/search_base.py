@@ -280,6 +280,11 @@ def optimize_and_search_iterative_with_verification(
     try:
         if not llm or not vectorstore:
             logger.error("[ITERATIVE_SEARCH] LLM o vectorstore no disponibles")
+            if chat_logger:
+                chat_logger.log_fallback_search(
+                    original_query=original_query,
+                    reason="LLM o vectorstore no disponibles"
+                )
             return _fallback_search(original_query, vectorstore, mode, limit)
 
         logger.info(f"[ITERATIVE_SEARCH] Iniciando 5 búsquedas secuenciales para: '{original_query[:50]}...'")
@@ -294,6 +299,19 @@ def optimize_and_search_iterative_with_verification(
             tool_calls_history=tool_calls_history,
             company_info=company_info
         )
+
+        # LOG: Inicio de búsqueda iterativa
+        if chat_logger:
+            chat_logger.log_iterative_search_start(
+                query=original_query,
+                mode=mode,
+                limit=limit,
+                context={
+                    'company_info': company_info,
+                    'conversation_history': conversation_history,
+                    'tool_calls_history': tool_calls_history
+                }
+            )
 
         # ============================================================
         # FASE 2: REALIZAR 5 BÚSQUEDAS SECUENCIALES
@@ -335,6 +353,10 @@ Responde SOLO con la query, sin explicaciones adicionales."""
         for iteration in range(1, 6):
             logger.info(f"[ITERATIVE_SEARCH] === Búsqueda {iteration}/5 ===")
 
+            # LOG: Inicio de iteración
+            if chat_logger:
+                chat_logger.log_search_iteration_start(iteration=iteration, total=5)
+
             # 1. Pedir al LLM que genere la query optimizada
             llm_response = llm.invoke(conversation_with_llm)
             optimized_query = llm_response.content.strip()
@@ -347,12 +369,31 @@ Responde SOLO con la query, sin explicaciones adicionales."""
 
             logger.info(f"[ITERATIVE_SEARCH] Query {iteration}: '{optimized_query[:80]}...'")
 
+            # LOG: Query optimizada generada
+            if chat_logger:
+                chat_logger.log_query_optimization(
+                    iteration=iteration,
+                    original_query=original_query,
+                    llm_request=conversation_with_llm[-2:],  # System + último mensaje
+                    llm_response={"content": optimized_query, "raw": llm_response},
+                    optimized_query=optimized_query
+                )
+
             # 2. Ejecutar búsqueda semántica
             search_result = semantic_search_single(
                 query=optimized_query,
                 vectorstore=vectorstore,
                 k=7
             )
+
+            # LOG: Resultado de búsqueda semántica
+            if chat_logger:
+                chat_logger.log_semantic_search(
+                    iteration=iteration,
+                    query=optimized_query,
+                    k=7,
+                    search_result=search_result
+                )
 
             # Evaluar resultado
             if search_result['success']:
@@ -364,6 +405,14 @@ Responde SOLO con la query, sin explicaciones adicionales."""
 
                 # 3. Obtener detalles completos del documento
                 tender_details_result = get_tender_details(tender_id=doc_id, user=user)
+
+                # LOG: Recuperación de documento completo
+                if chat_logger:
+                    chat_logger.log_document_retrieval(
+                        iteration=iteration,
+                        doc_id=doc_id,
+                        retrieval_result=tender_details_result
+                    )
 
                 if tender_details_result.get('success'):
                     tender_data = tender_details_result.get('data', {})
@@ -404,6 +453,23 @@ Responde en formato JSON:
 
                     analysis_response = llm.invoke([{"role": "user", "content": analysis_prompt}])
                     analysis = _parse_llm_json(analysis_response.content)
+
+                    # LOG: Verificación de contenido por LLM
+                    if chat_logger:
+                        chat_logger.log_content_verification(
+                            iteration=iteration,
+                            doc_id=doc_id,
+                            verification_request={
+                                "prompt": analysis_prompt,
+                                "tender_summary": tender_summary,
+                                "chunk_count": chunk_count
+                            },
+                            verification_response={
+                                "raw": analysis_response,
+                                "content": analysis_response.content
+                            },
+                            parsed_analysis=analysis
+                        )
 
                     # Determinar fiabilidad por chunk_count
                     if chunk_count == 1:
@@ -466,6 +532,13 @@ Responde en formato JSON:
 
             search_iterations.append(iteration_result)
 
+            # LOG: Resultado completo de la iteración
+            if chat_logger:
+                chat_logger.log_iteration_result(
+                    iteration=iteration,
+                    iteration_result=iteration_result
+                )
+
             # 5. Feedback al LLM para próxima iteración (si no es la última)
             if iteration < 5:
                 # Calcular mejor documento hasta ahora
@@ -493,6 +566,15 @@ Responde SOLO con la query."""
                     "content": feedback
                 })
 
+                # LOG: Feedback enviado para próxima iteración
+                if chat_logger:
+                    chat_logger.log_iteration_feedback(
+                        iteration=iteration,
+                        feedback_message=feedback,
+                        best_so_far=best_summary,
+                        docs_found_so_far=len(docs_so_far)
+                    )
+
         # ============================================================
         # FASE 3: ANÁLISIS FINAL Y SELECCIÓN
         # ============================================================
@@ -504,17 +586,32 @@ Responde SOLO con la query."""
 
         if not found_docs:
             logger.warning("[ITERATIVE_SEARCH] No se encontraron documentos en ninguna búsqueda")
-            return {
+
+            no_results = {
                 'success': True,
                 'best_documents': [],
                 'search_iterations': search_iterations,
                 'analysis': {
                     'total_searches': 5,
                     'unique_documents': 0,
+                    'selected_count': 0,
                     'is_reliable': False,
+                    'confidence_score': 0.0,
+                    'reasoning': 'No se encontraron documentos en ninguna de las 5 búsquedas',
                     'clarification_request': 'No se encontraron licitaciones relevantes. Intenta con términos más específicos o diferentes.'
                 }
             }
+
+            # LOG: Fin sin resultados
+            if chat_logger:
+                chat_logger.log_iterative_search_end(
+                    total_iterations=5,
+                    unique_documents=0,
+                    selected_count=0,
+                    final_result=no_results
+                )
+
+            return no_results
 
         # Preparar resumen para análisis final
         summary = f"""Has completado 5 búsquedas secuenciales. Aquí está el resumen:
@@ -590,6 +687,27 @@ Responde en formato JSON:
         # Limitar a N documentos
         best_documents = best_documents[:limit] if mode == "multiple" else best_documents[:1]
 
+        # LOG: Selección final
+        if chat_logger:
+            chat_logger.log_final_selection(
+                selection_request={
+                    "prompt": summary,
+                    "mode": mode,
+                    "limit": limit,
+                    "found_docs_count": len(found_docs)
+                },
+                selection_response={
+                    "raw": final_response,
+                    "content": final_response.content
+                },
+                final_analysis=final_analysis,
+                selected_documents=[{
+                    'id': doc.get('id'),
+                    'chunk_count': doc.get('chunk_count'),
+                    'best_score': doc.get('best_score')
+                } for doc in best_documents]
+            )
+
         # Calcular métricas
         unique_docs = len(doc_occurrences)
         best_doc_id = selected_ids[0] if selected_ids else None
@@ -599,7 +717,7 @@ Responde en formato JSON:
         logger.info(f"[ITERATIVE_SEARCH] Documentos únicos encontrados: {unique_docs}")
         logger.info(f"[ITERATIVE_SEARCH] Confianza: {final_analysis.get('confidence_score', 0.5)}")
 
-        return {
+        final_result = {
             'success': True,
             'best_documents': best_documents,
             'search_iterations': search_iterations,
@@ -616,8 +734,24 @@ Responde en formato JSON:
             }
         }
 
+        # LOG: Fin de búsqueda iterativa
+        if chat_logger:
+            chat_logger.log_iterative_search_end(
+                total_iterations=5,
+                unique_documents=unique_docs,
+                selected_count=len(best_documents),
+                final_result=final_result
+            )
+
+        return final_result
+
     except Exception as e:
         logger.error(f"[ITERATIVE_SEARCH] Error: {e}", exc_info=True)
+        if chat_logger:
+            chat_logger.log_fallback_search(
+                original_query=original_query,
+                reason=f"Exception: {str(e)}"
+            )
         return _fallback_search(original_query, vectorstore, mode, limit)
 
 
