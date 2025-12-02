@@ -19,33 +19,19 @@ logger = logging.getLogger(__name__)
 TOOL_DEFINITION = ToolDefinition(
     name="web_search",
     description=(
-        "Busca información actualizada en internet usando Google Custom Search API. "
-        "USA ESTA TOOL para información NO disponible en la base de datos: precios actuales, noticias recientes, "
-        "datos de empresas, especificaciones técnicas, regulaciones actualizadas. "
-        "Retorna URLs y snippets breves (150-200 chars). Para información detallada usa browse_webpage con las URLs encontradas. "
-        "Workflow recomendado: 1) web_search (encuentra URLs) → 2) browse_webpage (extrae información específica)."
+        "Busca información actualizada en internet. Retorna URLs y snippets breves. "
+        "Para información detallada de las URLs encontradas, usa browse_webpage después."
     ),
     parameters={
         "type": "object",
         "properties": {
             "query": {
                 "type": "string",
-                "description": (
-                    "Consulta de búsqueda para encontrar información web relevante. "
-                    "Puede ser sobre CUALQUIER tema: precios (Bitcoin, acciones), noticias, empresas, "
-                    "especificaciones técnicas, estadísticas, regulaciones, etc. "
-                    "Sé específico y usa palabras clave claras. "
-                    "Ejemplo: 'precio Bitcoin coinbase', 'Telefónica ingresos 2024', 'iPhone 15 Pro especificaciones'"
-                )
+                "description": "Términos de búsqueda. Ejemplo: 'precio Bitcoin', 'Telefónica ingresos 2024'"
             },
             "limit": {
                 "type": "integer",
-                "description": (
-                    "Número de resultados de búsqueda a retornar (1-10). "
-                    "Por defecto: 5. "
-                    "Usa números bajos (3) para búsquedas rápidas, "
-                    "números altos (7-10) para investigación exhaustiva."
-                ),
+                "description": "Número de resultados (1-10). Por defecto: 5",
                 "minimum": 1,
                 "maximum": 10,
                 "default": 5

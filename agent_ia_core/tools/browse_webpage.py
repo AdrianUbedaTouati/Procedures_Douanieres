@@ -22,54 +22,30 @@ logger = logging.getLogger(__name__)
 TOOL_DEFINITION = ToolDefinition(
     name="browse_webpage",
     description=(
-        "Extrae información ESPECÍFICA de una URL usando extracción progresiva con LLM. "
-        "USA ESTA TOOL después de web_search para obtener datos exactos y detallados de las URLs encontradas. "
-        "Usa extracción progresiva inteligente: procesa el contenido en chunks y detiene cuando encuentra la respuesta (early stopping), "
-        "ahorrando tokens. Funciona con HTML estático (no JavaScript). Ideal para precios exactos, fechas, especificaciones técnicas. "
-        "Workflow: web_search (encuentra URLs) → browse_webpage (extrae información específica)."
+        "Extrae información específica de una URL. "
+        "Usa después de web_search para obtener detalles exactos de las páginas encontradas."
     ),
     parameters={
         "type": "object",
         "properties": {
             "url": {
                 "type": "string",
-                "description": (
-                    "URL completa de la página web a navegar. Debe empezar con http:// o https://. "
-                    "Usa las URLs encontradas por web_search para mejores resultados. "
-                    "Ejemplo: 'https://example.com/article', 'https://coinbase.com/prices/bitcoin'"
-                )
+                "description": "URL completa (http:// o https://). Ejemplo: 'https://example.com/article'"
             },
             "user_query": {
                 "type": "string",
-                "description": (
-                    "La pregunta ESPECÍFICA que quieres responder con el contenido de esta página. "
-                    "Sé claro y preciso para que el sistema de extracción progresiva funcione óptimamente. "
-                    "Ejemplos: "
-                    "'¿Cuál es el precio exacto del Bitcoin?', "
-                    "'¿Cuándo empieza el evento?', "
-                    "'¿Cuáles son los requisitos del sistema?', "
-                    "'¿Cuál es el presupuesto de la licitación?'"
-                )
+                "description": "Pregunta específica a responder. Ejemplo: '¿Cuál es el precio exacto del Bitcoin?'"
             },
             "max_chars": {
                 "type": "integer",
-                "description": (
-                    "Número máximo de caracteres a procesar del contenido de la página. "
-                    "Por defecto: 10000 (basado en configuración del usuario). "
-                    "Valores más altos = más contenido analizado pero mayor coste de tokens."
-                ),
+                "description": "Máximo de caracteres a procesar. Por defecto: 10000",
                 "minimum": 1000,
                 "maximum": 50000,
                 "default": 10000
             },
             "chunk_size": {
                 "type": "integer",
-                "description": (
-                    "Tamaño de cada fragmento para análisis progresivo (en caracteres). "
-                    "Por defecto: 1250. "
-                    "Fragmentos más pequeños = más precisión pero más llamadas al LLM. "
-                    "Fragmentos más grandes = menos llamadas pero menos precisión."
-                ),
+                "description": "Tamaño de cada fragmento. Por defecto: 1250",
                 "minimum": 500,
                 "maximum": 5000,
                 "default": 1250
