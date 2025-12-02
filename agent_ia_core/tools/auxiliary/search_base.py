@@ -280,12 +280,13 @@ def optimize_and_search_iterative_with_verification(
     try:
         if not llm or not vectorstore:
             logger.error("[ITERATIVE_SEARCH] LLM o vectorstore no disponibles")
+            fallback_result = _fallback_search(original_query, vectorstore, mode, limit)
             if chat_logger:
                 chat_logger.log_fallback_search(
-                    original_query=original_query,
-                    reason="LLM o vectorstore no disponibles"
+                    reason="LLM o vectorstore no disponibles",
+                    fallback_result=fallback_result
                 )
-            return _fallback_search(original_query, vectorstore, mode, limit)
+            return fallback_result
 
         logger.info(f"[ITERATIVE_SEARCH] Iniciando 5 búsquedas secuenciales para: '{original_query[:50]}...'")
         logger.info(f"[ITERATIVE_SEARCH] Modo: {mode}, Limit: {limit if mode == 'multiple' else 1}")
@@ -373,10 +374,9 @@ Responde SOLO con la query, sin explicaciones adicionales."""
             if chat_logger:
                 chat_logger.log_query_optimization(
                     iteration=iteration,
-                    original_query=original_query,
+                    optimized_query=optimized_query,
                     llm_request=conversation_with_llm[-2:],  # System + último mensaje
-                    llm_response={"content": optimized_query, "raw": llm_response},
-                    optimized_query=optimized_query
+                    llm_response={"content": optimized_query, "raw": llm_response}
                 )
 
             # 2. Ejecutar búsqueda semántica
@@ -392,7 +392,7 @@ Responde SOLO con la query, sin explicaciones adicionales."""
                     iteration=iteration,
                     query=optimized_query,
                     k=7,
-                    search_result=search_result
+                    results=search_result
                 )
 
             # Evaluar resultado
@@ -536,7 +536,7 @@ Responde en formato JSON:
             if chat_logger:
                 chat_logger.log_iteration_result(
                     iteration=iteration,
-                    iteration_result=iteration_result
+                    result=iteration_result
                 )
 
             # 5. Feedback al LLM para próxima iteración (si no es la última)
@@ -570,9 +570,8 @@ Responde SOLO con la query."""
                 if chat_logger:
                     chat_logger.log_iteration_feedback(
                         iteration=iteration,
-                        feedback_message=feedback,
-                        best_so_far=best_summary,
-                        docs_found_so_far=len(docs_so_far)
+                        feedback=feedback,
+                        next_iteration=iteration + 1
                     )
 
         # ============================================================
@@ -606,9 +605,9 @@ Responde SOLO con la query."""
             if chat_logger:
                 chat_logger.log_iterative_search_end(
                     total_iterations=5,
-                    unique_documents=0,
-                    selected_count=0,
-                    final_result=no_results
+                    success=True,
+                    analysis=no_results['analysis'],
+                    documents_found=0
                 )
 
             return no_results
@@ -738,21 +737,22 @@ Responde en formato JSON:
         if chat_logger:
             chat_logger.log_iterative_search_end(
                 total_iterations=5,
-                unique_documents=unique_docs,
-                selected_count=len(best_documents),
-                final_result=final_result
+                success=True,
+                analysis=final_result['analysis'],
+                documents_found=len(best_documents)
             )
 
         return final_result
 
     except Exception as e:
         logger.error(f"[ITERATIVE_SEARCH] Error: {e}", exc_info=True)
+        fallback_result = _fallback_search(original_query, vectorstore, mode, limit)
         if chat_logger:
             chat_logger.log_fallback_search(
-                original_query=original_query,
-                reason=f"Exception: {str(e)}"
+                reason=f"Exception: {str(e)}",
+                fallback_result=fallback_result
             )
-        return _fallback_search(original_query, vectorstore, mode, limit)
+        return fallback_result
 
 
 def _build_full_context(conversation_history, tool_calls_history, company_info):
