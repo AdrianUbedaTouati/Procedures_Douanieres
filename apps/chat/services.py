@@ -622,9 +622,10 @@ Genera tu respuesta mejorada:"""
                 result['iterations'] = result.get('iterations', 0) + improved_result.get('iterations', 0)
 
             # Save comprehensive review metadata for tracking
-            # Determinar status basado en continue_improving de la última revisión
-            last_continue_improving = review_history[-1].get('continue_improving', False) if review_history else False
-            derived_status = 'NEEDS_IMPROVEMENT' if last_continue_improving else 'APPROVED'
+            # Derivar status para compatibilidad: si aún quiere mejorar = NEEDS_IMPROVEMENT, si no = APPROVED
+            last_review = review_history[-1] if review_history else {}
+            continue_improving = last_review.get('continue_improving', False)
+            review_status = 'NEEDS_IMPROVEMENT' if continue_improving else 'APPROVED'
 
             review_tracking = {
                 'review_performed': True,
@@ -634,12 +635,12 @@ Genera tu respuesta mejorada:"""
                 'all_scores': all_review_scores,
                 'final_score': all_review_scores[-1] if all_review_scores else 100,
                 'review_history': review_history,
-                # Mantener compatibilidad con código anterior (usar última revisión)
-                'review_status': derived_status,  # Derivado de continue_improving
-                'review_score': review_history[-1]['score'] if review_history else 100,
-                'review_issues': review_history[-1]['issues'] if review_history else [],
-                'review_suggestions': review_history[-1]['suggestions'] if review_history else [],
-                'continue_improving': last_continue_improving  # Añadir para transparencia
+                # Campos derivados de la última revisión (para compatibilidad)
+                'review_status': review_status,
+                'review_score': last_review.get('score', 100),
+                'review_issues': last_review.get('issues', []),
+                'review_suggestions': last_review.get('suggestions', []),
+                'continue_improving': continue_improving
             }
 
             print(f"[SERVICE] Review completado: {current_loop} loops ejecutados, scores: {all_review_scores}", file=sys.stderr)
