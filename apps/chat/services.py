@@ -123,7 +123,7 @@ class ChatAgentService:
                 chat_logger=self.chat_logger  # Pasar logger para logging detallado
             )
 
-            print(f"[SERVICE] ✓ FunctionCallingAgent creado con {len(self._agent.tool_registry.tools)} tools", file=sys.stderr)
+            print(f"[SERVICE] ✓ FunctionCallingAgent creado con {len(self._agent.tool_registry.tool_definitions)} tools", file=sys.stderr)
             if self.user:
                 print(f"[SERVICE] ✓ Tools de contexto disponibles (get_company_info, get_tenders_summary)", file=sys.stderr)
             if self.company_context:
