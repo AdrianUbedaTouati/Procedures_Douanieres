@@ -27,7 +27,7 @@ Reestructurar el sistema de tools para que sea:
    - ✅ Exportar `ALL_TOOLS` list
    - ✅ Logs informativos durante el proceso
 
-4. **Tools migradas a nueva estructura (12/12)** ✅ COMPLETADO
+4. **Tools migradas a nueva estructura (14/14)** ✅ COMPLETADO
    - ✅ `find_best_tender.py` - LA mejor licitación (singular)
    - ✅ `find_top_tenders.py` - X mejores licitaciones (plural)
    - ✅ `get_tender_details.py` - Detalles completos de una licitación
@@ -40,12 +40,16 @@ Reestructurar el sistema de tools para que sea:
    - ✅ `find_by_location.py` - Buscar por ubicación
    - ✅ `get_company_info.py` - Info de empresa del usuario
    - ✅ `get_tenders_summary.py` - Resumen de licitaciones guardadas
+   - ✅ `web_search.py` - **NUEVO:** Búsqueda web con Google Custom Search API
+   - ✅ `browse_webpage.py` - **NUEVO:** Extracción progresiva de información de URLs
 
 5. **Actualizar registry.py** ✅ COMPLETADO
    - ✅ Eliminar imports manuales de tools antiguos
    - ✅ Usar `from agent_ia_core.tools import ALL_TOOLS`
    - ✅ Método `get_reviewer_tools_description()` dinámico
    - ✅ Inyección automática de dependencias (retriever, db_session, user)
+   - ✅ **NUEVO:** Inyección de LLM para browse_webpage
+   - ✅ **NUEVO:** Inyección de google_api_key y google_engine_id para web_search
 
 6. **Actualizar `response_reviewer.py`** ✅ COMPLETADO
    - ✅ Agregar `tool_registry` al `__init__`
@@ -128,3 +132,105 @@ agent_ia_core/
 2. `refactor: Migración completa de 12 tools a nueva estructura modular (Fase 2/3)` - Todas las tools
 3. `refactor: Actualizar registry.py para usar autodiscovery con ToolDefinition` - Registry
 4. `refactor: Response reviewer con descripciones dinámicas de tools` - Reviewer integration
+5. `feat: Nuevas web tools (web_search + browse_webpage) con workflow de 2 pasos` - Web tools integration
+
+---
+
+## 🌐 Nuevas Web Tools (Fecha: 2025-12-02)
+
+### Workflow de 2 Pasos
+
+Se han agregado 2 nuevas tools que funcionan en conjunto siguiendo un **workflow de exploración → profundización**:
+
+#### 1️⃣ `web_search.py` - Exploración Amplia
+- **Propósito**: Buscar información en internet y encontrar URLs relevantes
+- **API**: Google Custom Search API
+- **Output**: Lista de resultados con títulos, snippets (150-200 chars), URLs
+- **Cuándo usar**: Información NO disponible en BD de licitaciones, precios actuales, noticias, empresas, specs técnicas, regulaciones
+- **Parámetros requeridos**: `query` (string), `limit` (int, 1-10, default 5)
+- **Dependencias inyectadas**: `api_key`, `engine_id` (desde user config)
+
+#### 2️⃣ `browse_webpage.py` - Profundización Precisa
+- **Propósito**: Extraer información ESPECÍFICA de una URL usando las URLs encontradas por web_search
+- **Tecnología**: BeautifulSoup + Requests + **Extracción Progresiva con LLM**
+- **Característica Especial**: Early stopping - procesa chunks hasta encontrar respuesta
+- **Output**: Respuesta extraída (no todo el contenido)
+- **Cuándo usar**: DESPUÉS de web_search, para datos exactos/detallados
+- **Parámetros requeridos**: `url` (string), `user_query` (string)
+- **Parámetros opcionales**: `max_chars` (int, default 10000), `chunk_size` (int, default 1250)
+- **Dependencias inyectadas**: `llm` (ChatOpenAI/ChatGemini instance)
+
+### Extracción Progresiva (browse_webpage)
+
+**Algoritmo inteligente con early stopping:**
+
+1. Descarga y limpia HTML de la URL
+2. Divide contenido en chunks de N caracteres (configurable)
+3. Para cada chunk secuencialmente:
+   - Envía al LLM: "¿Este fragmento responde la pregunta X?"
+   - Si LLM responde "NO" → continúa con siguiente chunk
+   - Si LLM responde con contenido → **DETIENE** extracción (early stopping)
+4. Retorna respuesta encontrada + métricas (chars analizados, chars ahorrados, eficiencia %)
+
+**Beneficios:**
+- ✅ Ahorra tokens (no procesa contenido innecesario)
+- ✅ Más rápido (detiene apenas encuentra respuesta)
+- ✅ Contexto conversacional (LLM recuerda fragmentos anteriores)
+- ✅ Respuestas directas (sin frases como "Según el fragmento...")
+
+### Ejemplo de Uso Completo
+
+```
+Usuario: "¿Cuál es el precio EXACTO del Bitcoin?"
+
+→ PASO 1: web_search
+   query: "precio Bitcoin coinbase actual"
+   → Resultado: [
+       {title: "Bitcoin Price - Coinbase", url: "https://coinbase.com/prices/bitcoin", snippet: "Buy and sell Bitcoin..."},
+       ...
+     ]
+
+→ PASO 2: browse_webpage
+   url: "https://coinbase.com/prices/bitcoin"
+   user_query: "precio exacto Bitcoin USD"
+   → Chunk 1: "Bitcoin (BTC) ... comprar..." → LLM: "NO"
+   → Chunk 2: "Precio actual: $65,432.50 USD" → LLM: "$65,432.50 USD" ✓
+   → Early stopping! (ahorro: 80% de contenido no procesado)
+
+→ RESPUESTA FINAL al usuario:
+   "El precio actual de Bitcoin es $65,432.50 USD según Coinbase."
+```
+
+### Configuración Requerida
+
+**En user model (Django):**
+```python
+user.use_web_search = True  # Habilitar web tools
+user.google_search_api_key = "AIzaSy..."  # Google Custom Search API Key
+user.google_search_engine_id = "a1b2c3d..."  # Search Engine ID (cx parameter)
+```
+
+**En registry initialization:**
+```python
+registry = ToolRegistry(
+    retriever=retriever,
+    user=user,
+    llm=llm,  # Para browse_webpage
+    google_api_key=user.google_search_api_key,
+    google_engine_id=user.google_search_engine_id
+)
+```
+
+### Mensajes en Logs
+
+```
+[REGISTRY] ✓ Web tools (web_search + browse_webpage) habilitadas con credenciales Google
+[WEB_SEARCH] Buscando: 'precio Bitcoin' (limit=5)
+[WEB_SEARCH] ✓ Encontrados 5 resultados
+[BROWSE] Navegando a: https://coinbase.com/prices/bitcoin
+[BROWSE] Contenido extraído: 15234 caracteres
+[BROWSE] Iniciando extracción progresiva con user_query: 'precio exacto Bitcoin USD'
+[BROWSE] Procesando chunk 1 (1250 chars)
+[BROWSE] Procesando chunk 2 (1250 chars)
+[BROWSE] ✓ Respuesta encontrada en chunk 2/12. Ahorro: 12734 chars (83.6%)
+```

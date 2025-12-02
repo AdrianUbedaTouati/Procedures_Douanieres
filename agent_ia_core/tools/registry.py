@@ -22,7 +22,8 @@ class ToolRegistry:
     - Generar descripción para el reviewer
     """
 
-    def __init__(self, retriever, db_session=None, user=None, max_retries: int = 3):
+    def __init__(self, retriever, db_session=None, user=None, max_retries: int = 3,
+                 llm=None, google_api_key: str = None, google_engine_id: str = None):
         """
         Inicializa el registro con autodiscovery de todas las tools.
 
@@ -31,11 +32,17 @@ class ToolRegistry:
             db_session: Sesión de base de datos Django (opcional)
             user: Usuario de Django para tools de contexto (opcional)
             max_retries: Número máximo de reintentos por tool en caso de fallo (default: 3)
+            llm: Instancia del LLM para tools que requieren LLM (browse_webpage, etc.)
+            google_api_key: Google Custom Search API Key para web_search (opcional)
+            google_engine_id: Google Custom Search Engine ID para web_search (opcional)
         """
         self.retriever = retriever
         self.db_session = db_session
         self.user = user
         self.max_retries = max_retries
+        self.llm = llm
+        self.google_api_key = google_api_key
+        self.google_engine_id = google_engine_id
         self.tool_definitions: Dict[str, ToolDefinition] = {}
         self._register_all_tools()
 
@@ -62,9 +69,12 @@ class ToolRegistry:
             if getattr(self.user, 'use_verification', False):
                 logger.info("[REGISTRY] ⚠ Verification tool detectada en configuración pero no implementada en nuevo sistema")
 
-            # Web Search: Búsqueda en internet
+            # Web Search: Búsqueda en internet (ahora soportada)
             if getattr(self.user, 'use_web_search', False):
-                logger.info("[REGISTRY] ⚠ Web search tool detectada en configuración pero no implementada en nuevo sistema")
+                if self.google_api_key and self.google_engine_id:
+                    logger.info("[REGISTRY] ✓ Web tools (web_search + browse_webpage) habilitadas con credenciales Google")
+                else:
+                    logger.warning("[REGISTRY] ⚠ use_web_search=True pero falta google_api_key o google_engine_id")
 
     def get_tool(self, name: str) -> Optional[ToolDefinition]:
         """
@@ -185,6 +195,16 @@ class ToolRegistry:
         # Inyectar user para tools de contexto
         if 'user' in tool_def.function.__code__.co_varnames:
             injected_kwargs['user'] = self.user
+
+        # Inyectar LLM para tools que lo requieren (browse_webpage)
+        if 'llm' in tool_def.function.__code__.co_varnames:
+            injected_kwargs['llm'] = self.llm
+
+        # Inyectar credenciales de Google para web_search
+        if 'api_key' in tool_def.function.__code__.co_varnames:
+            injected_kwargs['api_key'] = self.google_api_key
+        if 'engine_id' in tool_def.function.__code__.co_varnames:
+            injected_kwargs['engine_id'] = self.google_engine_id
 
         # Sistema de reintentos
         last_error = None
