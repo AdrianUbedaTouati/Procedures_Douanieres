@@ -440,8 +440,8 @@ class ChatAgentService:
             max_review_loops = getattr(self.user, 'max_review_loops', 3)
             print(f"[SERVICE] Iniciando sistema de revisión (max_loops: {max_review_loops})...", file=sys.stderr)
 
-            # Create reviewer with same LLM as agent AND pass chat_logger
-            reviewer = ResponseReviewer(agent.llm, chat_logger=self.chat_logger)
+            # Create reviewer with same LLM as agent, tool_registry AND chat_logger
+            reviewer = ResponseReviewer(agent.llm, tool_registry=agent.tool_registry, chat_logger=self.chat_logger)
 
             # Initialize review tracking
             review_history = []  # Historial de todas las revisiones

@@ -20,15 +20,17 @@ class ResponseReviewer:
     - Coherencia: Responde la pregunta, usa documentos correctamente
     """
 
-    def __init__(self, llm, chat_logger: Optional[Any] = None):
+    def __init__(self, llm, tool_registry=None, chat_logger: Optional[Any] = None):
         """
-        Inicializa el revisor con un LLM.
+        Inicializa el revisor con un LLM y tool registry.
 
         Args:
             llm: Instancia del LLM (ChatOllama, ChatOpenAI, ChatGemini, etc.)
+            tool_registry: Instancia de ToolRegistry para obtener descripciones dinámicas de tools
             chat_logger: Instancia de ChatLogger para logging detallado (opcional)
         """
         self.llm = llm
+        self.tool_registry = tool_registry
         self.chat_logger = chat_logger
 
     def review_response(
@@ -275,6 +277,15 @@ Ejemplo: "Falta incluir el presupuesto de la licitación 123456-2024"]
 - En PARAM_VALIDATION, verifica si los parámetros usados fueron óptimos
 - NO reescribas la respuesta, solo da feedback para que el agente la mejore
 
+"""
+
+        # Agregar descripción dinámica de tools si tool_registry disponible
+        if self.tool_registry:
+            tools_description = self.tool_registry.get_reviewer_tools_description()
+            prompt += f"\n**HERRAMIENTAS DISPONIBLES:**\n{tools_description}\n"
+        else:
+            # Fallback con lista estática si no hay registry (backward compatibility)
+            prompt += """
 **HERRAMIENTAS DISPONIBLES:**
 - find_best_tender(query): Encuentra LA mejor licitación (singular)
 - find_top_tenders(query, limit): Encuentra X mejores licitaciones (plural)
