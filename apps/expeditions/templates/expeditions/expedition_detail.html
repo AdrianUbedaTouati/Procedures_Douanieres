@@ -1,0 +1,248 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ expedition.reference }} - Procédures Douanières{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expéditions</a></li>
+            <li class="breadcrumb-item active">{{ expedition.reference }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>
+                <i class="bi bi-box-seam text-primary"></i> {{ expedition.reference }}
+            </h1>
+            <h4 class="text-muted">{{ expedition.nom_article }}</h4>
+        </div>
+        <div class="col-md-4 text-end">
+            {% if expedition.statut == 'brouillon' %}
+                <span class="badge bg-secondary fs-6">Brouillon</span>
+            {% elif expedition.statut == 'en_cours' %}
+                <span class="badge bg-info fs-6">En cours</span>
+            {% elif expedition.statut == 'termine' %}
+                <span class="badge bg-success fs-6">Terminé</span>
+            {% else %}
+                <span class="badge bg-danger fs-6">Erreur</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informations générales -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <i class="bi bi-info-circle"></i> Informations
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Direction</dt>
+                        <dd class="col-sm-7">
+                            {% if expedition.direction == 'FR_DZ' %}
+                                <span class="badge bg-primary">France → Algérie</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Algérie → France</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-5">Créé le</dt>
+                        <dd class="col-sm-7">{{ expedition.created_at|date:"d/m/Y H:i" }}</dd>
+
+                        <dt class="col-sm-5">Modifié le</dt>
+                        <dd class="col-sm-7">{{ expedition.updated_at|date:"d/m/Y H:i" }}</dd>
+
+                        {% if expedition.description %}
+                        <dt class="col-sm-12 mt-2">Description</dt>
+                        <dd class="col-sm-12">{{ expedition.description }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progression globale -->
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-light">
+                    <i class="bi bi-graph-up"></i> Progression globale
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3" style="height: 30px;">
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: {{ expedition.get_progress_percentage }}%"
+                             aria-valuenow="{{ expedition.get_progress_percentage }}"
+                             aria-valuemin="0" aria-valuemax="100">
+                            {{ expedition.get_progress_percentage }}% complété
+                        </div>
+                    </div>
+                    <p class="text-center text-muted">
+                        Étape {{ expedition.etape_courante }} sur 5
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Les 5 Étapes -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <i class="bi bi-list-check"></i> Étapes du Processus Douanier
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for etape in etapes %}
+                <div class="col-md-12 mb-3">
+                    <div class="card {% if etape.statut == 'en_cours' %}border-primary{% elif etape.statut == 'termine' %}border-success{% elif etape.statut == 'erreur' %}border-danger{% else %}border-secondary{% endif %}">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <!-- Numéro et icône -->
+                                <div class="col-auto">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center
+                                        {% if etape.statut == 'termine' %}bg-success{% elif etape.statut == 'en_cours' %}bg-primary{% elif etape.statut == 'erreur' %}bg-danger{% else %}bg-secondary{% endif %} text-white"
+                                        style="width: 50px; height: 50px;">
+                                        {% if etape.statut == 'termine' %}
+                                            <i class="bi bi-check-lg fs-4"></i>
+                                        {% elif etape.statut == 'en_cours' %}
+                                            <i class="bi {{ etape.icone }} fs-4"></i>
+                                        {% elif etape.statut == 'erreur' %}
+                                            <i class="bi bi-exclamation-triangle fs-4"></i>
+                                        {% else %}
+                                            <span class="fw-bold">{{ etape.numero }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Nom et description -->
+                                <div class="col">
+                                    <h5 class="mb-1">
+                                        Étape {{ etape.numero }}: {{ etape.nom }}
+                                    </h5>
+                                    <p class="text-muted mb-0 small">{{ etape.description }}</p>
+
+                                    <!-- Données de l'étape si terminée -->
+                                    {% if etape.statut == 'termine' and etape.numero == 1 %}
+                                    <div class="mt-2">
+                                        <span class="badge bg-light text-dark">
+                                            SH: {{ etape.donnees.code_sh|default:"-" }}
+                                        </span>
+                                        <span class="badge bg-light text-dark">
+                                            NC: {{ etape.donnees.code_nc|default:"-" }}
+                                        </span>
+                                        <span class="badge bg-light text-dark">
+                                            TARIC: {{ etape.donnees.code_taric|default:"-" }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Statut et action -->
+                                <div class="col-auto text-end">
+                                    {% if etape.statut == 'en_attente' %}
+                                        <span class="badge bg-secondary">En attente</span>
+                                    {% elif etape.statut == 'en_cours' %}
+                                        <span class="badge bg-primary">En cours</span>
+                                    {% elif etape.statut == 'termine' %}
+                                        <span class="badge bg-success">Terminé</span>
+                                        <br><small class="text-muted">{{ etape.completed_at|date:"d/m/Y" }}</small>
+                                    {% else %}
+                                        <span class="badge bg-danger">Erreur</span>
+                                    {% endif %}
+
+                                    <!-- Bouton d'action -->
+                                    {% if etape.statut == 'en_cours' %}
+                                        {% if etape.numero == 1 %}
+                                            <a href="{% url 'apps_expeditions:classification' expedition.pk %}"
+                                               class="btn btn-primary btn-sm mt-2">
+                                                <i class="bi bi-arrow-right"></i> Continuer
+                                            </a>
+                                        {% elif etape.numero == 2 %}
+                                            <a href="{% url 'apps_expeditions:documents' expedition.pk %}"
+                                               class="btn btn-success btn-sm mt-2">
+                                                <i class="bi bi-arrow-right"></i> Continuer
+                                            </a>
+                                        {% elif etape.numero == 3 %}
+                                            <a href="{% url 'apps_expeditions:transmission' expedition.pk %}"
+                                               class="btn btn-info btn-sm mt-2">
+                                                <i class="bi bi-arrow-right"></i> Continuer
+                                            </a>
+                                        {% elif etape.numero == 4 %}
+                                            <a href="{% url 'apps_expeditions:paiement' expedition.pk %}"
+                                               class="btn btn-warning btn-sm mt-2">
+                                                <i class="bi bi-arrow-right"></i> Continuer
+                                            </a>
+                                        {% elif etape.numero == 5 %}
+                                            <a href="{% url 'apps_expeditions:oea' expedition.pk %}"
+                                               class="btn btn-secondary btn-sm mt-2">
+                                                <i class="bi bi-arrow-right"></i> Continuer
+                                            </a>
+                                        {% endif %}
+                                    {% elif etape.statut == 'termine' and etape.numero == 1 %}
+                                        <a href="{% url 'apps_expeditions:classification' expedition.pk %}"
+                                           class="btn btn-outline-primary btn-sm mt-2">
+                                            <i class="bi bi-eye"></i> Voir
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Documents associés -->
+    {% if documents %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <i class="bi bi-paperclip"></i> Documents associés
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                {% for doc in documents %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        {% if doc.is_image %}
+                            <i class="bi bi-image text-primary"></i>
+                        {% elif doc.is_pdf %}
+                            <i class="bi bi-file-pdf text-danger"></i>
+                        {% else %}
+                            <i class="bi bi-file-earmark text-secondary"></i>
+                        {% endif %}
+                        {{ doc.nom_original }}
+                        <span class="badge bg-light text-dark">{{ doc.get_type_display }}</span>
+                    </div>
+                    <a href="{{ doc.fichier.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                        <i class="bi bi-download"></i> Télécharger
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="d-flex justify-content-between">
+        <a href="{% url 'apps_expeditions:list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Retour à la liste
+        </a>
+        {% if expedition.statut != 'termine' %}
+        <form action="{% url 'apps_expeditions:delete' expedition.pk %}" method="post" class="d-inline"
+              onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette expédition ?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="bi bi-trash"></i> Supprimer
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Paiement - {{ expedition.reference }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expéditions</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:detail' expedition.pk %}">{{ expedition.reference }}</a></li>
+            <li class="breadcrumb-item active">Paiement</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="bi bi-calculator"></i> Étape 4: Calcul et Paiement des Droits
+                    </h4>
+                </div>
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-tools display-1 text-muted"></i>
+                    <h3 class="mt-3">Fonctionnalité en développement</h3>
+                    <p class="text-muted">
+                        Le calcul automatique et le paiement des droits de douane seront disponibles prochainement.
+                    </p>
+                    <hr>
+                    <h5>Formule de calcul:</h5>
+                    <p class="font-monospace">(Valeur CIF + Frais) × Taux</p>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h6>Taux Algérie:</h6>
+                            <ul class="list-unstyled small">
+                                <li>5% - Première nécessité</li>
+                                <li>15% - Matières premières</li>
+                                <li>30% - Semi-finis</li>
+                                <li>60% - Produits finis</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>TVA:</h6>
+                            <ul class="list-unstyled small">
+                                <li>19% - Algérie</li>
+                                <li>20% - France</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Retour
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

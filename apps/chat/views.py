@@ -6,10 +6,8 @@ from django.contrib import messages
 from django.urls import reverse
 from django.template.loader import render_to_string
 from django.db.models import Count, Prefetch
-from django.core.cache import cache
 from .models import ChatSession, ChatMessage
 from .services import ChatAgentService
-from apps.tenders.vectorization_service import VectorizationService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -34,29 +32,15 @@ class ChatSessionListView(LoginRequiredMixin, ListView):
             user=self.request.user,
             is_archived=False
         ).annotate(
-            message_count=Count('messages')  # Calcular conteo en una sola query
+            message_count=Count('messages')
         ).prefetch_related(
-            last_message_prefetch  # Traer último mensaje de todas las sesiones en 1 query
+            last_message_prefetch
         ).order_by('-updated_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        # Cachear estado de ChromaDB por 5 minutos para mejorar rendimiento
-        cache_key = f'vectorstore_status_{self.request.user.id}'
-        status = cache.get(cache_key)
-
-        if status is None:
-            logger.info(f"[CACHE MISS] Obteniendo estado de ChromaDB para usuario {self.request.user.id}")
-            vectorization_service = VectorizationService(user=self.request.user)
-            status = vectorization_service.get_vectorstore_status()
-            cache.set(cache_key, status, 300)  # Cachear por 5 minutos (300 segundos)
-        else:
-            logger.info(f"[CACHE HIT] Usando estado cacheado de ChromaDB para usuario {self.request.user.id}")
-
-        context['vectorstore_status'] = status
-        context['can_use_chat'] = status['is_initialized'] and status['num_documents'] > 0
-
+        # El chat siempre está disponible (ya no depende de ChromaDB)
+        context['can_use_chat'] = True
         return context
 
 
@@ -64,25 +48,6 @@ class ChatSessionCreateView(LoginRequiredMixin, View):
     """Vista para crear una nueva sesión de chat"""
 
     def post(self, request):
-        # Verificar que ChromaDB esté inicializado
-        vectorization_service = VectorizationService(user=request.user)
-        status = vectorization_service.get_vectorstore_status()
-
-        if not status['is_initialized'] or status['num_documents'] == 0:
-            messages.error(
-                request,
-                '⚠️ No puedes usar el chat porque no hay licitaciones indexadas. '
-                'Primero debes indexar las licitaciones.'
-            )
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': False,
-                    'error': 'ChromaDB no inicializado',
-                    'message': 'No hay licitaciones indexadas. Ve a la página de vectorización primero.',
-                    'redirect_url': reverse('apps_tenders:vectorization_index')
-                })
-            return redirect('apps_tenders:vectorization_dashboard')
-
         session = ChatSession.objects.create(user=request.user)
 
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -103,27 +68,10 @@ class ChatSessionDetailView(LoginRequiredMixin, DetailView):
     pk_url_kwarg = 'session_id'
 
     def get_queryset(self):
-        # Solo permitir acceso a sesiones del usuario actual
         return ChatSession.objects.filter(user=self.request.user)
-
-    def dispatch(self, request, *args, **kwargs):
-        # Verificar que ChromaDB esté inicializado antes de permitir acceso al chat
-        vectorization_service = VectorizationService(user=request.user)
-        status = vectorization_service.get_vectorstore_status()
-
-        if not status['is_initialized'] or status['num_documents'] == 0:
-            messages.error(
-                request,
-                '⚠️ No puedes usar el chat porque no hay licitaciones indexadas. '
-                'Primero debes indexar las licitaciones en la página de vectorización.'
-            )
-            return redirect('apps_tenders:vectorization_dashboard')
-
-        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Obtener todos los mensajes de la sesión
         context['messages'] = self.object.messages.all().order_by('created_at')
         return context
 
@@ -189,8 +137,8 @@ class ChatMessageCreateView(LoginRequiredMixin, View):
             )
 
             # Create assistant message
-            print(f"[CHAT] ✓ Respuesta generada: {len(response['content'])} caracteres", file=sys.stderr)
-            print(f"[CHAT] Metadata: tokens={response['metadata'].get('total_tokens', 0)}, docs={response['metadata'].get('num_documents', 0)}", file=sys.stderr)
+            print(f"[CHAT] Respuesta generada: {len(response['content'])} caracteres", file=sys.stderr)
+            print(f"[CHAT] Metadata: tokens={response['metadata'].get('total_tokens', 0)}", file=sys.stderr)
             print("="*70 + "\n", file=sys.stderr)
 
             assistant_message = ChatMessage.objects.create(
@@ -204,13 +152,13 @@ class ChatMessageCreateView(LoginRequiredMixin, View):
             # Log completo del error para debugging
             import traceback
             error_trace = traceback.format_exc()
-            print(f"[CHAT ERROR] {error_trace}")  # Log en consola del servidor
+            print(f"[CHAT ERROR] {error_trace}")
 
             # Mensaje de error más descriptivo según el tipo
             error_msg = str(e)
             if 'ollama' in error_msg.lower() or 'connection' in error_msg.lower():
                 assistant_content = (
-                    "❌ **Error de conexión con Ollama**\n\n"
+                    "**Error de conexión con Ollama**\n\n"
                     "Por favor verifica:\n"
                     "1. Ollama está ejecutándose: `ollama serve`\n"
                     "2. El modelo está descargado: `ollama list`\n"
@@ -219,14 +167,8 @@ class ChatMessageCreateView(LoginRequiredMixin, View):
                 )
             elif 'API key' in error_msg or 'api_key' in error_msg:
                 assistant_content = (
-                    "🔑 **Falta configurar tu API key**\n\n"
+                    "**Falta configurar tu API key**\n\n"
                     "Ve a tu perfil y configura tu API key del proveedor que estás usando."
-                )
-            elif 'ChromaDB' in error_msg or 'collection' in error_msg:
-                assistant_content = (
-                    "📊 **Base de datos de licitaciones no inicializada**\n\n"
-                    "Ve a /licitaciones/vectorizacion/ y haz clic en 'Indexar Todas' "
-                    "para crear la base de datos antes de usar el chat."
                 )
             else:
                 assistant_content = f"Lo siento, ocurrió un error al procesar tu mensaje: {error_msg}"
@@ -241,7 +183,6 @@ class ChatMessageCreateView(LoginRequiredMixin, View):
                     'error': str(e),
                     'error_type': type(e).__name__,
                     'documents_used': [],
-                    'verified_fields': [],
                     'tokens_used': 0
                 }
             )
@@ -257,15 +198,11 @@ class ChatMessageCreateView(LoginRequiredMixin, View):
                 'msg': assistant_message
             })
 
-            # DEBUG: Log información de metadata
-            logger.info(f"📊 AJAX Response Debug:")
+            logger.info(f"AJAX Response Debug:")
             logger.info(f"  - User message length: {len(user_html)} chars")
             logger.info(f"  - Assistant message length: {len(assistant_html)} chars")
-            logger.info(f"  - Assistant metadata: {assistant_message.metadata}")
             logger.info(f"  - Tools used: {assistant_message.metadata.get('tools_used', [])}")
-            logger.info(f"  - Documents used: {len(assistant_message.metadata.get('documents_used', []))}")
             logger.info(f"  - Total tokens: {assistant_message.metadata.get('total_tokens', 0)}")
-            logger.info(f"  - Cost EUR: {assistant_message.metadata.get('cost_eur', 0)}")
 
             return JsonResponse({
                 'success': True,

@@ -1,0 +1,390 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Classification - {{ expedition.reference }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .upload-zone {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .upload-zone:hover {
+        border-color: #0d6efd;
+        background-color: #f8f9fa;
+    }
+    .upload-zone.dragover {
+        border-color: #0d6efd;
+        background-color: #e7f1ff;
+    }
+    .confidence-bar {
+        height: 8px;
+        border-radius: 4px;
+    }
+    .result-card {
+        border-left: 4px solid #198754;
+    }
+    .code-display {
+        font-family: monospace;
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expéditions</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:detail' expedition.pk %}">{{ expedition.reference }}</a></li>
+            <li class="breadcrumb-item active">Classification</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>
+                <i class="bi bi-tags text-primary"></i> Étape 1: Classification Douanière
+            </h1>
+            <p class="text-muted">{{ expedition.nom_article }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            {% if etape.statut == 'en_cours' %}
+                <span class="badge bg-primary fs-6">En cours</span>
+            {% elif etape.statut == 'termine' %}
+                <span class="badge bg-success fs-6">Terminé</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Colonne gauche: Upload et analyse -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-upload"></i> Télécharger un document
+                </div>
+                <div class="card-body">
+                    <p>
+                        Téléchargez une <strong>photo du produit</strong> ou sa <strong>fiche technique (PDF)</strong>
+                        pour lancer la classification automatique par IA.
+                    </p>
+
+                    <!-- Zone d'upload -->
+                    <form id="uploadForm" method="post" enctype="multipart/form-data"
+                          action="{% url 'apps_expeditions:classification_upload' expedition.pk %}">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="type_document"
+                                       id="type_photo" value="photo" checked>
+                                <label class="form-check-label" for="type_photo">
+                                    <i class="bi bi-camera"></i> Photo du produit
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="type_document"
+                                       id="type_fiche" value="fiche_technique">
+                                <label class="form-check-label" for="type_fiche">
+                                    <i class="bi bi-file-pdf"></i> Fiche technique
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="upload-zone mb-3" id="dropZone">
+                            <i class="bi bi-cloud-upload display-4 text-muted"></i>
+                            <p class="mb-1">Glissez-déposez votre fichier ici</p>
+                            <p class="text-muted small">ou cliquez pour sélectionner</p>
+                            <input type="file" name="fichier" id="fileInput" class="d-none"
+                                   accept="image/*,.pdf">
+                        </div>
+
+                        <div id="filePreview" class="mb-3 d-none">
+                            <div class="alert alert-info d-flex align-items-center">
+                                <i class="bi bi-file-earmark me-2"></i>
+                                <span id="fileName"></span>
+                                <button type="button" class="btn-close ms-auto" id="clearFile"></button>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100" id="uploadBtn" disabled>
+                            <i class="bi bi-upload"></i> Télécharger
+                        </button>
+                    </form>
+
+                    <!-- Documents déjà uploadés -->
+                    {% if documents %}
+                    <hr>
+                    <h6>Documents téléchargés</h6>
+                    <ul class="list-group">
+                        {% for doc in documents %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {% if doc.is_image %}
+                                <i class="bi bi-image text-primary"></i>
+                            {% else %}
+                                <i class="bi bi-file-pdf text-danger"></i>
+                            {% endif %}
+                            <span class="ms-2">{{ doc.nom_original|truncatechars:30 }}</span>
+                            <span class="badge bg-secondary">{{ doc.get_type_display }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    <!-- Bouton d'analyse -->
+                    {% if documents %}
+                    <form method="post" action="{% url 'apps_expeditions:classification_analyse' expedition.pk %}"
+                          class="mt-3" id="analyseForm">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100 btn-lg" id="analyseBtn">
+                            <i class="bi bi-robot"></i> Lancer la classification IA
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Colonne droite: Résultats -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-check-circle"></i> Résultat de la classification
+                </div>
+                <div class="card-body">
+                    {% if classification_result %}
+                    <!-- Résultats affichés -->
+                    <div class="result-card card mb-3">
+                        <div class="card-body">
+                            <!-- Code SH -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold">Code SH (6 chiffres)</span>
+                                    <span class="code-display text-primary">
+                                        {{ classification_result.code_sh|default:"-" }}
+                                    </span>
+                                </div>
+                                {% if classification_result.confiance_sh %}
+                                <div class="progress confidence-bar mt-1">
+                                    <div class="progress-bar bg-success" role="progressbar"
+                                         style="width: {{ classification_result.confiance_sh|floatformat:0 }}%"></div>
+                                </div>
+                                <small class="text-muted">
+                                    Confiance: {{ classification_result.confiance_sh|floatformat:0 }}%
+                                </small>
+                                {% endif %}
+                            </div>
+
+                            <!-- Code NC -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold">Code NC (8 chiffres UE)</span>
+                                    <span class="code-display text-success">
+                                        {{ classification_result.code_nc|default:"-" }}
+                                    </span>
+                                </div>
+                                {% if classification_result.confiance_nc %}
+                                <div class="progress confidence-bar mt-1">
+                                    <div class="progress-bar bg-info" role="progressbar"
+                                         style="width: {{ classification_result.confiance_nc|floatformat:0 }}%"></div>
+                                </div>
+                                <small class="text-muted">
+                                    Confiance: {{ classification_result.confiance_nc|floatformat:0 }}%
+                                </small>
+                                {% endif %}
+                            </div>
+
+                            <!-- Code TARIC -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold">Code TARIC (10 chiffres)</span>
+                                    <span class="code-display text-warning">
+                                        {{ classification_result.code_taric|default:"-" }}
+                                    </span>
+                                </div>
+                                {% if classification_result.confiance_taric %}
+                                <div class="progress confidence-bar mt-1">
+                                    <div class="progress-bar bg-warning" role="progressbar"
+                                         style="width: {{ classification_result.confiance_taric|floatformat:0 }}%"></div>
+                                </div>
+                                <small class="text-muted">
+                                    Confiance: {{ classification_result.confiance_taric|floatformat:0 }}%
+                                </small>
+                                {% endif %}
+                            </div>
+
+                            <!-- Justification -->
+                            {% if classification_result.justification %}
+                            <div class="mt-3 p-2 bg-light rounded">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle"></i> {{ classification_result.justification|truncatechars:300 }}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Formulaire de validation -->
+                    <form method="post" action="{% url 'apps_expeditions:classification_valider' expedition.pk %}">
+                        {% csrf_token %}
+
+                        <div class="accordion mb-3" id="accordionModifier">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapseModifier">
+                                        <i class="bi bi-pencil me-2"></i> Modifier manuellement
+                                    </button>
+                                </h2>
+                                <div id="collapseModifier" class="accordion-collapse collapse"
+                                     data-bs-parent="#accordionModifier">
+                                    <div class="accordion-body">
+                                        <div class="mb-2">
+                                            <label class="form-label">Code SH</label>
+                                            {{ manuel_form.code_sh }}
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label">Code NC</label>
+                                            {{ manuel_form.code_nc }}
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label">Code TARIC</label>
+                                            {{ manuel_form.code_taric }}
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label">Justification</label>
+                                            {{ manuel_form.justification }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Champs cachés avec les valeurs actuelles -->
+                        <input type="hidden" name="code_sh" value="{{ classification_result.code_sh }}" id="hidden_sh">
+                        <input type="hidden" name="code_nc" value="{{ classification_result.code_nc }}" id="hidden_nc">
+                        <input type="hidden" name="code_taric" value="{{ classification_result.code_taric }}" id="hidden_taric">
+
+                        <button type="submit" class="btn btn-success w-100 btn-lg">
+                            <i class="bi bi-check-lg"></i> Valider et passer à l'étape suivante
+                        </button>
+                    </form>
+
+                    {% else %}
+                    <!-- Pas encore de résultat -->
+                    <div class="text-center py-5">
+                        <i class="bi bi-search display-1 text-muted"></i>
+                        <h5 class="mt-3">En attente de classification</h5>
+                        <p class="text-muted">
+                            Téléchargez un document puis lancez l'analyse IA pour obtenir les codes douaniers.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bouton retour -->
+    <div class="mt-3">
+        <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Retour au détail
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const filePreview = document.getElementById('filePreview');
+    const fileName = document.getElementById('fileName');
+    const clearFile = document.getElementById('clearFile');
+    const uploadBtn = document.getElementById('uploadBtn');
+
+    // Click sur la zone d'upload
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // Drag & Drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            showPreview(e.dataTransfer.files[0]);
+        }
+    });
+
+    // Sélection de fichier
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+            showPreview(e.target.files[0]);
+        }
+    });
+
+    // Afficher l'aperçu
+    function showPreview(file) {
+        fileName.textContent = file.name;
+        filePreview.classList.remove('d-none');
+        uploadBtn.disabled = false;
+    }
+
+    // Effacer le fichier
+    clearFile.addEventListener('click', () => {
+        fileInput.value = '';
+        filePreview.classList.add('d-none');
+        uploadBtn.disabled = true;
+    });
+
+    // Mettre à jour les champs cachés si modification manuelle
+    const manuelSh = document.querySelector('[name="code_sh"]:not([type="hidden"])');
+    const manuelNc = document.querySelector('[name="code_nc"]:not([type="hidden"])');
+    const manuelTaric = document.querySelector('[name="code_taric"]:not([type="hidden"])');
+
+    if (manuelSh) {
+        manuelSh.addEventListener('input', (e) => {
+            document.getElementById('hidden_sh').value = e.target.value;
+        });
+    }
+    if (manuelNc) {
+        manuelNc.addEventListener('input', (e) => {
+            document.getElementById('hidden_nc').value = e.target.value;
+        });
+    }
+    if (manuelTaric) {
+        manuelTaric.addEventListener('input', (e) => {
+            document.getElementById('hidden_taric').value = e.target.value;
+        });
+    }
+
+    // Loading state pour l'analyse
+    const analyseForm = document.getElementById('analyseForm');
+    const analyseBtn = document.getElementById('analyseBtn');
+
+    if (analyseForm) {
+        analyseForm.addEventListener('submit', function() {
+            analyseBtn.disabled = true;
+            analyseBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Analyse en cours...';
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -16,7 +16,7 @@ from apps.core.logging_config import ChatLogger
 
 
 class ChatAgentService:
-    """Service to interact with the Agent_IA RAG system"""
+    """Service to interact with the Agent_IA system"""
 
     def __init__(self, user, session_id=None):
         """
@@ -40,19 +40,6 @@ class ChatAgentService:
         if session_id:
             self.chat_logger = ChatLogger(session_id=session_id, user_id=user.id)
 
-        # Obtener contexto de empresa si existe
-        self.company_context = self._get_company_context()
-
-        # DEBUG: Imprimir contexto de empresa
-        if self.company_context:
-            print(f"[SERVICE] ✓ Contexto de empresa cargado: {len(self.company_context)} caracteres", file=sys.stderr)
-            print(f"[SERVICE] Contexto: {self.company_context[:200]}...", file=sys.stderr)
-        else:
-            print(f"[SERVICE] ⚠️ NO hay contexto de empresa", file=sys.stderr)
-
-        # Obtener resumen de licitaciones disponibles
-        self.tenders_summary = self._get_tenders_summary()
-
     def _get_agent(self):
         """
         Initialize and return FunctionCallingAgent
@@ -65,7 +52,6 @@ class ChatAgentService:
         if not self.api_key and self.provider != 'ollama':
             raise ValueError("No API key configured for user")
 
-        # Always use Function Calling Agent (modern implementation)
         return self._create_function_calling_agent()
 
     def _create_function_calling_agent(self):
@@ -74,7 +60,6 @@ class ChatAgentService:
         """
         try:
             from agent_ia_core.agent_function_calling import FunctionCallingAgent
-            from agent_ia_core.indexing.retriever import create_retriever
 
             print(f"[SERVICE] Creando FunctionCallingAgent...", file=sys.stderr)
             print(f"[SERVICE] Proveedor: {self.provider}", file=sys.stderr)
@@ -83,53 +68,28 @@ class ChatAgentService:
             if self.provider == 'ollama':
                 self._verify_ollama_availability()
 
-            # Crear retriever con el modelo de embeddings correcto según el provider
-            if self.provider == 'ollama':
-                embedding_model = self.ollama_embedding_model
-            elif self.provider == 'openai':
-                embedding_model = self.openai_embedding_model
-            else:
-                embedding_model = None  # Gemini u otros providers
-
-            retriever = create_retriever(
-                k=6,
-                provider=self.provider,
-                api_key=None if self.provider == 'ollama' else self.api_key,
-                embedding_model=embedding_model
-            )
-
             # Determinar el modelo según el proveedor
             if self.provider == 'ollama':
                 model = self.ollama_model
             elif self.provider == 'openai':
-                model = self.openai_model  # Usar modelo seleccionado por el usuario
+                model = self.openai_model
             elif self.provider == 'google':
-                model = 'gemini-2.0-flash-exp'  # Modelo por defecto de Gemini
+                model = 'gemini-2.0-flash-exp'
             else:
-                model = self.ollama_model  # Fallback
+                model = self.ollama_model
 
             # Crear agente con usuario (para tools de contexto)
             self._agent = FunctionCallingAgent(
                 llm_provider=self.provider,
                 llm_model=model,
                 llm_api_key=None if self.provider == 'ollama' else self.api_key,
-                retriever=retriever,
-                db_session=None,  # Usa conexión Django default
-                user=self.user,  # Pasar usuario para tools de contexto
-                max_iterations=15,  # Aumentado de 5 a 15
+                user=self.user,
+                max_iterations=15,
                 temperature=0.3,
-                company_context=self.company_context,  # Mantener por compatibilidad (deprecated)
-                tenders_summary=self.tenders_summary,   # Mantener por compatibilidad (deprecated)
-                chat_logger=self.chat_logger  # Pasar logger para logging detallado
+                chat_logger=self.chat_logger
             )
 
-            print(f"[SERVICE] ✓ FunctionCallingAgent creado con {len(self._agent.tool_registry.tool_definitions)} tools", file=sys.stderr)
-            if self.user:
-                print(f"[SERVICE] ✓ Tools de contexto disponibles (get_company_info, get_tenders_summary)", file=sys.stderr)
-            if self.company_context:
-                print(f"[SERVICE] ✓ Contexto de empresa cargado (deprecated - ahora usa get_company_info tool)", file=sys.stderr)
-            if self.tenders_summary:
-                print(f"[SERVICE] ✓ Resumen de licitaciones cargado (deprecated - ahora usa get_tenders_summary tool)", file=sys.stderr)
+            print(f"[SERVICE] FunctionCallingAgent creado con {len(self._agent.tool_registry.tool_definitions)} tools", file=sys.stderr)
             return self._agent
 
         except Exception as e:
@@ -163,165 +123,18 @@ class ChatAgentService:
         except requests.exceptions.Timeout:
             raise ValueError("Timeout al conectar con Ollama. Verifica que esté funcionando correctamente.")
 
-    def _get_company_context(self) -> str:
-        """
-        Obtiene el contexto de la empresa del usuario.
-
-        Returns:
-            String con el contexto formateado de la empresa, o vacío si no existe perfil
-        """
-        try:
-            from apps.company.models import CompanyProfile
-
-            # Buscar perfil de empresa
-            profile = CompanyProfile.objects.filter(user=self.user).first()
-
-            if not profile:
-                return ""
-
-            # Usar el método get_chat_context() del modelo
-            return profile.get_chat_context()
-
-        except Exception as e:
-            # Si hay error, retornar vacío para no bloquear el chat
-            print(f"[SERVICE] Error obteniendo contexto de empresa: {e}", file=sys.stderr)
-            return ""
-
-    def _get_tenders_summary(self) -> str:
-        """
-        Obtiene un resumen de todas las licitaciones disponibles (parsed_summary).
-        Incluye solo campos esenciales para resumen inicial.
-
-        Campos incluidos:
-        - ojs_notice_id, title, buyer_name, cpv_main (REQUIRED)
-        - description, cpv_additional, budget_eur, tender_deadline_date,
-          publication_date, contract_type, nuts_regions, procedure_type (OPTIONAL)
-
-        Returns:
-            String con resumen formateado de licitaciones, o vacío si no hay
-        """
-        try:
-            from apps.tenders.models import Tender
-            import json
-
-            # Obtener TODAS las licitaciones que tienen parsed_summary (sin límite)
-            tenders = Tender.objects.exclude(parsed_summary={}).exclude(parsed_summary__isnull=True).order_by('-publication_date')
-
-            if not tenders.exists():
-                return ""
-
-            total_count = tenders.count()
-            summary_parts = [
-                "LICITACIONES DISPONIBLES EN LA BASE DE DATOS:",
-                f"Total: {total_count} licitaciones",
-                ""
-            ]
-
-            for idx, tender in enumerate(tenders, 1):
-                parsed = tender.parsed_summary
-                required = parsed.get('REQUIRED', {})
-                optional = parsed.get('OPTIONAL', {})
-
-                # Extraer solo campos esenciales
-                tender_data = {
-                    'ojs_notice_id': required.get('ojs_notice_id'),
-                    'title': required.get('title'),
-                    'buyer_name': required.get('buyer_name'),
-                    'cpv_main': required.get('cpv_main'),
-                    'description': optional.get('description'),  # Completa
-                    'cpv_additional': optional.get('cpv_additional'),
-                    'budget_eur': optional.get('budget_eur'),
-                    'tender_deadline_date': optional.get('tender_deadline_date'),
-                    'publication_date': required.get('publication_date'),
-                    'contract_type': optional.get('contract_type'),
-                    'nuts_regions': optional.get('nuts_regions'),
-                    'procedure_type': optional.get('procedure_type')
-                }
-
-                # Convertir a JSON formateado para legibilidad
-                tender_json = json.dumps(tender_data, ensure_ascii=False, indent=2)
-
-                summary_parts.append(f"[{idx}] Licitación {required.get('ojs_notice_id', 'N/A')}")
-                summary_parts.append(tender_json)
-                summary_parts.append('')  # Línea en blanco entre licitaciones
-
-            return '\n'.join(summary_parts)
-
-        except Exception as e:
-            # Si hay error, retornar vacío para no bloquear el chat
-            print(f"[SERVICE] Error obteniendo resumen de licitaciones: {e}", file=sys.stderr)
-            return ""
-
-
-    def _enrich_with_company_context(self, message: str) -> str:
-        """
-        Enrich user message with company profile context for better recommendations
-
-        Args:
-            message: Original user message
-
-        Returns:
-            Enriched message with company context prepended
-        """
-        try:
-            from apps.company.models import CompanyProfile
-
-            # Try to get company profile
-            profile = CompanyProfile.objects.filter(user=self.user).first()
-
-            if not profile:
-                # No profile, return original message
-                return message
-
-            # Build company context
-            context_parts = []
-            context_parts.append("CONTEXTO DE MI EMPRESA:")
-
-            if profile.company_name:
-                context_parts.append(f"- Nombre: {profile.company_name}")
-
-            if profile.sector:
-                context_parts.append(f"- Sector: {profile.sector}")
-
-            if profile.cpv_codes:
-                context_parts.append(f"- Códigos CPV de interés: {', '.join(profile.cpv_codes[:5])}")
-
-            if profile.capabilities:
-                context_parts.append(f"- Capacidades: {profile.capabilities}")
-
-            if profile.certifications:
-                context_parts.append(f"- Certificaciones: {', '.join(profile.certifications[:3])}")
-
-            if profile.geographic_scope:
-                context_parts.append(f"- Ámbito geográfico: {', '.join(profile.geographic_scope[:3])}")
-
-            if profile.min_budget or profile.max_budget:
-                budget_range = f"{profile.min_budget or 0} - {profile.max_budget or 'sin límite'} EUR"
-                context_parts.append(f"- Rango presupuesto: {budget_range}")
-
-            # Append original message
-            context_parts.append("")
-            context_parts.append(f"PREGUNTA: {message}")
-
-            return "\n".join(context_parts)
-
-        except Exception as e:
-            # If anything fails, just return original message
-            return message
-
     def process_message(self, message: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
         """
         Process a user message through the Agent_IA system
 
         Args:
             message: User's question/message
-            conversation_history: Previous messages in the conversation (list of dicts with 'role' and 'content')
-                                  Limited by MAX_CONVERSATION_HISTORY env var (default: 10) to avoid token overflow
+            conversation_history: Previous messages in the conversation
 
         Returns:
             Dict with:
                 - content: Agent's response
-                - metadata: Information about the response (route, documents, tokens, cost, etc.)
+                - metadata: Information about the response
         """
         # Ollama doesn't need API key, check only for cloud providers
         if not self.api_key and self.provider != 'ollama':
@@ -331,7 +144,6 @@ class ChatAgentService:
                     'error': 'NO_API_KEY',
                     'route': 'error',
                     'documents_used': [],
-                    'verified_fields': [],
                     'iterations': 0,
                     'total_tokens': 0,
                     'cost_eur': 0.0
@@ -339,14 +151,10 @@ class ChatAgentService:
             }
 
         try:
-            import sys
-
-            # Log inicio del proceso
             print(f"\n[SERVICE] Iniciando process_message...", file=sys.stderr)
             print(f"[SERVICE] Proveedor: {self.provider.upper()}", file=sys.stderr)
             if self.provider == 'ollama':
                 print(f"[SERVICE] Modelo LLM: {self.ollama_model}", file=sys.stderr)
-                print(f"[SERVICE] Modelo Embeddings: {self.ollama_embedding_model}", file=sys.stderr)
             print(f"[SERVICE] Mensaje: {message[:60]}...", file=sys.stderr)
 
             # LOG: Mensaje del usuario
@@ -354,17 +162,16 @@ class ChatAgentService:
                 self.chat_logger.log_user_message(message)
 
             # Get the agent
-            print(f"[SERVICE] Creando agente RAG...", file=sys.stderr)
+            print(f"[SERVICE] Creando agente...", file=sys.stderr)
             agent = self._get_agent()
 
-            # Verify agent was created successfully
             if agent is None:
                 raise ValueError("El agente no pudo ser inicializado correctamente")
 
             if not hasattr(agent, 'query') or not callable(agent.query):
                 raise AttributeError(f"El agente no tiene un método 'query' válido. Tipo: {type(agent)}")
 
-            print(f"[SERVICE] ✓ Agente creado correctamente", file=sys.stderr)
+            print(f"[SERVICE] Agente creado correctamente", file=sys.stderr)
 
             # Set API key in environment for this request
             if self.provider != 'ollama':
@@ -376,25 +183,12 @@ class ChatAgentService:
                 env_var = env_var_map.get(self.provider, 'GOOGLE_API_KEY')
                 os.environ[env_var] = self.api_key
 
-            # IMPORTANTE: Para routing efectivo, pasamos SOLO el mensaje actual (sin historial)
-            # Esto permite que el LLM clasifique cada pregunta de forma independiente
-            # El historial se añadirá después en el nodo de respuesta (answer_node)
-
-            # Enrich message with company profile context if asking for recommendations
-            enriched_message = message
-            recommendation_keywords = ['adecua', 'recomend', 'mejor', 'apropiada', 'conveniente', 'ideal', 'mi empresa']
-            if any(keyword in message.lower() for keyword in recommendation_keywords):
-                print(f"[SERVICE] Enriqueciendo mensaje con contexto de empresa...", file=sys.stderr)
-                enriched_message = self._enrich_with_company_context(message)
-
             # Prepare conversation history for the agent
             formatted_history = []
             if conversation_history and len(conversation_history) > 0:
-                # Get max history from settings
                 max_history = int(os.getenv('MAX_CONVERSATION_HISTORY', '10'))
                 print(f"[SERVICE] Añadiendo historial de conversación ({len(conversation_history)} mensajes, límite: {max_history})...", file=sys.stderr)
 
-                # Format history (limit to avoid token overflow)
                 recent_history = conversation_history[-max_history:] if len(conversation_history) > max_history else conversation_history
                 for msg in recent_history:
                     formatted_history.append({
@@ -402,27 +196,21 @@ class ChatAgentService:
                         'content': msg['content']
                     })
 
-            # Execute query through the agent
-            # Pasamos el mensaje actual PURO (sin historial) para routing correcto
-            # El historial se pasa por separado
-            print(f"[SERVICE] Ejecutando query en el agente...", file=sys.stderr)
-            print(f"[SERVICE] Mensaje puro (para routing): {enriched_message[:60]}...", file=sys.stderr)
-            print(f"[SERVICE] Historial: {len(formatted_history)} mensajes", file=sys.stderr)
-
-            # LOG: Request al LLM (antes de ejecutar)
+            # LOG: Request al LLM
             if self.chat_logger:
                 model = self.ollama_model if self.provider == 'ollama' else self.openai_model
-                # Construir mensajes que se enviarán (aproximación)
-                messages = formatted_history + [{'role': 'user', 'content': enriched_message}]
+                messages = formatted_history + [{'role': 'user', 'content': message}]
                 self.chat_logger.log_llm_request(
                     provider=self.provider,
                     model=model,
                     messages=messages,
-                    tools=None  # Las tools se registran dentro del agente
+                    tools=None
                 )
 
-            result = agent.query(enriched_message, conversation_history=formatted_history)
-            print(f"[SERVICE] ✓ Query ejecutado correctamente", file=sys.stderr)
+            # Execute query through the agent
+            print(f"[SERVICE] Ejecutando query en el agente...", file=sys.stderr)
+            result = agent.query(message, conversation_history=formatted_history)
+            print(f"[SERVICE] Query ejecutado correctamente", file=sys.stderr)
 
             # LOG: Respuesta del LLM
             if self.chat_logger:
@@ -432,39 +220,33 @@ class ChatAgentService:
             response_content = result.get('answer', 'No se pudo generar una respuesta.')
 
             # ========================================================================
-            # REVIEW AND IMPROVEMENT LOOP WITH CONFIGURABLE MAX LOOPS
+            # REVIEW AND IMPROVEMENT LOOP
             # ========================================================================
             from apps.chat.response_reviewer import ResponseReviewer
 
-            # Get max_review_loops from user configuration (default: 3)
             max_review_loops = getattr(self.user, 'max_review_loops', 3)
             print(f"[SERVICE] Iniciando sistema de revisión (max_loops: {max_review_loops})...", file=sys.stderr)
 
-            # Create reviewer with same LLM as agent, tool_registry AND chat_logger
             reviewer = ResponseReviewer(agent.llm, tool_registry=agent.tool_registry, chat_logger=self.chat_logger)
 
-            # Initialize review tracking
-            review_history = []  # Historial de todas las revisiones
+            review_history = []
             current_loop = 0
             improvement_applied = False
             all_review_scores = []
 
-            # REVIEW-IMPROVE LOOP
             while current_loop < max_review_loops:
                 current_loop += 1
                 print(f"[SERVICE] === REVIEW LOOP {current_loop}/{max_review_loops} ===", file=sys.stderr)
 
-                # Log inicio del loop de revisión
-                self.chat_logger.log_review_start(current_loop, max_review_loops)
+                if self.chat_logger:
+                    self.chat_logger.log_review_start(current_loop, max_review_loops)
 
-                # Build metadata for reviewer (con tools ejecutadas completas)
                 review_metadata_input = {
                     'documents_used': result.get('documents', []),
-                    'tools_executed': result.get('tool_results', []),  # Información COMPLETA de tools
+                    'tools_executed': result.get('tool_results', []),
                     'route': result.get('route', 'unknown')
                 }
 
-                # Review current response
                 review_result = reviewer.review_response(
                     user_question=message,
                     conversation_history=formatted_history,
@@ -486,78 +268,48 @@ class ChatAgentService:
                 })
 
                 print(f"[SERVICE] Loop {current_loop} - Review completada (score: {review_result['score']}/100)", file=sys.stderr)
-                print(f"[SERVICE] Revisor dice continue_improving: {review_result.get('continue_improving', True)}", file=sys.stderr)
 
-                # ========================================================================
-                # DECISIONES DE SALIDA DEL LOOP
-                # ========================================================================
-
-                # 1. Límite de loops alcanzado
+                # Exit conditions
                 if current_loop >= max_review_loops:
                     reason = f"Límite de loops alcanzado ({max_review_loops})"
                     print(f"[SERVICE] {reason}. Retornando respuesta final.", file=sys.stderr)
-                    self.chat_logger.log_review_end(current_loop, "COMPLETED", reason)
+                    if self.chat_logger:
+                        self.chat_logger.log_review_end(current_loop, "COMPLETED", reason)
                     break
 
-                # 2. Loop 1 SIEMPRE ejecuta mejora (obligatorio)
                 if current_loop == 1:
                     print(f"[SERVICE] Loop 1 obligatorio - Ejecutando mejora...", file=sys.stderr)
                     improvement_applied = True
-                    # No hacer break, continuar a ejecutar mejora
-
-                # 3. Loop 2+: Revisor decide si continuar
                 elif current_loop >= 2:
                     if not review_result.get('continue_improving', True):
-                        reason = f"Revisor decidió NO continuar mejorando (respuesta suficientemente buena)"
+                        reason = f"Revisor decidió NO continuar mejorando"
                         print(f"[SERVICE] {reason}", file=sys.stderr)
-                        self.chat_logger.log_review_end(current_loop, "APPROVED", reason)
+                        if self.chat_logger:
+                            self.chat_logger.log_review_end(current_loop, "APPROVED", reason)
                         break
                     else:
-                        print(f"[SERVICE] Revisor decidió continuar mejorando. Ejecutando Loop {current_loop} mejora...", file=sys.stderr)
+                        print(f"[SERVICE] Revisor decidió continuar mejorando...", file=sys.stderr)
                         improvement_applied = True
 
-                # Build lists for prompt
+                # Build improvement prompt
                 issues_list = '\n'.join([f"- {issue}" for issue in review_result['issues']])
                 suggestions_list = '\n'.join([f"- {suggestion}" for suggestion in review_result['suggestions']])
 
-                # Build tool suggestions section
                 tool_suggestions_section = ""
                 if review_result.get('tool_suggestions'):
-                    tool_suggestions_section = "\n**Herramientas recomendadas por el revisor:**\n"
+                    tool_suggestions_section = "\n**Herramientas recomendadas:**\n"
                     for ts in review_result['tool_suggestions']:
                         tool_suggestions_section += f"- {ts['tool']}: {ts['reason']}\n"
-                        tool_suggestions_section += f"  Parámetros sugeridos: {ts['params']}\n"
 
-                # Build param validation section
-                param_validation_section = ""
-                if review_result.get('param_validation'):
-                    param_validation_section = "\n**Validación de parámetros de tools ya ejecutadas:**\n"
-                    for pv in review_result['param_validation']:
-                        param_validation_section += f"- {pv['tool']} - parámetro '{pv['param']}': {pv['issue']}\n"
-                        param_validation_section += f"  Valor sugerido: {pv['suggested']}\n"
-
-                # Build improvement prompt with feedback
-                if review_result['feedback']:
-                    feedback_section = f"""**Feedback del revisor:**
-{review_result['feedback']}"""
-                else:
-                    feedback_section = "**Nota del revisor:** La respuesta está bien estructurada, pero podemos mejorarla."
-
-                # Determinar si el revisor sugirió tools
                 has_tool_suggestions = bool(review_result.get('tool_suggestions'))
 
                 if has_tool_suggestions:
-                    # El revisor sugirió tools - permitir llamarlas
                     tools_instruction = """**IMPORTANTE - USO DE HERRAMIENTAS:**
-- El revisor ha detectado que NECESITAS llamar herramientas para obtener información adicional
-- DEBES usar las herramientas sugeridas arriba para completar la información faltante
-- NO generes respuesta final hasta haber obtenido los datos necesarios con las tools"""
+- DEBES usar las herramientas sugeridas para completar la información"""
                 else:
-                    # El revisor NO sugirió tools - solo reformular
                     tools_instruction = """**IMPORTANTE - REFORMULACIÓN:**
-- NO uses herramientas/tools para esta mejora
-- SOLO reformula y mejora la respuesta actual con la información que YA TIENES
-- Corrige formato, añade claridad, mejora redacción, pero NO busques nueva información"""
+- NO uses herramientas para esta mejora
+- SOLO reformula y mejora la respuesta actual"""
 
                 improvement_prompt = f"""Tu respuesta anterior fue revisada (Loop {current_loop}/{max_review_loops}). Vamos a mejorarla.
 
@@ -569,9 +321,7 @@ class ChatAgentService:
 
 **Sugerencias de mejora:**
 {suggestions_list if suggestions_list else '- Mantener el buen formato actual'}
-{tool_suggestions_section}{param_validation_section}
-{feedback_section}
-
+{tool_suggestions_section}
 {tools_instruction}
 
 **Pregunta original del usuario:**
@@ -579,15 +329,13 @@ class ChatAgentService:
 
 Genera tu respuesta mejorada:"""
 
-                # Log del improvement prompt
-                self.chat_logger.log_improvement_prompt(
-                    prompt=improvement_prompt,
-                    loop_num=current_loop,
-                    review_result=review_result
-                )
+                if self.chat_logger:
+                    self.chat_logger.log_improvement_prompt(
+                        prompt=improvement_prompt,
+                        loop_num=current_loop,
+                        review_result=review_result
+                    )
 
-                # Execute improvement query
-                # Añadir respuesta actual al historial para contexto
                 improvement_history = formatted_history + [
                     {'role': 'user', 'content': message},
                     {'role': 'assistant', 'content': response_content}
@@ -599,37 +347,24 @@ Genera tu respuesta mejorada:"""
                     conversation_history=improvement_history
                 )
 
-                # Update response with improved version
                 previous_response_length = len(response_content)
                 response_content = improved_result.get('answer', response_content)
                 new_response_length = len(response_content)
 
-                print(f"[SERVICE] ✓ Loop {current_loop} - Respuesta mejorada: {previous_response_length} → {new_response_length} caracteres", file=sys.stderr)
+                print(f"[SERVICE] Loop {current_loop} - Respuesta mejorada: {previous_response_length} → {new_response_length} caracteres", file=sys.stderr)
 
-                # Log fin del loop con mejora aplicada
-                self.chat_logger.log_review_end(
-                    current_loop,
-                    "IMPROVED",
-                    f"Mejora aplicada: {previous_response_length} → {new_response_length} caracteres"
-                )
+                if self.chat_logger:
+                    self.chat_logger.log_review_end(
+                        current_loop,
+                        "IMPROVED",
+                        f"Mejora aplicada: {previous_response_length} → {new_response_length} caracteres"
+                    )
 
-                # Merge documents (avoid duplicates)
-                existing_doc_ids = {doc.get('ojs_notice_id') for doc in result.get('documents', [])}
-                new_docs = [doc for doc in improved_result.get('documents', [])
-                           if doc.get('ojs_notice_id') not in existing_doc_ids]
-                result['documents'] = result.get('documents', []) + new_docs
-
-                # Merge tool results (información completa de tools ejecutadas)
-                result['tool_results'] = result.get('tool_results', []) + improved_result.get('tool_results', [])
-
-                # Merge tools used (nombres únicos para compatibilidad)
+                # Merge results
                 result['tools_used'] = list(set(result.get('tools_used', []) + improved_result.get('tools_used', [])))
-
-                # Update iterations count
                 result['iterations'] = result.get('iterations', 0) + improved_result.get('iterations', 0)
 
-            # Save comprehensive review metadata for tracking
-            # Derivar status para compatibilidad: si aún quiere mejorar = NEEDS_IMPROVEMENT, si no = APPROVED
+            # Build review tracking
             last_review = review_history[-1] if review_history else {}
             continue_improving = last_review.get('continue_improving', False)
             review_status = 'NEEDS_IMPROVEMENT' if continue_improving else 'APPROVED'
@@ -642,7 +377,6 @@ Genera tu respuesta mejorada:"""
                 'all_scores': all_review_scores,
                 'final_score': all_review_scores[-1] if all_review_scores else 100,
                 'review_history': review_history,
-                # Campos derivados de la última revisión (para compatibilidad)
                 'review_status': review_status,
                 'review_score': last_review.get('score', 100),
                 'review_issues': last_review.get('issues', []),
@@ -651,86 +385,37 @@ Genera tu respuesta mejorada:"""
             }
 
             print(f"[SERVICE] Review completado: {current_loop} loops ejecutados, scores: {all_review_scores}", file=sys.stderr)
-            # ========================================================================
-            # END REVIEW LOOP
-            # ========================================================================
-
-            # Format document metadata for frontend
-            from apps.tenders.models import Tender
-            documents_used = []
-            for doc in result.get('documents', []):
-                tender_id = doc.get('ojs_notice_id', 'unknown')
-
-                # Obtener título desde la BD para mostrarlo como enlace clickeable
-                try:
-                    tender = Tender.objects.get(ojs_notice_id=tender_id)
-                    title = tender.title
-                except Tender.DoesNotExist:
-                    title = f'Licitación {tender_id}'
-
-                documents_used.append({
-                    'id': tender_id,
-                    'title': title,  # Título para enlace clickeable en chat
-                    'section': doc.get('section', 'unknown'),
-                    'content_preview': doc.get('content', '')[:150] + '...'
-                })
 
             # Calculate token usage and cost
             from apps.core.token_pricing import calculate_chat_cost
 
-            # Prepare full input (includes retrieved documents in the context)
-            full_input = message
-            if documents_used:
-                # Approximate: add document content to input token count
-                docs_text = '\n'.join([doc.get('content_preview', '') for doc in documents_used])
-                full_input = f"{message}\n\nContext:\n{docs_text}"
-
             cost_data = calculate_chat_cost(
-                input_text=full_input,
+                input_text=message,
                 output_text=response_content,
                 provider=self.provider
             )
 
-            # Build metadata response with token/cost info
+            # Build metadata response
             metadata = {
-                'provider': self.provider,  # Añadir provider para distinguir Ollama
+                'provider': self.provider,
                 'route': result.get('route', 'unknown'),
-                'documents_used': documents_used,
-                'verified_fields': result.get('verified_fields', []),
+                'documents_used': [],
                 'iterations': result.get('iterations', 0),
-                'num_documents': len(documents_used),
-                'tools_used': result.get('tools_used', []),  # Añadir tools usadas
-                'tools_failed': result.get('tools_failed', []),  # Añadir tools fallidas con info de reintentos
-                # Token and cost tracking
+                'tools_used': result.get('tools_used', []),
+                'tools_failed': result.get('tools_failed', []),
                 'input_tokens': cost_data['input_tokens'],
                 'output_tokens': cost_data['output_tokens'],
                 'total_tokens': cost_data['total_tokens'],
                 'cost_eur': cost_data['total_cost_eur'],
-                # Review tracking (from LLM reviewer)
                 'review': review_tracking
             }
 
-            # Log final del proceso
-            print(f"[SERVICE] ✓ Respuesta procesada: {len(response_content)} caracteres", file=sys.stderr)
-            print(f"[SERVICE] Documentos recuperados: {len(documents_used)}", file=sys.stderr)
-            tools_used = result.get('tools_used', [])
-            if tools_used:
-                print(f"[SERVICE] Herramientas usadas ({len(tools_used)}): {' → '.join(tools_used)}", file=sys.stderr)
-            print(f"[SERVICE] Tokens totales: {cost_data['total_tokens']} (in: {cost_data['input_tokens']}, out: {cost_data['output_tokens']})", file=sys.stderr)
+            print(f"[SERVICE] Respuesta procesada: {len(response_content)} caracteres", file=sys.stderr)
+            print(f"[SERVICE] Tokens totales: {cost_data['total_tokens']}", file=sys.stderr)
             print(f"[SERVICE] Costo: €{cost_data['total_cost_eur']:.4f}", file=sys.stderr)
-            # Review metrics (enhanced with loop information)
-            print(f"[SERVICE] Review - Loops: {review_tracking['loops_executed']}/{review_tracking['max_loops']}", file=sys.stderr)
-            print(f"[SERVICE] Review - Final Score: {review_tracking['final_score']}/100 (all scores: {review_tracking['all_scores']})", file=sys.stderr)
-            print(f"[SERVICE] Review - Status: {review_tracking['review_status']}", file=sys.stderr)
-            if review_tracking['improvement_applied']:
-                print(f"[SERVICE] Review - Mejoras aplicadas en {review_tracking['loops_executed']} loops", file=sys.stderr)
-                if review_tracking['review_issues']:
-                    print(f"[SERVICE] Review - Issues detectados: {len(review_tracking['review_issues'])}", file=sys.stderr)
-            else:
-                print(f"[SERVICE] Review - Sin mejoras (score suficientemente alto o límite alcanzado)", file=sys.stderr)
-            print(f"", file=sys.stderr)  # Línea en blanco final
+            print(f"[SERVICE] Review - Final Score: {review_tracking['final_score']}/100", file=sys.stderr)
 
-            # LOG: Mensaje final del asistente con metadata
+            # LOG: Mensaje final del asistente
             if self.chat_logger:
                 self.chat_logger.log_assistant_message(response_content, metadata=metadata)
 
@@ -740,30 +425,18 @@ Genera tu respuesta mejorada:"""
             }
 
         except ValueError as e:
-            # API key or configuration error
             return {
                 'content': f'Error de configuración: {str(e)}',
                 'metadata': {
                     'error': 'CONFIGURATION_ERROR',
                     'route': 'error',
                     'documents_used': [],
-                    'verified_fields': [],
                     'iterations': 0
                 }
             }
 
         except Exception as e:
-            # General error
             error_msg = str(e)
-
-            # Check for specific error types
-            if 'ChromaDB' in error_msg or 'collection' in error_msg.lower():
-                error_msg = (
-                    'El sistema de búsqueda no está inicializado. '
-                    'Por favor, ve a la sección de "Vectorización" para indexar '
-                    'las licitaciones antes de usar el chat.'
-                )
-
             return {
                 'content': f'Lo siento, ocurrió un error al procesar tu mensaje: {error_msg}',
                 'metadata': {
@@ -771,27 +444,12 @@ Genera tu respuesta mejorada:"""
                     'error_type': type(e).__name__,
                     'route': 'error',
                     'documents_used': [],
-                    'verified_fields': [],
                     'iterations': 0
                 }
             }
 
-    def get_tender_details(self, ojs_notice_id: str) -> Dict[str, Any]:
-        """
-        Get detailed information about a specific tender using the agent
-
-        Args:
-            ojs_notice_id: The OJS notice ID of the tender
-
-        Returns:
-            Dict with tender information
-        """
-        question = f"Dame toda la información detallada sobre la licitación con ID {ojs_notice_id}"
-        return self.process_message(question)
-
     def reset_agent(self):
         """
         Reset the cached agent instance
-        Useful when configuration changes or to free memory
         """
         self._agent = None

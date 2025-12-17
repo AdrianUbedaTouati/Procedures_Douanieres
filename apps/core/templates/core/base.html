@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}TenderAI - Plataforma de Licitaciones{% endblock %}</title>
+    <title>{% block title %}Procédures Douanières - Assistant IA{% endblock %}</title>
 
-    <meta name="description" content="TenderAI - Plataforma inteligente de análisis de licitaciones públicas con IA">
+    <meta name="description" content="Solution d'automatisation des procédures douanières - Corridor France ↔ Algérie">
     <meta name="theme-color" content="#007AFF">
 
     <!-- Bootstrap CSS -->
@@ -23,7 +23,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand fw-bold" href="{% url 'apps_core:home' %}">
-                <i class="bi bi-file-earmark-text"></i> TenderAI
+                <i class="bi bi-box-seam"></i> Procédures Douanières
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -32,43 +32,18 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'apps_core:home' %}">
-                            <i class="bi bi-house"></i> Inicio
+                            <i class="bi bi-house"></i> Accueil
                         </a>
                     </li>
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_tenders:dashboard' %}">
-                                <i class="bi bi-speedometer2"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_tenders:list' %}">
-                                <i class="bi bi-search"></i> Buscar
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_tenders:download_tenders' %}">
-                                <i class="bi bi-download"></i> Obtener
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_tenders:recommended' %}">
-                                <i class="bi bi-star"></i> Recomendadas
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_tenders:saved' %}">
-                                <i class="bi bi-bookmark"></i> Guardadas
+                            <a class="nav-link" href="{% url 'apps_expeditions:list' %}">
+                                <i class="bi bi-box-seam"></i> Expéditions
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'apps_chat:session_list' %}">
-                                <i class="bi bi-chat-dots"></i> Chat
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_tenders:vectorization_dashboard' %}">
-                                <i class="bi bi-database"></i> Vectorización
+                                <i class="bi bi-chat-dots"></i> Assistant
                             </a>
                         </li>
                         <li class="nav-item dropdown">
@@ -77,19 +52,14 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
-                                    <a class="dropdown-item" href="{% url 'apps_company:profile' %}">
-                                        <i class="bi bi-building"></i> Mi Empresa
-                                    </a>
-                                </li>
-                                <li>
                                     <a class="dropdown-item" href="{% url 'apps_core:profile' %}">
-                                        <i class="bi bi-person"></i> Mi Perfil
+                                        <i class="bi bi-person"></i> Mon Profil
                                     </a>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <a class="dropdown-item" href="{% url 'apps_authentication:logout' %}">
-                                        <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+                                        <i class="bi bi-box-arrow-right"></i> Déconnexion
                                     </a>
                                 </li>
                             </ul>
@@ -97,12 +67,12 @@
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'apps_authentication:login' %}">
-                                <i class="bi bi-box-arrow-in-right"></i> Iniciar sesión
+                                <i class="bi bi-box-arrow-in-right"></i> Connexion
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link btn btn-light text-primary ms-2" href="{% url 'apps_authentication:register' %}">
-                                <i class="bi bi-person-plus"></i> Registrarse
+                                <i class="bi bi-person-plus"></i> S'inscrire
                             </a>
                         </li>
                     {% endif %}
@@ -134,12 +104,12 @@
             <div class="row">
                 <div class="col-md-6 text-center text-md-start">
                     <p class="mb-0">
-                        <strong>TenderAI</strong> &copy; 2025 - Plataforma inteligente de licitaciones públicas
+                        <strong>Procédures Douanières</strong> &copy; 2025 - Corridor France ↔ Algérie
                     </p>
                 </div>
                 <div class="col-md-6 text-center text-md-end">
                     <small class="text-muted">
-                        <i class="bi bi-robot"></i> Powered by Agent_IA
+                        <i class="bi bi-robot"></i> Powered by IA avec Function Calling
                     </small>
                 </div>
             </div>

@@ -1,0 +1,48 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Documents - {{ expedition.reference }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expéditions</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:detail' expedition.pk %}">{{ expedition.reference }}</a></li>
+            <li class="breadcrumb-item active">Documents</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-file-earmark-text"></i> Étape 2: Génération des Documents
+                    </h4>
+                </div>
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-tools display-1 text-muted"></i>
+                    <h3 class="mt-3">Fonctionnalité en développement</h3>
+                    <p class="text-muted">
+                        La génération automatique des documents douaniers (DAU, D10, D12) sera disponible prochainement.
+                    </p>
+                    <hr>
+                    <h5>Documents prévus:</h5>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-file-earmark text-primary"></i> DAU - Document Administratif Unique (France)</li>
+                        <li><i class="bi bi-file-earmark text-success"></i> D10 - Mise à la consommation (Algérie)</li>
+                        <li><i class="bi bi-file-earmark text-info"></i> D12 - Admission temporaire (Algérie)</li>
+                        <li><i class="bi bi-file-earmark text-warning"></i> ENS/ICS2 - Entry Summary Declaration</li>
+                    </ul>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Retour
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

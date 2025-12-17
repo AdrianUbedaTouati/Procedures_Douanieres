@@ -1,5 +1,6 @@
 """
-URL configuration for TenderAI project.
+URL configuration for Procédures Douanières project.
+Solution d'Automatisation du Parcours Douanier - Corridor France ↔ Algérie
 """
 from django.contrib import admin
 from django.urls import path, include
@@ -9,9 +10,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('apps.authentication.urls')),
-    path('licitaciones/', include('apps.tenders.urls')),
     path('chat/', include('apps.chat.urls')),
-    path('empresa/', include('apps.company.urls')),
+    path('expeditions/', include('apps.expeditions.urls')),
     path('', include('apps.core.urls')),
 ]
 

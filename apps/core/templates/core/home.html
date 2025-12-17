@@ -1,34 +1,34 @@
-﻿{% extends 'core/base.html' %}
+{% extends 'core/base.html' %}
 
-{% block title %}Inicio - TenderAI{% endblock %}
+{% block title %}Accueil - Procédures Douanières{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row">
         <div class="col-md-12">
             <div class="hero-section text-center py-5">
-                <h1 class="display-3"><i class="bi bi-file-earmark-text text-primary"></i> TenderAI</h1>
-                <p class="lead">Plataforma Inteligente de Análisis de Licitaciones Públicas</p>
+                <h1 class="display-3"><i class="bi bi-box-seam text-primary"></i> Procédures Douanières</h1>
+                <p class="lead">Solution d'Automatisation du Parcours Douanier - Corridor France ↔ Algérie</p>
                 <hr class="my-4">
 
                 {% if user.is_authenticated %}
-                    <p class="mb-4">Hola, <strong>{{ user.email }}</strong>!</p>
+                    <p class="mb-4">Bonjour, <strong>{{ user.email }}</strong> !</p>
                     <div class="d-flex justify-content-center gap-2">
-                        <a class="btn btn-primary btn-lg" href="{% url 'apps_tenders:dashboard' %}" role="button">
-                            <i class="bi bi-speedometer2"></i> Ir al Dashboard
+                        <a class="btn btn-primary btn-lg" href="{% url 'apps_chat:session_list' %}" role="button">
+                            <i class="bi bi-chat-dots"></i> Assistant IA
                         </a>
-                        <a class="btn btn-success btn-lg" href="{% url 'apps_tenders:list' %}" role="button">
-                            <i class="bi bi-search"></i> Buscar Licitaciones
+                        <a class="btn btn-outline-primary btn-lg" href="{% url 'apps_core:profile' %}" role="button">
+                            <i class="bi bi-gear"></i> Configuration
                         </a>
                     </div>
                 {% else %}
-                    <p class="mb-4">Encuentra y analiza las mejores oportunidades de licitación para tu empresa</p>
+                    <p class="mb-4">Assistant IA pour la classification douanière, la génération de documents et le calcul des droits</p>
                     <div class="d-flex justify-content-center gap-2">
                         <a class="btn btn-primary btn-lg" href="{% url 'apps_authentication:login' %}" role="button">
-                            <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                            <i class="bi bi-box-arrow-in-right"></i> Connexion
                         </a>
                         <a class="btn btn-outline-primary btn-lg" href="{% url 'apps_authentication:register' %}" role="button">
-                            <i class="bi bi-person-plus"></i> Registrarse
+                            <i class="bi bi-person-plus"></i> S'inscrire
                         </a>
                     </div>
                 {% endif %}
@@ -36,76 +36,172 @@
         </div>
     </div>
 
+    <!-- Les 5 Axes -->
     <div class="row mt-5">
         <div class="col-md-12">
-            <h2 class="text-center mb-4">Características Principales</h2>
+            <h2 class="text-center mb-4">Les 5 Axes de la Solution</h2>
         </div>
+
+        <!-- Axe 1 : Classification -->
         <div class="col-md-4">
             <div class="feature-card mb-4">
-                <div class="card h-100">
+                <div class="card h-100 border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <strong>Axe 1</strong>
+                    </div>
                     <div class="card-body text-center">
-                        <i class="bi bi-robot display-3 text-primary mb-3"></i>
-                        <h3>Recomendaciones IA</h3>
-                        <p>Sistema inteligente que analiza licitaciones y recomienda las más adecuadas según tu perfil empresarial</p>
+                        <i class="bi bi-tags display-3 text-primary mb-3"></i>
+                        <h3>Classification Douanière</h3>
+                        <p>Identification des codes SH, NC et TARIC par Intelligence Artificielle à partir des fiches techniques produits</p>
+                        <ul class="list-unstyled text-start small">
+                            <li><i class="bi bi-check-circle text-success"></i> Code SH (6 chiffres)</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Code NC (8 chiffres UE)</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Code TARIC (10 chiffres)</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Axe 2 : Documents -->
         <div class="col-md-4">
             <div class="feature-card mb-4">
-                <div class="card h-100">
+                <div class="card h-100 border-success">
+                    <div class="card-header bg-success text-white">
+                        <strong>Axe 2</strong>
+                    </div>
                     <div class="card-body text-center">
-                        <i class="bi bi-chat-dots display-3 text-primary mb-3"></i>
-                        <h3>Asistente de Chat</h3>
-                        <p>Consulta información de licitaciones de forma conversacional con nuestro agente de IA</p>
+                        <i class="bi bi-file-earmark-text display-3 text-success mb-3"></i>
+                        <h3>Automatisation Documentaire</h3>
+                        <p>Génération automatique de tous les documents douaniers requis à partir d'un fichier Excel</p>
+                        <ul class="list-unstyled text-start small">
+                            <li><i class="bi bi-check-circle text-success"></i> DAU (France)</li>
+                            <li><i class="bi bi-check-circle text-success"></i> D10, D12 (Algérie)</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Certificats d'origine</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Axe 3 : Transmission -->
         <div class="col-md-4">
             <div class="feature-card mb-4">
-                <div class="card h-100">
+                <div class="card h-100 border-info">
+                    <div class="card-header bg-info text-white">
+                        <strong>Axe 3</strong>
+                    </div>
                     <div class="card-body text-center">
-                        <i class="bi bi-graph-up display-3 text-primary mb-3"></i>
-                        <h3>Análisis Multicriteria</h3>
-                        <p>Evaluación técnica, presupuestaria, geográfica y de competencia para cada licitación</p>
+                        <i class="bi bi-cloud-upload display-3 text-info mb-3"></i>
+                        <h3>Transmission Électronique</h3>
+                        <p>Connexion aux systèmes douaniers pour l'envoi automatisé des déclarations</p>
+                        <ul class="list-unstyled text-start small">
+                            <li><i class="bi bi-check-circle text-success"></i> DELTA (France)</li>
+                            <li><i class="bi bi-check-circle text-success"></i> BADR (Algérie)</li>
+                            <li><i class="bi bi-check-circle text-success"></i> ENS/ICS2</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <div class="row">
+        <!-- Axe 4 : Paiement -->
+        <div class="col-md-6">
+            <div class="feature-card mb-4">
+                <div class="card h-100 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <strong>Axe 4</strong>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="bi bi-calculator display-3 text-warning mb-3"></i>
+                        <h3>Calcul et Paiement</h3>
+                        <p>Calcul automatique des droits et taxes, initiation du paiement</p>
+                        <div class="row text-start small">
+                            <div class="col-6">
+                                <strong>Taux Algérie :</strong>
+                                <ul class="list-unstyled">
+                                    <li>5% - 1ère nécessité</li>
+                                    <li>15% - Matières premières</li>
+                                    <li>30% - Semi-finis</li>
+                                    <li>60% - Produits finis</li>
+                                </ul>
+                            </div>
+                            <div class="col-6">
+                                <strong>TVA :</strong>
+                                <ul class="list-unstyled">
+                                    <li>19% - Algérie</li>
+                                    <li>20% - France</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Axe 5 : OEA -->
+        <div class="col-md-6">
+            <div class="feature-card mb-4">
+                <div class="card h-100 border-secondary">
+                    <div class="card-header bg-secondary text-white">
+                        <strong>Axe 5</strong>
+                    </div>
+                    <div class="card-body text-center">
+                        <i class="bi bi-award display-3 text-secondary mb-3"></i>
+                        <h3>Gestion OEA</h3>
+                        <p>Prise en compte du statut d'Opérateur Économique Agréé</p>
+                        <ul class="list-unstyled text-start small">
+                            <li><i class="bi bi-check-circle text-success"></i> Paiement différé</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Procédures simplifiées</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Réduction des contrôles</li>
+                            <li><i class="bi bi-check-circle text-success"></i> Comptes de crédit</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technologies -->
     <div class="row mt-4">
-        <div class="col-md-4">
-            <div class="feature-card mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-bookmark display-3 text-success mb-3"></i>
-                        <h3>Gestión de Ofertas</h3>
-                        <p>Guarda y organiza licitaciones por estado: interesado, presentada, ganada o perdida</p>
-                    </div>
+        <div class="col-md-12">
+            <h2 class="text-center mb-4">Technologies</h2>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <i class="bi bi-robot display-4 text-primary mb-2"></i>
+                    <h5>IA avec Function Calling</h5>
+                    <small class="text-muted">LangChain + LLMs</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="feature-card mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-file-earmark-code display-3 text-info mb-3"></i>
-                        <h3>Análisis XML</h3>
-                        <p>Procesamiento automático de documentos TED (Tenders Electronic Daily) con verificación XPath</p>
-                    </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <i class="bi bi-database display-4 text-success mb-2"></i>
+                    <h5>Base Vectorielle</h5>
+                    <small class="text-muted">ChromaDB SH/NC/TARIC</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="feature-card mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="bi bi-building display-3 text-warning mb-3"></i>
-                        <h3>Perfiles Empresariales</h3>
-                        <p>Crea un perfil detallado de tu empresa para recibir recomendaciones personalizadas</p>
-                    </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <i class="bi bi-cpu display-4 text-info mb-2"></i>
+                    <h5>Multi-Fournisseurs</h5>
+                    <small class="text-muted">Ollama, OpenAI, Gemini</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100 text-center">
+                <div class="card-body">
+                    <i class="bi bi-browser-chrome display-4 text-warning mb-2"></i>
+                    <h5>Automatisation Web</h5>
+                    <small class="text-muted">Playwright</small>
                 </div>
             </div>
         </div>
@@ -116,19 +212,14 @@
         <div class="col-md-12">
             <div class="card bg-light">
                 <div class="card-body text-center py-5">
-                    <h3 class="mb-4">¿Listo para encontrar tu próxima licitación?</h3>
+                    <h3 class="mb-4">Prêt à commencer ?</h3>
+                    <p class="mb-4">Utilisez l'assistant IA pour classifier vos produits, générer des documents ou calculer les droits de douane.</p>
                     <div class="d-flex justify-content-center gap-3 flex-wrap">
-                        <a href="{% url 'apps_tenders:dashboard' %}" class="btn btn-primary btn-lg">
-                            <i class="bi bi-speedometer2"></i> Dashboard
+                        <a href="{% url 'apps_chat:session_list' %}" class="btn btn-primary btn-lg">
+                            <i class="bi bi-chat-dots"></i> Ouvrir l'Assistant
                         </a>
-                        <a href="{% url 'apps_tenders:recommended' %}" class="btn btn-warning btn-lg">
-                            <i class="bi bi-star"></i> Ver Recomendadas
-                        </a>
-                        <a href="{% url 'apps_company:profile' %}" class="btn btn-info btn-lg">
-                            <i class="bi bi-building"></i> Mi Empresa
-                        </a>
-                        <a href="{% url 'apps_chat:session_list' %}" class="btn btn-success btn-lg">
-                            <i class="bi bi-chat-dots"></i> Chat IA
+                        <a href="{% url 'apps_core:edit_profile' %}" class="btn btn-info btn-lg">
+                            <i class="bi bi-gear"></i> Configurer les API Keys
                         </a>
                     </div>
                 </div>
@@ -136,5 +227,19 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Périmètre -->
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <h5><i class="bi bi-info-circle"></i> Périmètre Phase 1</h5>
+                <p class="mb-0">
+                    <strong>Corridor :</strong> France ↔ Algérie uniquement |
+                    <strong>Articles :</strong> Produits de base (hors pétrole, matières dangereuses, licences) |
+                    <strong>Contexte :</strong> Projet académique
+                </p>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

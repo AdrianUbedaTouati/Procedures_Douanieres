@@ -1,0 +1,102 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Nouvelle Expédition - Procédures Douanières{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expéditions</a></li>
+            <li class="breadcrumb-item active">Nouvelle</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-plus-circle"></i> Nouvelle Expédition
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Nom de l'article -->
+                        <div class="mb-3">
+                            <label for="id_nom_article" class="form-label fw-bold">
+                                Nom de l'article <span class="text-danger">*</span>
+                            </label>
+                            {{ form.nom_article }}
+                            {% if form.nom_article.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.nom_article.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Donnez un nom clair et descriptif au produit à expédier.
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label fw-bold">
+                                Description
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.description.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Décrivez le produit: caractéristiques, matériaux, usage...
+                            </div>
+                        </div>
+
+                        <!-- Direction -->
+                        <div class="mb-4">
+                            <label for="id_direction" class="form-label fw-bold">
+                                Direction de l'expédition <span class="text-danger">*</span>
+                            </label>
+                            {{ form.direction }}
+                            {% if form.direction.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.direction.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Info sur les étapes -->
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle"></i> Processus douanier</h6>
+                            <p class="mb-0">
+                                Votre expédition passera par 5 étapes :
+                            </p>
+                            <ol class="mb-0 mt-2">
+                                <li><strong>Classification</strong> - Codes SH/NC/TARIC par IA</li>
+                                <li><strong>Documents</strong> - Génération DAU, D10, D12</li>
+                                <li><strong>Transmission</strong> - Envoi vers DELTA/BADR</li>
+                                <li><strong>Paiement</strong> - Calcul et paiement des droits</li>
+                                <li><strong>OEA</strong> - Gestion du statut OEA</li>
+                            </ol>
+                        </div>
+
+                        <!-- Boutons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'apps_expeditions:list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-x"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-lg"></i> Créer l'expédition
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,6 @@
 """
-Django settings for TenderAI project.
+Django settings for Procédures Douanières project.
+Solution d'Automatisation du Parcours Douanier - Corridor France ↔ Algérie
 """
 
 from pathlib import Path
@@ -35,9 +36,8 @@ INSTALLED_APPS = [
     # Local apps
     'apps.authentication.apps.AuthenticationConfig',
     'apps.core.apps.CoreConfig',
-    'apps.company.apps.CompanyConfig',
-    'apps.tenders.apps.TendersConfig',
     'apps.chat.apps.ChatConfig',
+    'apps.expeditions.apps.ExpeditionsConfig',
 ]
 
 MIDDLEWARE = [
@@ -104,9 +104,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'es'
+LANGUAGE_CODE = 'fr'
 
-TIME_ZONE = 'Europe/Madrid'
+TIME_ZONE = 'Europe/Paris'
 
 USE_I18N = True
 
