@@ -4,7 +4,16 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(python:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(dir:*)",
+      "Bash(tree:*)",
+      "Bash(timeout 5 python:*)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Bash(Get-ChildItem -Path . -Include __pycache__ -Recurse -Directory)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []
