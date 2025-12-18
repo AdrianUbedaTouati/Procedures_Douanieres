@@ -261,54 +261,93 @@ class ExpeditionDocument(models.Model):
 
 ---
 
-## Moteur IA
+## Moteur IA (agent_ia_core)
+
+### Philosophie
+
+**Chaque chatbot est complètement indépendant** avec son propre:
+- `config.py` - Configuration spécifique
+- `prompts.py` - System prompts et templates
+- `tools/` - Outils spécialisés
+
+Seule l'infrastructure de base est partagée dans `shared/`.
 
 ### Structure
 
 ```
 agent_ia_core/
-├── __init__.py
-├── agent_function_calling.py   # Agent principal avec Function Calling
-├── config/
-│   └── config.py               # Configuration centralisée
-└── prompts/
+├── __init__.py                 # Re-export de FunctionCallingAgent
+└── chatbots/
     ├── __init__.py
-    └── prompts.py              # Prompts en français
+    │
+    ├── shared/                 # Infrastructure partagée UNIQUEMENT
+    │   ├── base.py             # ToolDefinition (dataclass)
+    │   └── registry.py         # ToolRegistry (gestion des tools)
+    │
+    ├── base/                   # Chatbot Base (générique)
+    │   ├── agent.py            # FunctionCallingAgent
+    │   ├── config.py           # Configuration
+    │   ├── prompts.py          # System prompts génériques
+    │   └── tools/
+    │       ├── web_search.py       # Recherche web Google
+    │       └── browse_webpage.py   # Navigation et extraction
+    │
+    └── etapes_classification_taric/  # Chatbot Classification TARIC
+        ├── config.py           # Configuration spécifique TARIC
+        ├── prompts.py          # Prompts de classification
+        ├── service.py          # TARICClassificationService
+        └── tools/
+            ├── get_expedition_documents.py  # Récupérer docs expédition
+            └── search_taric_database.py     # Recherche base TARIC
 ```
 
-### Prompts Disponibles
+### Chatbots Disponibles
 
-| Prompt | Utilisation |
-|--------|-------------|
-| `SYSTEM_PROMPT` | Prompt système général pour l'assistant |
-| `CLASSIFICATION_SYSTEM_PROMPT` | Classification douanière |
-| `DOCUMENT_GENERATION_PROMPT` | Génération de documents |
-| `CUSTOMS_DUTY_CALCULATION_PROMPT` | Calcul des droits |
-| `ROUTING_SYSTEM_PROMPT` | Classification des requêtes |
+| Chatbot | Localisation | Utilisation |
+|---------|--------------|-------------|
+| Base | `chatbots/base/` | Agent générique avec web search |
+| Classification TARIC | `chatbots/etapes_classification_taric/` | Classification douanière |
+
+### Créer un Nouveau Chatbot
+
+1. Créer dossier dans `chatbots/mon_chatbot/`
+2. Définir `config.py` avec `CHATBOT_CONFIG`
+3. Définir `prompts.py` avec `SYSTEM_PROMPT`
+4. Créer `tools/` avec fichiers `.py` contenant `TOOL_DEFINITION`
+5. Créer `service.py` avec la logique métier
 
 ### Service de Classification
 
 ```python
-# apps/expeditions/etapes/classification/services.py
+# agent_ia_core/chatbots/etapes_classification_taric/service.py
 
-class ClassificationService:
+class TARICClassificationService:
     """Service pour classifier un produit via l'IA."""
 
-    def analyser_document(self, document) -> dict:
-        """
-        Analyse un document et retourne les codes douaniers.
+    def get_welcome_message(self) -> str:
+        """Retourne le message de bienvenue."""
 
-        Returns:
-            {
-                'code_sh': '8471.30',
-                'code_nc': '8471.30.00',
-                'code_taric': '8471.30.00.00',
-                'confiance_sh': 0.95,
-                'confiance_nc': 0.88,
-                'confiance_taric': 0.82,
-                'justification': '...',
-            }
-        """
+    def process_message(self, user_message: str) -> dict:
+        """Traite un message utilisateur et retourne la réponse."""
+
+    def generate_conversation_summary(self) -> str:
+        """Génère un résumé de la conversation."""
+```
+
+### ToolDefinition
+
+Chaque tool est définie avec:
+
+```python
+from agent_ia_core.chatbots.shared import ToolDefinition
+
+TOOL_DEFINITION = ToolDefinition(
+    name='ma_tool',           # Nom unique
+    description='...',        # Description pour le LLM
+    parameters={...},         # JSON Schema des paramètres
+    function=ma_fonction,     # Fonction Python à exécuter
+    category='classification' # Catégorie
+)
 ```
 
 ---

@@ -3,17 +3,18 @@
 Agent IA Core - Motor del agente inteligente.
 
 Estructura:
-- prompts/: System prompts
-- tools/: Tools del agente (web_search, browse_webpage)
-- config/: Configuración
+- chatbots/: Chatbots especializados (cada uno independiente)
+  - shared/: Infraestructura compartida (ToolDefinition, ToolRegistry)
+  - base/: Agente base con Function Calling
+  - etapes_classification_taric/: Chatbot de clasificación TARIC
+
+Cada chatbot contiene su propio:
+- config.py
+- prompts.py
+- tools/
 """
 
-from . import config
+# Re-export del agente base para uso directo
+from .chatbots import FunctionCallingAgent
 
-# Re-exports for backward compatibility
-from .agent_function_calling import FunctionCallingAgent
-
-__all__ = [
-    'config',
-    'FunctionCallingAgent',
-]
+__all__ = ['FunctionCallingAgent']

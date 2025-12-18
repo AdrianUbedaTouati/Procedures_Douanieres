@@ -21,7 +21,7 @@ class ToolRegistry:
     - Generar descripción para el reviewer
     """
 
-    def __init__(self, all_tools: List[ToolDefinition], retriever, db_session=None, user=None, max_retries: int = 3,
+    def __init__(self, all_tools: List[ToolDefinition], retriever=None, db_session=None, user=None, max_retries: int = 3,
                  llm=None, google_api_key: str = None, google_engine_id: str = None, chat_logger=None):
         """
         Inicializa el registro con autodiscovery de todas las tools.

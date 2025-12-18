@@ -281,12 +281,17 @@ class ExpeditionDocument(models.Model):
         related_name='documents',
         verbose_name="Étape associée"
     )
+    ordre = models.IntegerField(
+        default=0,
+        verbose_name="Ordre",
+        help_text="Ordre d'affichage du document"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
 
     class Meta:
         verbose_name = "Document d'expédition"
         verbose_name_plural = "Documents d'expédition"
-        ordering = ['-created_at']
+        ordering = ['type', 'ordre', '-created_at']
 
     def __str__(self):
         return f"{self.expedition.reference} - {self.get_type_display()}"
@@ -305,3 +310,166 @@ class ExpeditionDocument(models.Model):
     def is_pdf(self):
         """Vérifie si le document est un PDF."""
         return self.extension == 'pdf'
+
+
+class ClassificationChat(models.Model):
+    """
+    Session de chat pour la classification TARIC d'une expedition.
+    Chaque expedition a une seule session de chat de classification.
+    """
+    expedition = models.OneToOneField(
+        Expedition,
+        on_delete=models.CASCADE,
+        related_name='classification_chat',
+        verbose_name="Expedition"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Cree le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifie le")
+
+    class Meta:
+        verbose_name = "Chat de classification"
+        verbose_name_plural = "Chats de classification"
+
+    def __str__(self):
+        return f"Chat Classification - {self.expedition.reference}"
+
+    def get_messages(self):
+        """Retourne tous les messages ordonnes."""
+        return self.messages.all().order_by('created_at')
+
+    def get_latest_proposals(self):
+        """Retourne les dernieres propositions TARIC."""
+        latest_msg_with_proposals = self.messages.filter(
+            proposals__isnull=False
+        ).order_by('-created_at').first()
+        if latest_msg_with_proposals:
+            return latest_msg_with_proposals.proposals.all()
+        return None
+
+    def get_selected_proposal(self):
+        """Retourne la proposition selectionnee si elle existe."""
+        return TARICProposal.objects.filter(
+            message__chat=self,
+            is_selected=True
+        ).first()
+
+
+class ClassificationMessage(models.Model):
+    """
+    Message dans le chat de classification.
+    """
+    ROLE_CHOICES = [
+        ('user', 'Utilisateur'),
+        ('assistant', 'Assistant'),
+        ('system', 'Systeme'),
+    ]
+
+    chat = models.ForeignKey(
+        ClassificationChat,
+        on_delete=models.CASCADE,
+        related_name='messages',
+        verbose_name="Chat"
+    )
+    role = models.CharField(
+        max_length=10,
+        choices=ROLE_CHOICES,
+        verbose_name="Role"
+    )
+    content = models.TextField(verbose_name="Contenu")
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Metadonnees",
+        help_text="Informations supplementaires (tools utilisees, tokens, etc.)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Cree le")
+
+    class Meta:
+        verbose_name = "Message de classification"
+        verbose_name_plural = "Messages de classification"
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.get_role_display()}: {self.content[:50]}..."
+
+    @property
+    def has_proposals(self):
+        """Verifie si ce message contient des propositions TARIC."""
+        return self.proposals.exists()
+
+
+class TARICProposal(models.Model):
+    """
+    Proposition de code TARIC generee par le chatbot.
+    """
+    message = models.ForeignKey(
+        ClassificationMessage,
+        on_delete=models.CASCADE,
+        related_name='proposals',
+        verbose_name="Message"
+    )
+    code_sh = models.CharField(
+        max_length=6,
+        verbose_name="Code SH (6 chiffres)"
+    )
+    code_nc = models.CharField(
+        max_length=8,
+        verbose_name="Code NC (8 chiffres)"
+    )
+    code_taric = models.CharField(
+        max_length=10,
+        verbose_name="Code TARIC (10 chiffres)"
+    )
+    probability = models.FloatField(
+        verbose_name="Probabilite/Precision (%)"
+    )
+    description = models.CharField(
+        max_length=255,
+        verbose_name="Description"
+    )
+    justification = models.TextField(
+        verbose_name="Justification"
+    )
+    ordre = models.IntegerField(
+        default=0,
+        verbose_name="Ordre d'affichage"
+    )
+    is_selected = models.BooleanField(
+        default=False,
+        verbose_name="Selectionne"
+    )
+
+    class Meta:
+        verbose_name = "Proposition TARIC"
+        verbose_name_plural = "Propositions TARIC"
+        ordering = ['-probability']
+
+    def __str__(self):
+        return f"{self.code_taric} ({self.probability}%)"
+
+    @property
+    def formatted_code(self):
+        """Retourne le code TARIC formate avec des points."""
+        c = self.code_taric
+        if len(c) == 10:
+            return f"{c[:4]}.{c[4:6]}.{c[6:8]}.{c[8:]}"
+        return c
+
+    @property
+    def confidence_level(self):
+        """Retourne le niveau de confiance (high, medium, low)."""
+        if self.probability >= 80:
+            return 'high'
+        elif self.probability >= 50:
+            return 'medium'
+        return 'low'
+
+    @property
+    def confidence_color(self):
+        """Retourne la couleur Bootstrap selon le niveau de confiance."""
+        levels = {
+            'high': 'success',
+            'medium': 'warning',
+            'low': 'danger'
+        }
+        return levels.get(self.confidence_level, 'secondary')

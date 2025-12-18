@@ -36,7 +36,7 @@ class ClassificationService:
         """Initialise l'agent IA si nécessaire."""
         if self.agent is None:
             try:
-                from agent_ia_core.agent_function_calling import FunctionCallingAgent
+                from agent_ia_core import FunctionCallingAgent
                 from apps.core.models import UserProfile
 
                 # Récupérer les préférences LLM de l'utilisateur
@@ -168,7 +168,7 @@ class ClassificationService:
 
     def _build_classification_prompt(self, contenu: str) -> str:
         """Construit le prompt de classification."""
-        from agent_ia_core.prompts import create_classification_prompt
+        from agent_ia_core.chatbots.etapes_classification_taric.prompts import create_classification_prompt
 
         product_info = {
             'description': contenu,

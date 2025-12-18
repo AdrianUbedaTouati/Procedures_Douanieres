@@ -59,7 +59,7 @@ class ChatAgentService:
         Create and return a FunctionCallingAgent instance
         """
         try:
-            from agent_ia_core.agent_function_calling import FunctionCallingAgent
+            from agent_ia_core import FunctionCallingAgent
 
             print(f"[SERVICE] Creando FunctionCallingAgent...", file=sys.stderr)
             print(f"[SERVICE] Proveedor: {self.provider}", file=sys.stderr)

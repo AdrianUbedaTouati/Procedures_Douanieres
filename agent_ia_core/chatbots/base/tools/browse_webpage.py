@@ -6,7 +6,7 @@ Navega a una URL y extrae información específica usando extracción progresiva
 """
 
 from typing import Dict, Any
-from .auxiliary.tools_base import ToolDefinition
+from agent_ia_core.chatbots.shared import ToolDefinition
 import logging
 import requests
 from bs4 import BeautifulSoup
@@ -332,7 +332,7 @@ def _progressive_extraction(url: str, title: str, full_text: str,
                 chars_saved = total_chars - chars_analyzed
 
                 logger.info(
-                    f"[BROWSE] ✓ Respuesta encontrada en chunk {chunks_processed}/{(total_chars + chunk_size - 1) // chunk_size}. "
+                    f"[BROWSE] Respuesta encontrada en chunk {chunks_processed}/{(total_chars + chunk_size - 1) // chunk_size}. "
                     f"Ahorro: {chars_saved} chars ({(chars_saved/total_chars)*100:.1f}%)"
                 )
 
@@ -354,7 +354,7 @@ def _progressive_extraction(url: str, title: str, full_text: str,
                 }
 
         # Si llegó aquí, no encontró la respuesta en ningún chunk
-        logger.warning(f"[BROWSE] ✗ No se encontró respuesta después de {chunks_processed} chunks ({chars_analyzed} chars)")
+        logger.warning(f"[BROWSE] No se encontró respuesta después de {chunks_processed} chunks ({chars_analyzed} chars)")
 
         return {
             'success': True,

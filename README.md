@@ -147,10 +147,11 @@ Procedures_Douanieres/
 │           ├── paiement/           # Étape 4: Paiement
 │           └── oea/                # Étape 5: OEA
 │
-├── agent_ia_core/                  # Moteur IA
-│   ├── agent_function_calling.py   # Agent principal
-│   ├── prompts/                    # Prompts en français
-│   └── config/                     # Configuration agent
+├── agent_ia_core/                  # Moteur IA (voir agent_ia_core/README.md)
+│   └── chatbots/                   # Chatbots indépendants
+│       ├── shared/                 # Infrastructure partagée (ToolDefinition, ToolRegistry)
+│       ├── base/                   # Chatbot Base (FunctionCallingAgent, web_search)
+│       └── etapes_classification_taric/  # Chatbot Classification TARIC
 │
 ├── data/                           # Données
 │   └── db.sqlite3                  # Base de données

@@ -76,9 +76,11 @@ Procedures_Douanieres/
 │           ├── paiement/        # Étape 4
 │           └── oea/             # Étape 5
 │
-├── agent_ia_core/               # Moteur IA
-│   ├── agent_function_calling.py
-│   └── prompts/prompts.py       # Prompts en français
+├── agent_ia_core/               # Moteur IA (voir agent_ia_core/README.md)
+│   └── chatbots/                # Chatbots indépendants
+│       ├── shared/              # ToolDefinition, ToolRegistry
+│       ├── base/                # FunctionCallingAgent + web tools
+│       └── etapes_classification_taric/  # Chatbot TARIC
 │
 ├── data/                        # Données
 │   └── db.sqlite3
@@ -185,15 +187,21 @@ Procedures_Douanieres/
 ### Développeurs
 
 1. Lire [ARCHITECTURE.md](ARCHITECTURE.md)
-2. Structure des étapes : `apps/expeditions/etapes/`
-3. Prompts IA : `agent_ia_core/prompts/prompts.py`
-4. Service de classification : `etapes/classification/services.py`
+2. Lire [agent_ia_core/README.md](../agent_ia_core/README.md) pour le moteur IA
+3. Structure des étapes : `apps/expeditions/etapes/`
+4. Chatbots IA : `agent_ia_core/chatbots/`
 
 **Pour ajouter une nouvelle fonctionnalité à une étape :**
 1. Modifier `views.py` de l'étape
 2. Ajouter les formulaires dans `forms.py`
 3. Créer un service dans `services.py` si nécessaire
 4. Mettre à jour les templates
+
+**Pour créer un nouveau chatbot :**
+1. Créer dossier dans `agent_ia_core/chatbots/mon_chatbot/`
+2. Définir `config.py`, `prompts.py`, `service.py`
+3. Créer `tools/` avec les outils spécialisés
+4. Voir [agent_ia_core/README.md](../agent_ia_core/README.md) pour les détails
 
 ---
 

@@ -4,13 +4,17 @@
 
 {% block extra_css %}
 <style>
+    /* ============================================
+       Upload Zones
+    ============================================ */
     .upload-zone {
         border: 2px dashed #ccc;
         border-radius: 10px;
-        padding: 40px;
+        padding: 20px;
         text-align: center;
         transition: all 0.3s ease;
         cursor: pointer;
+        min-height: 120px;
     }
     .upload-zone:hover {
         border-color: #0d6efd;
@@ -20,371 +24,1051 @@
         border-color: #0d6efd;
         background-color: #e7f1ff;
     }
-    .confidence-bar {
+    .upload-zone.zone-photos {
+        border-color: #0d6efd;
+    }
+    .upload-zone.zone-documents {
+        border-color: #dc3545;
+    }
+
+    /* ============================================
+       Documents
+    ============================================ */
+    .document-item {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+    .document-item:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .document-item.sortable-ghost {
+        opacity: 0.4;
+        background: #e7f1ff;
+    }
+    .document-thumb {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 6px;
+        margin-right: 10px;
+    }
+    .document-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-right: 10px;
+        font-size: 1.3rem;
+    }
+    .document-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .document-name {
+        font-weight: 500;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .document-actions .btn {
+        padding: 3px 6px;
+        font-size: 0.8rem;
+    }
+    .drag-handle {
+        cursor: grab;
+        padding: 5px;
+        color: #adb5bd;
+        margin-right: 5px;
+    }
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    .section-count {
+        background: #e9ecef;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+    }
+    .file-preview-list {
+        max-height: 150px;
+        overflow-y: auto;
+    }
+    .file-preview-item {
+        display: flex;
+        align-items: center;
+        padding: 6px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin-bottom: 4px;
+        font-size: 0.85rem;
+    }
+    .file-preview-item .file-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin: 0 8px;
+    }
+
+    /* ============================================
+       Chat Container
+    ============================================ */
+    .chat-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 250px);
+        min-height: 500px;
+        max-height: 700px;
+    }
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    .chat-input-container {
+        padding: 15px;
+        background: #fff;
+        border-top: 1px solid #dee2e6;
+    }
+
+    /* ============================================
+       Chat Messages
+    ============================================ */
+    .message {
+        margin-bottom: 15px;
+        display: flex;
+    }
+    .message.user {
+        justify-content: flex-end;
+    }
+    .message.assistant {
+        justify-content: flex-start;
+    }
+    .message-bubble {
+        max-width: 85%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        position: relative;
+    }
+    .message.user .message-bubble {
+        background: #0d6efd;
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    .message.assistant .message-bubble {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-bottom-left-radius: 4px;
+    }
+    .message.system .message-bubble {
+        background: #d1e7dd;
+        color: #0f5132;
+        width: 100%;
+        max-width: 100%;
+        text-align: center;
+        border-radius: 8px;
+    }
+    .message-time {
+        font-size: 0.7rem;
+        color: #6c757d;
+        margin-top: 4px;
+    }
+    .message.user .message-time {
+        text-align: right;
+        color: rgba(255,255,255,0.7);
+    }
+
+    /* ============================================
+       TARIC Proposals
+    ============================================ */
+    .proposals-container {
+        margin-top: 15px;
+        padding: 15px;
+        background: #fff;
+        border-radius: 10px;
+        border: 1px solid #dee2e6;
+    }
+    .proposal-btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 12px 15px;
+        margin-bottom: 8px;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .proposal-btn:hover {
+        border-color: #0d6efd;
+        background: #f8f9fa;
+    }
+    .proposal-btn.selected {
+        border-color: #198754;
+        background: #d1e7dd;
+    }
+    .proposal-btn .code {
+        font-family: monospace;
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    .proposal-btn .probability {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .proposal-btn .probability-bar {
+        width: 60px;
         height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .proposal-btn .probability-fill {
+        height: 100%;
         border-radius: 4px;
     }
-    .result-card {
-        border-left: 4px solid #198754;
+    .proposal-btn .probability-text {
+        font-weight: 600;
+        min-width: 45px;
+        text-align: right;
     }
-    .code-display {
+    .probability-high { background: #198754; }
+    .probability-medium { background: #ffc107; }
+    .probability-low { background: #dc3545; }
+
+    .proposal-details {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 4px;
+    }
+
+    /* ============================================
+       Summary Section
+    ============================================ */
+    .summary-section {
+        margin-top: 20px;
+        padding: 20px;
+        background: linear-gradient(135deg, #d1e7dd 0%, #badbcc 100%);
+        border-radius: 12px;
+        border: 1px solid #198754;
+    }
+    .summary-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    .summary-header i {
+        font-size: 1.5rem;
+        color: #198754;
+    }
+    .summary-code {
         font-family: monospace;
-        font-size: 1.2rem;
+        font-size: 1.8rem;
         font-weight: bold;
+        color: #0d6efd;
+    }
+    .summary-details {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+
+    /* ============================================
+       Typing Indicator
+    ============================================ */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 10px 15px;
+    }
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background: #6c757d;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-5px); }
+    }
+
+    /* ============================================
+       Validate Button
+    ============================================ */
+    .validate-section {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #dee2e6;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container-fluid">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expéditions</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expeditions</a></li>
             <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:detail' expedition.pk %}">{{ expedition.reference }}</a></li>
             <li class="breadcrumb-item active">Classification</li>
         </ol>
     </nav>
 
     <!-- Header -->
-    <div class="row mb-4">
+    <div class="row mb-3">
         <div class="col-md-8">
-            <h1>
-                <i class="bi bi-tags text-primary"></i> Étape 1: Classification Douanière
+            <h1 class="h3">
+                <i class="bi bi-tags text-primary"></i> Etape 1: Classification Douaniere
             </h1>
-            <p class="text-muted">{{ expedition.nom_article }}</p>
+            <p class="text-muted mb-0">{{ expedition.nom_article }}</p>
         </div>
         <div class="col-md-4 text-end">
             {% if etape.statut == 'en_cours' %}
                 <span class="badge bg-primary fs-6">En cours</span>
             {% elif etape.statut == 'termine' %}
-                <span class="badge bg-success fs-6">Terminé</span>
+                <span class="badge bg-success fs-6">Termine</span>
             {% endif %}
         </div>
     </div>
 
     <div class="row">
-        <!-- Colonne gauche: Upload et analyse -->
-        <div class="col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header bg-primary text-white">
-                    <i class="bi bi-upload"></i> Télécharger un document
+        <!-- Colonne gauche: Documents -->
+        <div class="col-lg-5 col-xl-4 mb-4">
+            <!-- Section Photos -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white py-2">
+                    <i class="bi bi-camera"></i> Photos du produit
                 </div>
-                <div class="card-body">
-                    <p>
-                        Téléchargez une <strong>photo du produit</strong> ou sa <strong>fiche technique (PDF)</strong>
-                        pour lancer la classification automatique par IA.
-                    </p>
-
-                    <!-- Zone d'upload -->
-                    <form id="uploadForm" method="post" enctype="multipart/form-data"
+                <div class="card-body py-2">
+                    {% if etape_terminee %}
+                    <div class="alert alert-info mb-2 py-2 small">
+                        <i class="bi bi-lock"></i> Lecture seule - etape terminee
+                    </div>
+                    {% else %}
+                    <form id="uploadPhotosForm" method="post" enctype="multipart/form-data"
                           action="{% url 'apps_expeditions:classification_upload' expedition.pk %}">
                         {% csrf_token %}
-
-                        <div class="mb-3">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="type_document"
-                                       id="type_photo" value="photo" checked>
-                                <label class="form-check-label" for="type_photo">
-                                    <i class="bi bi-camera"></i> Photo du produit
-                                </label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="type_document"
-                                       id="type_fiche" value="fiche_technique">
-                                <label class="form-check-label" for="type_fiche">
-                                    <i class="bi bi-file-pdf"></i> Fiche technique
-                                </label>
-                            </div>
+                        <input type="hidden" name="type_document" value="photo">
+                        <div class="upload-zone zone-photos mb-2" id="dropZonePhotos">
+                            <i class="bi bi-images display-6 text-primary"></i>
+                            <p class="mb-0 mt-1 small">Glissez vos photos ici</p>
+                            <input type="file" name="fichier" id="fileInputPhotos" class="d-none" accept="image/*" multiple>
                         </div>
-
-                        <div class="upload-zone mb-3" id="dropZone">
-                            <i class="bi bi-cloud-upload display-4 text-muted"></i>
-                            <p class="mb-1">Glissez-déposez votre fichier ici</p>
-                            <p class="text-muted small">ou cliquez pour sélectionner</p>
-                            <input type="file" name="fichier" id="fileInput" class="d-none"
-                                   accept="image/*,.pdf">
-                        </div>
-
-                        <div id="filePreview" class="mb-3 d-none">
-                            <div class="alert alert-info d-flex align-items-center">
-                                <i class="bi bi-file-earmark me-2"></i>
-                                <span id="fileName"></span>
-                                <button type="button" class="btn-close ms-auto" id="clearFile"></button>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100" id="uploadBtn" disabled>
-                            <i class="bi bi-upload"></i> Télécharger
+                        <div id="filePreviewPhotos" class="file-preview-list mb-2 d-none"></div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100" id="uploadBtnPhotos" disabled>
+                            <i class="bi bi-upload"></i> Telecharger
                         </button>
                     </form>
-
-                    <!-- Documents déjà uploadés -->
-                    {% if documents %}
-                    <hr>
-                    <h6>Documents téléchargés</h6>
-                    <ul class="list-group">
-                        {% for doc in documents %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {% if doc.is_image %}
-                                <i class="bi bi-image text-primary"></i>
-                            {% else %}
-                                <i class="bi bi-file-pdf text-danger"></i>
-                            {% endif %}
-                            <span class="ms-2">{{ doc.nom_original|truncatechars:30 }}</span>
-                            <span class="badge bg-secondary">{{ doc.get_type_display }}</span>
-                        </li>
-                        {% endfor %}
-                    </ul>
                     {% endif %}
 
-                    <!-- Bouton d'analyse -->
-                    {% if documents %}
-                    <form method="post" action="{% url 'apps_expeditions:classification_analyse' expedition.pk %}"
-                          class="mt-3" id="analyseForm">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-success w-100 btn-lg" id="analyseBtn">
-                            <i class="bi bi-robot"></i> Lancer la classification IA
-                        </button>
-                    </form>
+                    {% if photos %}
+                    <hr class="my-2">
+                    <div class="section-header">
+                        <small class="fw-bold"><i class="bi bi-images"></i> Photos</small>
+                        <span class="section-count">{{ photos.count }}</span>
+                    </div>
+                    <div id="photosContainer" data-type="photo" style="max-height: 200px; overflow-y: auto;">
+                        {% for doc in photos %}
+                        <div class="document-item" data-id="{{ doc.id }}">
+                            {% if not etape_terminee %}<i class="bi bi-grip-vertical drag-handle"></i>{% endif %}
+                            {% if doc.is_image %}
+                            <img src="{{ doc.fichier.url }}" alt="{{ doc.nom_original }}" class="document-thumb">
+                            {% else %}
+                            <div class="document-icon text-primary"><i class="bi bi-image"></i></div>
+                            {% endif %}
+                            <div class="document-info">
+                                <div class="document-name" title="{{ doc.nom_original }}">{{ doc.nom_original }}</div>
+                            </div>
+                            <div class="document-actions">
+                                <a href="{{ doc.fichier.url }}" target="_blank" class="btn btn-outline-info btn-sm" title="Voir">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if not etape_terminee %}
+                                <button type="button" class="btn btn-outline-danger btn-sm btn-delete" data-id="{{ doc.id }}" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% endif %}
                 </div>
             </div>
-        </div>
 
-        <!-- Colonne droite: Résultats -->
-        <div class="col-md-6 mb-4">
-            <div class="card h-100">
-                <div class="card-header bg-success text-white">
-                    <i class="bi bi-check-circle"></i> Résultat de la classification
+            <!-- Section Fiches Techniques -->
+            <div class="card">
+                <div class="card-header bg-danger text-white py-2">
+                    <i class="bi bi-file-pdf"></i> Fiches techniques
                 </div>
-                <div class="card-body">
-                    {% if classification_result %}
-                    <!-- Résultats affichés -->
-                    <div class="result-card card mb-3">
-                        <div class="card-body">
-                            <!-- Code SH -->
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold">Code SH (6 chiffres)</span>
-                                    <span class="code-display text-primary">
-                                        {{ classification_result.code_sh|default:"-" }}
-                                    </span>
-                                </div>
-                                {% if classification_result.confiance_sh %}
-                                <div class="progress confidence-bar mt-1">
-                                    <div class="progress-bar bg-success" role="progressbar"
-                                         style="width: {{ classification_result.confiance_sh|floatformat:0 }}%"></div>
-                                </div>
-                                <small class="text-muted">
-                                    Confiance: {{ classification_result.confiance_sh|floatformat:0 }}%
-                                </small>
-                                {% endif %}
-                            </div>
-
-                            <!-- Code NC -->
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold">Code NC (8 chiffres UE)</span>
-                                    <span class="code-display text-success">
-                                        {{ classification_result.code_nc|default:"-" }}
-                                    </span>
-                                </div>
-                                {% if classification_result.confiance_nc %}
-                                <div class="progress confidence-bar mt-1">
-                                    <div class="progress-bar bg-info" role="progressbar"
-                                         style="width: {{ classification_result.confiance_nc|floatformat:0 }}%"></div>
-                                </div>
-                                <small class="text-muted">
-                                    Confiance: {{ classification_result.confiance_nc|floatformat:0 }}%
-                                </small>
-                                {% endif %}
-                            </div>
-
-                            <!-- Code TARIC -->
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="fw-bold">Code TARIC (10 chiffres)</span>
-                                    <span class="code-display text-warning">
-                                        {{ classification_result.code_taric|default:"-" }}
-                                    </span>
-                                </div>
-                                {% if classification_result.confiance_taric %}
-                                <div class="progress confidence-bar mt-1">
-                                    <div class="progress-bar bg-warning" role="progressbar"
-                                         style="width: {{ classification_result.confiance_taric|floatformat:0 }}%"></div>
-                                </div>
-                                <small class="text-muted">
-                                    Confiance: {{ classification_result.confiance_taric|floatformat:0 }}%
-                                </small>
-                                {% endif %}
-                            </div>
-
-                            <!-- Justification -->
-                            {% if classification_result.justification %}
-                            <div class="mt-3 p-2 bg-light rounded">
-                                <small class="text-muted">
-                                    <i class="bi bi-info-circle"></i> {{ classification_result.justification|truncatechars:300 }}
-                                </small>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Formulaire de validation -->
-                    <form method="post" action="{% url 'apps_expeditions:classification_valider' expedition.pk %}">
+                <div class="card-body py-2">
+                    {% if not etape_terminee %}
+                    <form id="uploadDocsForm" method="post" enctype="multipart/form-data"
+                          action="{% url 'apps_expeditions:classification_upload' expedition.pk %}">
                         {% csrf_token %}
-
-                        <div class="accordion mb-3" id="accordionModifier">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button"
-                                            data-bs-toggle="collapse" data-bs-target="#collapseModifier">
-                                        <i class="bi bi-pencil me-2"></i> Modifier manuellement
-                                    </button>
-                                </h2>
-                                <div id="collapseModifier" class="accordion-collapse collapse"
-                                     data-bs-parent="#accordionModifier">
-                                    <div class="accordion-body">
-                                        <div class="mb-2">
-                                            <label class="form-label">Code SH</label>
-                                            {{ manuel_form.code_sh }}
-                                        </div>
-                                        <div class="mb-2">
-                                            <label class="form-label">Code NC</label>
-                                            {{ manuel_form.code_nc }}
-                                        </div>
-                                        <div class="mb-2">
-                                            <label class="form-label">Code TARIC</label>
-                                            {{ manuel_form.code_taric }}
-                                        </div>
-                                        <div class="mb-2">
-                                            <label class="form-label">Justification</label>
-                                            {{ manuel_form.justification }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                        <input type="hidden" name="type_document" value="fiche_technique">
+                        <div class="upload-zone zone-documents mb-2" id="dropZoneDocs">
+                            <i class="bi bi-file-earmark-pdf display-6 text-danger"></i>
+                            <p class="mb-0 mt-1 small">Glissez vos PDF ici</p>
+                            <input type="file" name="fichier" id="fileInputDocs" class="d-none" accept=".pdf,application/pdf" multiple>
                         </div>
-
-                        <!-- Champs cachés avec les valeurs actuelles -->
-                        <input type="hidden" name="code_sh" value="{{ classification_result.code_sh }}" id="hidden_sh">
-                        <input type="hidden" name="code_nc" value="{{ classification_result.code_nc }}" id="hidden_nc">
-                        <input type="hidden" name="code_taric" value="{{ classification_result.code_taric }}" id="hidden_taric">
-
-                        <button type="submit" class="btn btn-success w-100 btn-lg">
-                            <i class="bi bi-check-lg"></i> Valider et passer à l'étape suivante
+                        <div id="filePreviewDocs" class="file-preview-list mb-2 d-none"></div>
+                        <button type="submit" class="btn btn-danger btn-sm w-100" id="uploadBtnDocs" disabled>
+                            <i class="bi bi-upload"></i> Telecharger
                         </button>
                     </form>
+                    {% endif %}
 
-                    {% else %}
-                    <!-- Pas encore de résultat -->
-                    <div class="text-center py-5">
-                        <i class="bi bi-search display-1 text-muted"></i>
-                        <h5 class="mt-3">En attente de classification</h5>
-                        <p class="text-muted">
-                            Téléchargez un document puis lancez l'analyse IA pour obtenir les codes douaniers.
-                        </p>
+                    {% if fiches_techniques %}
+                    <hr class="my-2">
+                    <div class="section-header">
+                        <small class="fw-bold"><i class="bi bi-file-pdf"></i> Documents</small>
+                        <span class="section-count">{{ fiches_techniques.count }}</span>
+                    </div>
+                    <div id="docsContainer" data-type="fiche_technique" style="max-height: 200px; overflow-y: auto;">
+                        {% for doc in fiches_techniques %}
+                        <div class="document-item" data-id="{{ doc.id }}">
+                            {% if not etape_terminee %}<i class="bi bi-grip-vertical drag-handle"></i>{% endif %}
+                            <div class="document-icon text-danger"><i class="bi bi-file-pdf"></i></div>
+                            <div class="document-info">
+                                <div class="document-name" title="{{ doc.nom_original }}">{{ doc.nom_original }}</div>
+                            </div>
+                            <div class="document-actions">
+                                <a href="{{ doc.fichier.url }}" target="_blank" class="btn btn-outline-info btn-sm" title="Voir">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if not etape_terminee %}
+                                <button type="button" class="btn btn-outline-danger btn-sm btn-delete" data-id="{{ doc.id }}" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                     {% endif %}
+                </div>
+            </div>
+
+            <!-- Bouton retour -->
+            <div class="mt-3">
+                <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Retour
+                </a>
+            </div>
+        </div>
+
+        <!-- Colonne droite: Chat -->
+        <div class="col-lg-7 col-xl-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white py-2">
+                    <i class="bi bi-robot"></i> Assistant Classification TARIC
+                    {% if etape_terminee %}
+                    <span class="badge bg-light text-dark ms-2">Lecture seule</span>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0 chat-container">
+                    <!-- Zone des messages -->
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Messages charges dynamiquement -->
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                            <p class="text-muted mt-2">Chargement du chat...</p>
+                        </div>
+                    </div>
+
+                    <!-- Zone des propositions TARIC (affichee quand il y a des propositions) -->
+                    <div id="proposalsSection" class="d-none px-3 py-2 bg-light border-top">
+                        <h6 class="mb-2"><i class="bi bi-list-check"></i> Selectionnez un code TARIC :</h6>
+                        <div id="proposalsContainer"></div>
+                        <div class="validate-section" id="validateSection" style="display: none;">
+                            <button type="button" class="btn btn-success w-100" id="validateBtn">
+                                <i class="bi bi-check-lg"></i> Valider cette classification
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Zone de saisie -->
+                    <div class="chat-input-container" id="chatInputContainer">
+                        {% if not etape_terminee %}
+                        <form id="chatForm" class="d-flex gap-2">
+                            <input type="text" class="form-control" id="chatInput"
+                                   placeholder="Posez votre question ou decrivez votre produit..." autocomplete="off">
+                            <button type="submit" class="btn btn-success" id="sendBtn">
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <div class="text-center text-muted py-2">
+                            <i class="bi bi-lock"></i> Chat en lecture seule
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Resume (affiche apres validation) -->
+                <div id="summarySection" class="d-none">
+                    <div class="summary-section mx-3 mb-3">
+                        <div class="summary-header">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <div>
+                                <h5 class="mb-0">Classification Validee</h5>
+                                <div class="summary-code" id="summaryCode"></div>
+                            </div>
+                        </div>
+                        <div class="summary-details">
+                            <div id="summaryContent"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Bouton retour -->
-    <div class="mt-3">
-        <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Retour au détail
-        </a>
+<!-- Modal Supprimer -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger"><i class="bi bi-trash"></i> Supprimer le document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Etes-vous sur de vouloir supprimer ce document ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmation Validation -->
+<div class="modal fade" id="validateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle"></i> Confirmer la validation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Vous allez valider le code TARIC suivant :</p>
+                <div class="text-center my-3">
+                    <span class="badge bg-primary fs-4 p-3" id="modalCode"></span>
+                </div>
+                <p id="modalDescription" class="text-muted"></p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Attention :</strong> Une fois validee, cette etape sera verrouillee et ne pourra plus etre modifiee.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" id="confirmValidate">
+                    <i class="bi bi-check-lg"></i> Confirmer la validation
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const filePreview = document.getElementById('filePreview');
-    const fileName = document.getElementById('fileName');
-    const clearFile = document.getElementById('clearFile');
-    const uploadBtn = document.getElementById('uploadBtn');
+    const expeditionPk = {{ expedition.pk }};
+    const csrfToken = '{{ csrf_token }}';
+    const etapeTerminee = {{ etape_terminee|yesno:"true,false" }};
 
-    // Click sur la zone d'upload
-    dropZone.addEventListener('click', () => fileInput.click());
+    // Elements du chat
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const proposalsSection = document.getElementById('proposalsSection');
+    const proposalsContainer = document.getElementById('proposalsContainer');
+    const validateSection = document.getElementById('validateSection');
+    const validateBtn = document.getElementById('validateBtn');
+    const summarySection = document.getElementById('summarySection');
 
-    // Drag & Drop
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
+    let selectedProposalId = null;
+    let selectedProposalData = null;
+    let latestProposals = [];
 
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('dragover');
-    });
+    // ============================================
+    // Upload Zones Setup
+    // ============================================
+    setupUploadZone('Photos', 'fileInputPhotos', 'dropZonePhotos', 'filePreviewPhotos', 'uploadBtnPhotos');
+    setupUploadZone('Docs', 'fileInputDocs', 'dropZoneDocs', 'filePreviewDocs', 'uploadBtnDocs');
 
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) {
-            fileInput.files = e.dataTransfer.files;
-            showPreview(e.dataTransfer.files[0]);
+    function setupUploadZone(suffix, inputId, dropId, previewId, btnId) {
+        const dropZone = document.getElementById(dropId);
+        const fileInput = document.getElementById(inputId);
+        const filePreview = document.getElementById(previewId);
+        const uploadBtn = document.getElementById(btnId);
+
+        if (!dropZone || !fileInput) return;
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                showMultiplePreview(fileInput.files, filePreview, uploadBtn);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                showMultiplePreview(e.target.files, filePreview, uploadBtn);
+            }
+        });
+    }
+
+    function showMultiplePreview(files, previewContainer, uploadBtn) {
+        previewContainer.innerHTML = '';
+        previewContainer.classList.remove('d-none');
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const item = document.createElement('div');
+            item.className = 'file-preview-item';
+
+            const icon = document.createElement('i');
+            icon.className = file.type.startsWith('image/') ? 'bi bi-image text-primary' : 'bi bi-file-pdf text-danger';
+
+            const name = document.createElement('span');
+            name.className = 'file-name';
+            name.textContent = file.name;
+
+            item.appendChild(icon);
+            item.appendChild(name);
+            previewContainer.appendChild(item);
         }
-    });
 
-    // Sélection de fichier
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length) {
-            showPreview(e.target.files[0]);
-        }
-    });
-
-    // Afficher l'aperçu
-    function showPreview(file) {
-        fileName.textContent = file.name;
-        filePreview.classList.remove('d-none');
         uploadBtn.disabled = false;
+        uploadBtn.innerHTML = `<i class="bi bi-upload"></i> ${files.length} fichier${files.length > 1 ? 's' : ''}`;
     }
 
-    // Effacer le fichier
-    clearFile.addEventListener('click', () => {
-        fileInput.value = '';
-        filePreview.classList.add('d-none');
-        uploadBtn.disabled = true;
+    // ============================================
+    // Document Management
+    // ============================================
+    const photosContainer = document.getElementById('photosContainer');
+    const docsContainer = document.getElementById('docsContainer');
+
+    if (photosContainer && !etapeTerminee) {
+        new Sortable(photosContainer, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',
+            onEnd: () => saveOrder(photosContainer)
+        });
+    }
+
+    if (docsContainer && !etapeTerminee) {
+        new Sortable(docsContainer, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',
+            onEnd: () => saveOrder(docsContainer)
+        });
+    }
+
+    function saveOrder(container) {
+        const items = container.querySelectorAll('.document-item');
+        const ordre = Array.from(items).map(item => parseInt(item.dataset.id));
+
+        fetch(`/expeditions/${expeditionPk}/classification/documents/reordonner/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ ordre: ordre })
+        });
+    }
+
+    // Delete documents
+    let deleteDocId = null;
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+    document.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', function() {
+            deleteDocId = this.dataset.id;
+            deleteModal.show();
+        });
     });
 
-    // Mettre à jour les champs cachés si modification manuelle
-    const manuelSh = document.querySelector('[name="code_sh"]:not([type="hidden"])');
-    const manuelNc = document.querySelector('[name="code_nc"]:not([type="hidden"])');
-    const manuelTaric = document.querySelector('[name="code_taric"]:not([type="hidden"])');
+    document.getElementById('confirmDelete').addEventListener('click', function() {
+        if (!deleteDocId) return;
 
-    if (manuelSh) {
-        manuelSh.addEventListener('input', (e) => {
-            document.getElementById('hidden_sh').value = e.target.value;
+        fetch(`/expeditions/${expeditionPk}/classification/document/${deleteDocId}/supprimer/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const element = document.querySelector(`.document-item[data-id="${deleteDocId}"]`);
+                if (element) element.remove();
+            }
+            deleteModal.hide();
+            deleteDocId = null;
         });
+    });
+
+    // ============================================
+    // Chat Functions
+    // ============================================
+    function loadChatHistory() {
+        fetch(`/expeditions/${expeditionPk}/classification/chat/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    chatMessages.innerHTML = '';
+
+                    data.messages.forEach(msg => {
+                        appendMessage(msg);
+
+                        // Si le message a des proposals, les afficher
+                        if (msg.proposals && msg.proposals.length > 0) {
+                            latestProposals = msg.proposals;
+                            renderProposals(msg.proposals);
+                        }
+                    });
+
+                    // Verifier s'il y a une proposition selectionnee
+                    if (data.has_selected_proposal) {
+                        const selected = latestProposals.find(p => p.is_selected);
+                        if (selected) {
+                            selectedProposalId = selected.id;
+                            selectedProposalData = selected;
+                            highlightSelectedProposal();
+                        }
+                    }
+
+                    scrollToBottom();
+
+                    // Si etape terminee, afficher le resume
+                    if (data.etape_terminee) {
+                        showCompletedSummary();
+                    }
+                }
+            })
+            .catch(error => {
+                chatMessages.innerHTML = '<div class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle"></i> Erreur de chargement</div>';
+            });
     }
-    if (manuelNc) {
-        manuelNc.addEventListener('input', (e) => {
-            document.getElementById('hidden_nc').value = e.target.value;
-        });
+
+    function appendMessage(msg) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${msg.role}`;
+
+        const bubbleDiv = document.createElement('div');
+        bubbleDiv.className = 'message-bubble';
+
+        // Parser le markdown pour les messages assistant
+        if (msg.role === 'assistant' && typeof marked !== 'undefined') {
+            bubbleDiv.innerHTML = marked.parse(msg.content);
+        } else {
+            bubbleDiv.textContent = msg.content;
+        }
+
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'message-time';
+        timeDiv.textContent = formatTime(msg.created_at);
+
+        bubbleDiv.appendChild(timeDiv);
+        messageDiv.appendChild(bubbleDiv);
+        chatMessages.appendChild(messageDiv);
     }
-    if (manuelTaric) {
-        manuelTaric.addEventListener('input', (e) => {
-            document.getElementById('hidden_taric').value = e.target.value;
+
+    function appendTypingIndicator() {
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'message assistant';
+        typingDiv.id = 'typingIndicator';
+        typingDiv.innerHTML = `
+            <div class="message-bubble">
+                <div class="typing-indicator">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+        `;
+        chatMessages.appendChild(typingDiv);
+        scrollToBottom();
+    }
+
+    function removeTypingIndicator() {
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) indicator.remove();
+    }
+
+    function renderProposals(proposals) {
+        proposalsContainer.innerHTML = '';
+        proposalsSection.classList.remove('d-none');
+
+        proposals.forEach((prop, index) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'proposal-btn';
+            btn.dataset.id = prop.id;
+
+            const probClass = prop.probability >= 80 ? 'probability-high' :
+                             prop.probability >= 50 ? 'probability-medium' : 'probability-low';
+
+            btn.innerHTML = `
+                <div>
+                    <span class="code">${prop.formatted_code || prop.code_taric}</span>
+                    <div class="proposal-details">${prop.description || ''}</div>
+                </div>
+                <div class="probability">
+                    <div class="probability-bar">
+                        <div class="probability-fill ${probClass}" style="width: ${prop.probability}%"></div>
+                    </div>
+                    <span class="probability-text">${prop.probability}%</span>
+                </div>
+            `;
+
+            btn.addEventListener('click', () => selectProposal(prop));
+            proposalsContainer.appendChild(btn);
         });
     }
 
-    // Loading state pour l'analyse
-    const analyseForm = document.getElementById('analyseForm');
-    const analyseBtn = document.getElementById('analyseBtn');
+    function selectProposal(proposal) {
+        if (etapeTerminee) return;
 
-    if (analyseForm) {
-        analyseForm.addEventListener('submit', function() {
-            analyseBtn.disabled = true;
-            analyseBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Analyse en cours...';
+        selectedProposalId = proposal.id;
+        selectedProposalData = proposal;
+
+        // Appel API pour selectionner
+        fetch(`/expeditions/${expeditionPk}/classification/chat/proposal/${proposal.id}/select/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                highlightSelectedProposal();
+                validateSection.style.display = 'block';
+            }
         });
     }
+
+    function highlightSelectedProposal() {
+        document.querySelectorAll('.proposal-btn').forEach(btn => {
+            btn.classList.remove('selected');
+            if (parseInt(btn.dataset.id) === selectedProposalId) {
+                btn.classList.add('selected');
+            }
+        });
+    }
+
+    // Validation
+    const validateModal = new bootstrap.Modal(document.getElementById('validateModal'));
+
+    if (validateBtn) {
+        validateBtn.addEventListener('click', function() {
+            if (!selectedProposalData) return;
+
+            document.getElementById('modalCode').textContent = selectedProposalData.formatted_code || selectedProposalData.code_taric;
+            document.getElementById('modalDescription').textContent = selectedProposalData.description || '';
+            validateModal.show();
+        });
+    }
+
+    document.getElementById('confirmValidate').addEventListener('click', function() {
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Validation...';
+
+        fetch(`/expeditions/${expeditionPk}/classification/chat/validate/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            validateModal.hide();
+
+            if (data.success) {
+                // Afficher le resume
+                showSummary(data.result, data.summary);
+
+                // Desactiver le chat
+                if (chatForm) chatForm.style.display = 'none';
+                document.getElementById('chatInputContainer').innerHTML = `
+                    <div class="text-center text-muted py-2">
+                        <i class="bi bi-lock"></i> Chat en lecture seule
+                    </div>
+                `;
+
+                // Masquer le bouton valider
+                validateSection.style.display = 'none';
+
+                // Ajouter message systeme
+                appendMessage({
+                    role: 'system',
+                    content: `Classification validee: ${data.result.code_taric}`,
+                    created_at: new Date().toISOString()
+                });
+
+                scrollToBottom();
+            } else {
+                alert(data.error || 'Erreur lors de la validation');
+                document.getElementById('confirmValidate').disabled = false;
+                document.getElementById('confirmValidate').innerHTML = '<i class="bi bi-check-lg"></i> Confirmer la validation';
+            }
+        });
+    });
+
+    function showSummary(result, summary) {
+        summarySection.classList.remove('d-none');
+        document.getElementById('summaryCode').textContent = result.code_taric;
+
+        let html = `
+            <p><strong>Description:</strong> ${result.description || 'N/A'}</p>
+            <p><strong>Precision:</strong> ${result.probability}%</p>
+            <p><strong>Justification:</strong> ${result.justification || 'N/A'}</p>
+        `;
+
+        if (summary && summary.key_points) {
+            html += '<hr><p><strong>Points cles:</strong></p><ul>';
+            summary.key_points.forEach(point => {
+                html += `<li>${point}</li>`;
+            });
+            html += '</ul>';
+        }
+
+        document.getElementById('summaryContent').innerHTML = html;
+    }
+
+    function showCompletedSummary() {
+        // Charger les donnees de l'etape pour afficher le resume
+        // Pour l'instant, juste afficher le message que c'est termine
+        proposalsSection.classList.add('d-none');
+    }
+
+    // Chat form submission
+    if (chatForm) {
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // Ajouter le message utilisateur
+            appendMessage({
+                role: 'user',
+                content: message,
+                created_at: new Date().toISOString()
+            });
+
+            chatInput.value = '';
+            sendBtn.disabled = true;
+            appendTypingIndicator();
+            scrollToBottom();
+
+            // Envoyer au serveur
+            fetch(`/expeditions/${expeditionPk}/classification/chat/message/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                removeTypingIndicator();
+                sendBtn.disabled = false;
+
+                if (data.success) {
+                    appendMessage(data.assistant_message);
+
+                    // Si des proposals, les afficher
+                    if (data.assistant_message.proposals && data.assistant_message.proposals.length > 0) {
+                        latestProposals = data.assistant_message.proposals;
+                        renderProposals(data.assistant_message.proposals);
+                    }
+
+                    scrollToBottom();
+                } else {
+                    appendMessage({
+                        role: 'assistant',
+                        content: data.error || 'Erreur lors du traitement',
+                        created_at: new Date().toISOString()
+                    });
+                }
+            })
+            .catch(error => {
+                removeTypingIndicator();
+                sendBtn.disabled = false;
+                appendMessage({
+                    role: 'assistant',
+                    content: 'Erreur de connexion. Veuillez reessayer.',
+                    created_at: new Date().toISOString()
+                });
+            });
+        });
+    }
+
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function formatTime(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Charger l'historique au demarrage
+    loadChatHistory();
 });
 </script>
 {% endblock %}

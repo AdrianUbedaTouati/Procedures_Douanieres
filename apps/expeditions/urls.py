@@ -47,6 +47,29 @@ urlpatterns = [
     path('<int:pk>/classification/valider/',
          classification_views.ClassificationValiderView.as_view(),
          name='classification_valider'),
+    # Gestion des documents classification
+    path('<int:pk>/classification/document/<int:doc_id>/supprimer/',
+         classification_views.DocumentDeleteView.as_view(),
+         name='classification_document_delete'),
+    path('<int:pk>/classification/document/<int:doc_id>/renommer/',
+         classification_views.DocumentRenameView.as_view(),
+         name='classification_document_rename'),
+    path('<int:pk>/classification/documents/reordonner/',
+         classification_views.DocumentReorderView.as_view(),
+         name='classification_documents_reorder'),
+    # API Chat Classification TARIC
+    path('<int:pk>/classification/chat/',
+         classification_views.ClassificationChatView.as_view(),
+         name='classification_chat'),
+    path('<int:pk>/classification/chat/message/',
+         classification_views.ClassificationChatMessageView.as_view(),
+         name='classification_chat_message'),
+    path('<int:pk>/classification/chat/proposal/<int:proposal_id>/select/',
+         classification_views.SelectTARICProposalView.as_view(),
+         name='classification_select_proposal'),
+    path('<int:pk>/classification/chat/validate/',
+         classification_views.ValidateTARICCodeView.as_view(),
+         name='classification_validate_taric'),
 
     # =========================================================================
     # ÉTAPE 2: GÉNÉRATION DES DOCUMENTS

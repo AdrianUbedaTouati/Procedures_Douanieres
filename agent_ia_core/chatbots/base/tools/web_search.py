@@ -6,7 +6,7 @@ Búsqueda web usando Google Custom Search API para encontrar información actual
 """
 
 from typing import Dict, Any
-from .auxiliary.tools_base import ToolDefinition
+from agent_ia_core.chatbots.shared import ToolDefinition
 import logging
 
 logger = logging.getLogger(__name__)
@@ -142,7 +142,7 @@ def web_search(query: str, limit: int = 5, api_key: str = None, engine_id: str =
                 'displayUrl': item.get('displayLink', '')
             })
 
-        logger.info(f"[WEB_SEARCH] ✓ Encontrados {len(formatted_results)} resultados para: '{query}'")
+        logger.info(f"[WEB_SEARCH] Encontrados {len(formatted_results)} resultados para: '{query}'")
 
         return {
             'success': True,

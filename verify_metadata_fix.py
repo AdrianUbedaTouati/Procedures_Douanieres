@@ -15,8 +15,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 django.setup()
 
 from agent_ia_core.indexing.index_build import IndexBuilder
-from agent_ia_core.config import CHROMA_PERSIST_DIRECTORY, CHROMA_COLLECTION_NAME
 from apps.users.models import CustomUser
+
+# Configuración ChromaDB local
+CHROMA_PERSIST_DIRECTORY = os.path.join(os.path.dirname(__file__), 'data', 'index', 'chroma')
+CHROMA_COLLECTION_NAME = os.getenv('CHROMA_COLLECTION_NAME', 'eforms_chunks')
 
 def main():
     print("=" * 80)

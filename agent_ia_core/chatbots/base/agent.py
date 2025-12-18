@@ -11,9 +11,11 @@ import logging
 import json
 from datetime import datetime
 
-# Importar tools
-sys.path.append(str(Path(__file__).parent))
-from .tools import ToolRegistry, ALL_TOOLS
+# Importar infraestructura compartida
+from agent_ia_core.chatbots.shared import ToolRegistry, ToolDefinition
+
+# Importar tools locales de este chatbot
+from .tools import ALL_TOOLS
 
 # Imports de LLMs
 try:
