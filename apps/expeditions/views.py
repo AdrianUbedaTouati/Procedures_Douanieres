@@ -81,13 +81,13 @@ class ExpeditionDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'expedition'
 
     def get_queryset(self):
-        return Expedition.objects.filter(user=self.request.user).prefetch_related('etapes', 'documents')
+        return Expedition.objects.filter(user=self.request.user).prefetch_related('etapes', 'etapes__documents')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['page_title'] = f'Expédition {self.object.reference}'
         context['etapes'] = self.object.etapes.all().order_by('numero')
-        context['documents'] = self.object.documents.all()
+        # Les documents sont maintenant dans les étapes
         return context
 
 

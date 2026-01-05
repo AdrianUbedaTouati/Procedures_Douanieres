@@ -154,7 +154,12 @@ Procedures_Douanieres/
 │       └── etapes_classification_taric/  # Chatbot Classification TARIC
 │
 ├── data/                           # Données
-│   └── db.sqlite3                  # Base de données
+│   ├── db.sqlite3                  # Base de données
+│   └── media_expediciones/         # Fichiers uploadés par expédition
+│       └── {expedition_id}/        # Dossier par expédition
+│           └── etape_{n}_{type}/   # Sous-dossiers par étape
+│               ├── images/         # Photos
+│               └── documents/      # PDF, fiches techniques
 │
 ├── docs/                           # Documentation
 │   ├── ARCHITECTURE.md             # Architecture technique
@@ -242,6 +247,7 @@ python manage.py test tests.test_chat
 ## Documentation
 
 - [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Architecture technique détaillée
+- [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) - Schéma de base de données (modèles, relations, structure fichiers)
 - [DOCS_INDEX.md](docs/DOCS_INDEX.md) - Index de la documentation
 - [Cahier des charges](Cahier%20des%20charges%20-%20Procédures%20douanières.pdf) - Spécifications du projet
 

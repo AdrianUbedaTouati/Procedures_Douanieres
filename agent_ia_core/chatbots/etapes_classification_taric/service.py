@@ -1,6 +1,11 @@
 """
 Service pour le chatbot de classification TARIC.
 Reutilise ChatAgentService avec des prompts et tools specialises.
+
+Utilise la nouvelle structure:
+- ExpeditionEtape (table intermediaire)
+- ClassificationData (donnees specifiques 1:1)
+- ExpeditionDocument (fichiers lies a l'etape)
 """
 import json
 import re
@@ -33,6 +38,22 @@ class TARICClassificationService:
         self.user = user
         self.expedition = expedition
         self._chat_service = None
+        self._etape = None
+        self._classification_data = None
+
+    @property
+    def etape(self):
+        """Retourne l'etape de classification (etape 1)."""
+        if self._etape is None:
+            self._etape = self.expedition.get_etape(1)
+        return self._etape
+
+    @property
+    def classification_data(self):
+        """Retourne les donnees de classification."""
+        if self._classification_data is None:
+            self._classification_data = self.etape.get_data()
+        return self._classification_data
 
     def _get_chat_service(self):
         """Obtenir le service de chat sous-jacent."""
@@ -59,15 +80,16 @@ class TARICClassificationService:
 
     def get_expedition_documents_info(self) -> Dict[str, Any]:
         """
-        Recupere les informations sur les documents de l'expedition.
+        Recupere les informations sur les documents de l'etape de classification.
 
         Returns:
             Dict avec photos et fiches_techniques
         """
-        photos = list(self.expedition.documents.filter(type='photo').values(
+        # Les documents sont maintenant lies a l'etape, pas a l'expedition
+        photos = list(self.etape.documents.filter(type='photo').values(
             'id', 'nom_original', 'fichier', 'created_at'
         ))
-        fiches = list(self.expedition.documents.filter(type='fiche_technique').values(
+        fiches = list(self.etape.documents.filter(type='fiche_technique').values(
             'id', 'nom_original', 'fichier', 'created_at'
         ))
 
@@ -151,6 +173,10 @@ class TARICClassificationService:
 
         if not docs['has_photos'] and not docs['has_fiches']:
             context_parts.append("Aucun document telecharge pour le moment.")
+
+        # Ajouter info sur classification existante si presente
+        if self.classification_data and self.classification_data.code_taric:
+            context_parts.append(f"Classification actuelle: {self.classification_data.formatted_code}")
 
         return '\n'.join(context_parts)
 
@@ -260,7 +286,7 @@ class TARICClassificationService:
             if 'taric' in content.lower() and any(char.isdigit() for char in content):
                 key_points.append("Codes TARIC proposes et evalues")
 
-        # Construire le resume
+        # Construire le resume (utilisant la nouvelle structure)
         summary = {
             'classification': {
                 'code_taric': selected_proposal.get('code_taric'),
@@ -277,8 +303,8 @@ class TARICClassificationService:
             },
             'key_points': list(set(key_points)) if key_points else ['Classification effectuee'],
             'documents_used': {
-                'photos': list(self.expedition.documents.filter(type='photo').values_list('nom_original', flat=True)),
-                'fiches_techniques': list(self.expedition.documents.filter(type='fiche_technique').values_list('nom_original', flat=True)),
+                'photos': list(self.etape.documents.filter(type='photo').values_list('nom_original', flat=True)),
+                'fiches_techniques': list(self.etape.documents.filter(type='fiche_technique').values_list('nom_original', flat=True)),
             }
         }
 

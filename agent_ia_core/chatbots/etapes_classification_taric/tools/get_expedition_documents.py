@@ -1,5 +1,9 @@
 """
 Tool pour recuperer les documents d'une expedition.
+
+Utilise la nouvelle structure:
+- Les documents sont lies a ExpeditionEtape, pas directement a Expedition
+- Pour la classification, on recupere les documents de l'etape 1
 """
 from typing import Dict, Any, Optional
 
@@ -11,7 +15,7 @@ def get_expedition_documents(
 ) -> Dict[str, Any]:
     """
     Recupere la liste des documents (photos et fiches techniques)
-    telecharges pour une expedition.
+    telecharges pour l'etape de classification d'une expedition.
 
     Args:
         expedition_id: ID de l'expedition
@@ -45,12 +49,23 @@ def get_expedition_documents(
                 'total': 0
             }
 
-        # Recuperer les documents
+        # Recuperer l'etape de classification (etape 1)
+        etape = expedition.get_etape(1)
+        if not etape:
+            return {
+                'success': False,
+                'error': "Etape de classification non trouvee",
+                'photos': [],
+                'fiches_techniques': [],
+                'total': 0
+            }
+
+        # Recuperer les documents de l'etape
         photos = []
         fiches_techniques = []
 
         if type_filter in ('all', 'photo'):
-            photo_docs = expedition.documents.filter(type='photo').order_by('ordre', '-created_at')
+            photo_docs = etape.documents.filter(type='photo').order_by('ordre', '-created_at')
             photos = [
                 {
                     'id': doc.id,
@@ -63,7 +78,7 @@ def get_expedition_documents(
             ]
 
         if type_filter in ('all', 'fiche_technique'):
-            fiche_docs = expedition.documents.filter(type='fiche_technique').order_by('ordre', '-created_at')
+            fiche_docs = etape.documents.filter(type='fiche_technique').order_by('ordre', '-created_at')
             fiches_techniques = [
                 {
                     'id': doc.id,

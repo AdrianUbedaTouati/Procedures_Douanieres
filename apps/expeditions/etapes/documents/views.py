@@ -30,10 +30,13 @@ class DocumentsView(LoginRequiredMixin, View):
 
         etape = expedition.get_etape(2)
 
+        # Récupérer les données de classification depuis ClassificationData
+        classification_data = etape_1.get_data()
+
         context = {
             'expedition': expedition,
             'etape': etape,
-            'classification': etape_1.donnees,
+            'classification': classification_data,
             'page_title': f'Documents - {expedition.reference}',
         }
 

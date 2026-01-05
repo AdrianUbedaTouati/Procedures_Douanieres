@@ -109,18 +109,69 @@
     .file-preview-item {
         display: flex;
         align-items: center;
-        padding: 6px;
+        padding: 8px;
         background: #f8f9fa;
         border-radius: 6px;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
         font-size: 0.85rem;
+        border: 1px solid #dee2e6;
+    }
+    .file-preview-item .file-thumb {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin-right: 10px;
+    }
+    .file-preview-item .file-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        border-radius: 4px;
+        margin-right: 10px;
+        font-size: 1.2rem;
+    }
+    .file-preview-item .file-info {
+        flex: 1;
+        min-width: 0;
     }
     .file-preview-item .file-name {
-        flex: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        margin: 0 8px;
+        font-weight: 500;
+    }
+    .file-preview-item .file-name-input {
+        width: 100%;
+        border: 1px solid #0d6efd;
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: 0.85rem;
+    }
+    .file-preview-item .file-size {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    .file-preview-item .file-actions {
+        display: flex;
+        gap: 4px;
+    }
+    .file-preview-item .btn-remove {
+        padding: 2px 6px;
+        font-size: 0.75rem;
+    }
+
+    /* Image preview modal */
+    .image-preview-modal .modal-body {
+        text-align: center;
+        padding: 0;
+    }
+    .image-preview-modal .modal-body img {
+        max-width: 100%;
+        max-height: 80vh;
     }
 
     /* ============================================
@@ -405,10 +456,13 @@
                                 <div class="document-name" title="{{ doc.nom_original }}">{{ doc.nom_original }}</div>
                             </div>
                             <div class="document-actions">
-                                <a href="{{ doc.fichier.url }}" target="_blank" class="btn btn-outline-info btn-sm" title="Voir">
-                                    <i class="bi bi-eye"></i>
-                                </a>
+                                <button type="button" class="btn btn-outline-primary btn-sm btn-preview-img" data-url="{{ doc.fichier.url }}" data-name="{{ doc.nom_original }}" title="Agrandir">
+                                    <i class="bi bi-zoom-in"></i>
+                                </button>
                                 {% if not etape_terminee %}
+                                <button type="button" class="btn btn-outline-secondary btn-sm btn-rename" data-id="{{ doc.id }}" data-name="{{ doc.nom_original }}" title="Renommer">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
                                 <button type="button" class="btn btn-outline-danger btn-sm btn-delete" data-id="{{ doc.id }}" title="Supprimer">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -463,6 +517,9 @@
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 {% if not etape_terminee %}
+                                <button type="button" class="btn btn-outline-secondary btn-sm btn-rename" data-id="{{ doc.id }}" data-name="{{ doc.nom_original }}" title="Renommer">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
                                 <button type="button" class="btn btn-outline-danger btn-sm btn-delete" data-id="{{ doc.id }}" title="Supprimer">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -572,6 +629,44 @@
     </div>
 </div>
 
+<!-- Modal Renommer -->
+<div class="modal fade" id="renameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil"></i> Renommer le document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="newDocName" class="form-label">Nouveau nom</label>
+                    <input type="text" class="form-control" id="newDocName" placeholder="Entrez le nouveau nom">
+                    <div class="form-text">L'extension sera conservee automatiquement.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="confirmRename">Renommer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Preview Image -->
+<div class="modal fade image-preview-modal" id="imagePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="imagePreviewTitle">Image</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <img id="imagePreviewImg" src="" alt="Preview">
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Confirmation Validation -->
 <div class="modal fade" id="validateModal" tabindex="-1">
     <div class="modal-dialog">
@@ -629,10 +724,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // ============================================
     // Upload Zones Setup
     // ============================================
-    setupUploadZone('Photos', 'fileInputPhotos', 'dropZonePhotos', 'filePreviewPhotos', 'uploadBtnPhotos');
-    setupUploadZone('Docs', 'fileInputDocs', 'dropZoneDocs', 'filePreviewDocs', 'uploadBtnDocs');
+    setupUploadZone('Photos', 'fileInputPhotos', 'dropZonePhotos', 'filePreviewPhotos', 'uploadBtnPhotos', 'photos');
+    setupUploadZone('Docs', 'fileInputDocs', 'dropZoneDocs', 'filePreviewDocs', 'uploadBtnDocs', 'docs');
 
-    function setupUploadZone(suffix, inputId, dropId, previewId, btnId) {
+    function setupUploadZone(suffix, inputId, dropId, previewId, btnId, type) {
         const dropZone = document.getElementById(dropId);
         const fileInput = document.getElementById(inputId);
         const filePreview = document.getElementById(previewId);
@@ -656,40 +751,257 @@ document.addEventListener('DOMContentLoaded', function() {
             dropZone.classList.remove('dragover');
             if (e.dataTransfer.files.length) {
                 fileInput.files = e.dataTransfer.files;
-                showMultiplePreview(fileInput.files, filePreview, uploadBtn);
+                showMultiplePreview(fileInput.files, filePreview, uploadBtn, type);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length) {
-                showMultiplePreview(e.target.files, filePreview, uploadBtn);
+                showMultiplePreview(e.target.files, filePreview, uploadBtn, type);
             }
         });
     }
 
-    function showMultiplePreview(files, previewContainer, uploadBtn) {
+    // Store files to upload with custom names
+    let filesToUpload = { photos: [], docs: [] };
+
+    function showMultiplePreview(files, previewContainer, uploadBtn, type) {
+        const fileArray = Array.from(files);
+        const storageKey = type === 'photos' ? 'photos' : 'docs';
+
+        // ACUMULAR archivos en lugar de reemplazar
+        const newFiles = fileArray.map(f => ({ file: f, customName: f.name }));
+        filesToUpload[storageKey] = [...filesToUpload[storageKey], ...newFiles];
+
+        // Re-renderizar toda la lista
+        renderFilePreviewList(previewContainer, uploadBtn, type, storageKey);
+    }
+
+    function renderFilePreviewList(previewContainer, uploadBtn, type, storageKey) {
         previewContainer.innerHTML = '';
-        previewContainer.classList.remove('d-none');
 
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const item = document.createElement('div');
-            item.className = 'file-preview-item';
-
-            const icon = document.createElement('i');
-            icon.className = file.type.startsWith('image/') ? 'bi bi-image text-primary' : 'bi bi-file-pdf text-danger';
-
-            const name = document.createElement('span');
-            name.className = 'file-name';
-            name.textContent = file.name;
-
-            item.appendChild(icon);
-            item.appendChild(name);
-            previewContainer.appendChild(item);
+        if (filesToUpload[storageKey].length === 0) {
+            previewContainer.classList.add('d-none');
+            updateUploadButton(uploadBtn, 0);
+            return;
         }
 
-        uploadBtn.disabled = false;
-        uploadBtn.innerHTML = `<i class="bi bi-upload"></i> ${files.length} fichier${files.length > 1 ? 's' : ''}`;
+        previewContainer.classList.remove('d-none');
+
+        filesToUpload[storageKey].forEach((fileObj, index) => {
+            const file = fileObj.file;
+            const item = document.createElement('div');
+            item.className = 'file-preview-item';
+            item.dataset.index = index;
+
+            // Thumbnail or icon
+            if (file.type.startsWith('image/')) {
+                const thumb = document.createElement('img');
+                thumb.className = 'file-thumb';
+                thumb.src = URL.createObjectURL(file);
+                item.appendChild(thumb);
+            } else {
+                const iconDiv = document.createElement('div');
+                iconDiv.className = 'file-icon text-danger';
+                iconDiv.innerHTML = '<i class="bi bi-file-pdf"></i>';
+                item.appendChild(iconDiv);
+            }
+
+            // File info
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'file-info';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'file-name';
+            nameDiv.textContent = fileObj.customName;
+            nameDiv.title = fileObj.customName;
+
+            const sizeDiv = document.createElement('div');
+            sizeDiv.className = 'file-size';
+            sizeDiv.textContent = formatFileSize(file.size);
+
+            infoDiv.appendChild(nameDiv);
+            infoDiv.appendChild(sizeDiv);
+            item.appendChild(infoDiv);
+
+            // Actions
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'file-actions';
+
+            // Edit name button
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'btn btn-outline-secondary btn-remove';
+            editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+            editBtn.title = 'Renommer';
+            editBtn.onclick = () => editPreviewFileName(item, index, storageKey, previewContainer, uploadBtn, type);
+
+            // Remove button
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-outline-danger btn-remove';
+            removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+            removeBtn.title = 'Retirer';
+            removeBtn.onclick = () => removePreviewFile(index, storageKey, previewContainer, uploadBtn, type);
+
+            actionsDiv.appendChild(editBtn);
+            actionsDiv.appendChild(removeBtn);
+            item.appendChild(actionsDiv);
+
+            previewContainer.appendChild(item);
+        });
+
+        updateUploadButton(uploadBtn, filesToUpload[storageKey].length);
+    }
+
+    function editPreviewFileName(item, index, storageKey, previewContainer, uploadBtn, type) {
+        const nameDiv = item.querySelector('.file-name');
+        const currentName = filesToUpload[storageKey][index].customName;
+        const ext = currentName.includes('.') ? '.' + currentName.split('.').pop() : '';
+        const baseName = ext ? currentName.slice(0, -ext.length) : currentName;
+
+        // Create input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'file-name-input';
+        input.value = baseName;
+
+        nameDiv.innerHTML = '';
+        nameDiv.appendChild(input);
+        input.focus();
+        input.select();
+
+        const saveNewName = () => {
+            const newBaseName = input.value.trim() || baseName;
+            const newFullName = newBaseName + ext;
+            filesToUpload[storageKey][index].customName = newFullName;
+            nameDiv.textContent = newFullName;
+            nameDiv.title = newFullName;
+        };
+
+        input.addEventListener('blur', saveNewName);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            } else if (e.key === 'Escape') {
+                nameDiv.textContent = currentName;
+                nameDiv.title = currentName;
+            }
+        });
+    }
+
+    function removePreviewFile(index, storageKey, previewContainer, uploadBtn, type) {
+        filesToUpload[storageKey].splice(index, 1);
+
+        // Reset file input si no quedan archivos
+        if (filesToUpload[storageKey].length === 0) {
+            const inputId = type === 'photos' ? 'fileInputPhotos' : 'fileInputDocs';
+            document.getElementById(inputId).value = '';
+        }
+
+        // Re-renderizar usando la funcion centralizada
+        renderFilePreviewList(previewContainer, uploadBtn, type, storageKey);
+    }
+
+    function updateUploadButton(btn, count) {
+        if (count > 0) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="bi bi-upload"></i> ${count} fichier${count > 1 ? 's' : ''}`;
+        } else {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-upload"></i> Telecharger';
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' o';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' Ko';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' Mo';
+    }
+
+    // ============================================
+    // AJAX Form Submission para archivos
+    // ============================================
+    const uploadPhotosForm = document.getElementById('uploadPhotosForm');
+    const uploadDocsForm = document.getElementById('uploadDocsForm');
+
+    if (uploadPhotosForm) {
+        uploadPhotosForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadFilesAjax('photos', 'photo', document.getElementById('uploadBtnPhotos'));
+        });
+    }
+
+    if (uploadDocsForm) {
+        uploadDocsForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadFilesAjax('docs', 'fiche_technique', document.getElementById('uploadBtnDocs'));
+        });
+    }
+
+    function uploadFilesAjax(storageKey, typeDocument, uploadBtn) {
+        const files = filesToUpload[storageKey];
+        if (files.length === 0) return;
+
+        // Deshabilitar boton durante la subida
+        const originalBtnText = uploadBtn.innerHTML;
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Subiendo...';
+
+        // Subir archivos uno por uno para mantener nombres personalizados
+        let uploadPromises = files.map((fileObj, index) => {
+            const formData = new FormData();
+            formData.append('type_document', typeDocument);
+            formData.append('fichier', fileObj.file);
+            formData.append('nom_personnalise', fileObj.customName);
+
+            return fetch(`/expeditions/${expeditionPk}/classification/upload/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            }).then(response => {
+                if (!response.ok) {
+                    return response.json().catch(() => ({ success: false, error: 'Error del servidor' }));
+                }
+                return response.json();
+            });
+        });
+
+        Promise.all(uploadPromises)
+            .then(results => {
+                // Verificar si todos fueron exitosos
+                const allSuccess = results.every(r => r.success);
+                const successCount = results.filter(r => r.success).length;
+                const errors = results.filter(r => !r.success).map(r => r.error);
+
+                if (allSuccess && successCount > 0) {
+                    // Limpiar el array y recargar la pagina
+                    filesToUpload[storageKey] = [];
+                    window.location.reload();
+                } else if (successCount > 0) {
+                    // Algunos fallaron pero algunos se subieron
+                    console.error('Upload errors:', errors);
+                    alert(`${successCount}/${files.length} archivos subidos. Errores: ${errors.join(', ')}`);
+                    filesToUpload[storageKey] = [];
+                    window.location.reload();
+                } else {
+                    // Todos fallaron
+                    console.error('All uploads failed:', errors);
+                    alert(`Error al subir archivos: ${errors[0] || 'Error desconocido'}`);
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = originalBtnText;
+                }
+            })
+            .catch(error => {
+                console.error('Error uploading files:', error);
+                alert('Error de conexion al subir los archivos. Por favor, intente de nuevo.');
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = originalBtnText;
+            });
     }
 
     // ============================================
@@ -756,6 +1068,80 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             deleteModal.hide();
             deleteDocId = null;
+        });
+    });
+
+    // ============================================
+    // Rename Documents
+    // ============================================
+    let renameDocId = null;
+    const renameModal = new bootstrap.Modal(document.getElementById('renameModal'));
+    const newDocNameInput = document.getElementById('newDocName');
+
+    document.querySelectorAll('.btn-rename').forEach(btn => {
+        btn.addEventListener('click', function() {
+            renameDocId = this.dataset.id;
+            const currentName = this.dataset.name;
+            // Remove extension for editing
+            const ext = currentName.includes('.') ? '.' + currentName.split('.').pop() : '';
+            const baseName = ext ? currentName.slice(0, -ext.length) : currentName;
+            newDocNameInput.value = baseName;
+            renameModal.show();
+            setTimeout(() => newDocNameInput.select(), 100);
+        });
+    });
+
+    document.getElementById('confirmRename').addEventListener('click', function() {
+        if (!renameDocId) return;
+
+        const newName = newDocNameInput.value.trim();
+        if (!newName) {
+            alert('Veuillez entrer un nom valide');
+            return;
+        }
+
+        fetch(`/expeditions/${expeditionPk}/classification/document/${renameDocId}/renommer/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ nouveau_nom: newName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the name in the UI
+                const element = document.querySelector(`.document-item[data-id="${renameDocId}"] .document-name`);
+                if (element) {
+                    element.textContent = data.nouveau_nom;
+                    element.title = data.nouveau_nom;
+                }
+                // Update data-name attribute on button
+                const btn = document.querySelector(`.btn-rename[data-id="${renameDocId}"]`);
+                if (btn) {
+                    btn.dataset.name = data.nouveau_nom;
+                }
+            } else {
+                alert(data.error || 'Erreur lors du renommage');
+            }
+            renameModal.hide();
+            renameDocId = null;
+        });
+    });
+
+    // ============================================
+    // Image Preview Modal
+    // ============================================
+    const imagePreviewModal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
+
+    document.querySelectorAll('.btn-preview-img').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const url = this.dataset.url;
+            const name = this.dataset.name;
+            document.getElementById('imagePreviewImg').src = url;
+            document.getElementById('imagePreviewTitle').textContent = name;
+            imagePreviewModal.show();
         });
     });
 

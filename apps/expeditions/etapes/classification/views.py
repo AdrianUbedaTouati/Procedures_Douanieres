@@ -1,9 +1,15 @@
 """
 Vues pour l'étape de Classification Douanière.
 Étape 1 du processus douanier.
+
+Utilise la nouvelle structure:
+- ExpeditionEtape (table intermédiaire)
+- ClassificationData (données spécifiques 1:1)
+- ExpeditionDocument (fichiers liés à l'étape)
 """
 
 import json
+import os
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -12,8 +18,7 @@ from django.http import JsonResponse
 from django.db.models import Max
 
 from apps.expeditions.models import (
-    Expedition, ExpeditionDocument,
-    ClassificationChat, ClassificationMessage, TARICProposal
+    Expedition, ExpeditionEtape, ExpeditionDocument, ClassificationData
 )
 from .forms import ClassificationUploadForm, ClassificationManuelleForm
 from .services import ClassificationService
@@ -30,10 +35,11 @@ class ClassificationView(LoginRequiredMixin, View):
             pk=pk
         )
         etape = expedition.get_etape(1)
+        classification_data = etape.get_data()
 
         # Récupérer les documents de classification séparés par type
-        photos = expedition.documents.filter(type='photo').order_by('ordre', '-created_at')
-        fiches_techniques = expedition.documents.filter(type='fiche_technique').order_by('ordre', '-created_at')
+        photos = etape.documents.filter(type='photo').order_by('ordre', '-created_at')
+        fiches_techniques = etape.documents.filter(type='fiche_technique').order_by('ordre', '-created_at')
 
         # Vérifier si l'étape est terminée (lecture seule)
         etape_terminee = etape.statut == 'termine'
@@ -41,6 +47,7 @@ class ClassificationView(LoginRequiredMixin, View):
         context = {
             'expedition': expedition,
             'etape': etape,
+            'classification_data': classification_data,
             'photos': photos,
             'fiches_techniques': fiches_techniques,
             'has_documents': photos.exists() or fiches_techniques.exists(),
@@ -51,12 +58,16 @@ class ClassificationView(LoginRequiredMixin, View):
         }
 
         # Si la classification a déjà été faite, pré-remplir le formulaire manuel
-        if etape.donnees.get('code_sh'):
-            context['classification_result'] = etape.donnees
+        if classification_data and classification_data.code_sh:
+            context['classification_result'] = {
+                'code_sh': classification_data.code_sh,
+                'code_nc': classification_data.code_nc,
+                'code_taric': classification_data.code_taric,
+            }
             context['manuel_form'] = ClassificationManuelleForm(initial={
-                'code_sh': etape.donnees.get('code_sh', ''),
-                'code_nc': etape.donnees.get('code_nc', ''),
-                'code_taric': etape.donnees.get('code_taric', ''),
+                'code_sh': classification_data.code_sh or '',
+                'code_nc': classification_data.code_nc or '',
+                'code_taric': classification_data.code_taric or '',
             })
 
         return render(request, self.template_name, context)
@@ -95,7 +106,10 @@ class ClassificationUploadView(LoginRequiredMixin, View):
             return redirect('apps_expeditions:classification', pk=pk)
 
         # Obtenir le prochain ordre pour ce type de document
-        max_ordre = expedition.documents.filter(type=type_doc).aggregate(Max('ordre'))['ordre__max'] or 0
+        max_ordre = etape.documents.filter(type=type_doc).aggregate(Max('ordre'))['ordre__max'] or 0
+
+        # Récupérer le nom personnalisé si envoyé via AJAX
+        nom_personnalise = request.POST.get('nom_personnalise', '').strip()
 
         documents_crees = []
         for i, fichier in enumerate(fichiers):
@@ -108,12 +122,18 @@ class ClassificationUploadView(LoginRequiredMixin, View):
             if ext not in allowed_extensions:
                 continue  # Skip fichiers non autorisés
 
+            # Utiliser le nom personnalisé si fourni, sinon le nom original
+            nom_final = nom_personnalise if nom_personnalise else fichier.name
+
+            # S'assurer que l'extension est correcte
+            if nom_final and not nom_final.lower().endswith(f'.{ext}'):
+                nom_final = f"{nom_final}.{ext}"
+
             document = ExpeditionDocument.objects.create(
-                expedition=expedition,
+                etape=etape,
                 type=type_doc,
                 fichier=fichier,
-                nom_original=fichier.name,
-                etape=expedition.get_etape(1),
+                nom_original=nom_final,
                 ordre=max_ordre + i + 1
             )
             documents_crees.append({
@@ -153,9 +173,10 @@ class ClassificationAnalyseView(LoginRequiredMixin, View):
             pk=pk
         )
         etape = expedition.get_etape(1)
+        classification_data = etape.get_data()
 
         # Récupérer le document à analyser
-        document = expedition.documents.filter(
+        document = etape.documents.filter(
             type__in=['photo', 'fiche_technique']
         ).last()
 
@@ -174,9 +195,14 @@ class ClassificationAnalyseView(LoginRequiredMixin, View):
             service = ClassificationService(request.user, expedition)
             result = service.analyser_document(document)
 
-            # Sauvegarder les résultats dans l'étape
-            etape.donnees = result
-            etape.save()
+            # Sauvegarder les résultats dans ClassificationData
+            if result.get('code_sh'):
+                classification_data.code_sh = result.get('code_sh', '')[:6]
+            if result.get('code_nc'):
+                classification_data.code_nc = result.get('code_nc', '')[:8]
+            if result.get('code_taric'):
+                classification_data.code_taric = result.get('code_taric', '')[:10]
+            classification_data.save()
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
@@ -207,33 +233,24 @@ class ClassificationValiderView(LoginRequiredMixin, View):
             pk=pk
         )
         etape = expedition.get_etape(1)
+        classification_data = etape.get_data()
 
         # Vérifier si c'est une validation manuelle
         form = ClassificationManuelleForm(request.POST)
 
         if form.is_valid():
-            donnees = {
-                'code_sh': form.cleaned_data['code_sh'],
-                'code_nc': form.cleaned_data.get('code_nc', ''),
-                'code_taric': form.cleaned_data.get('code_taric', ''),
-                'justification': form.cleaned_data.get('justification', ''),
-                'mode': 'manuel' if form.cleaned_data.get('justification') else 'automatique',
-                'valide': True,
-            }
-
-            # Conserver les données de confiance si elles existent
-            if etape.donnees.get('confiance_sh'):
-                donnees['confiance_sh'] = etape.donnees.get('confiance_sh')
-                donnees['confiance_nc'] = etape.donnees.get('confiance_nc')
-                donnees['confiance_taric'] = etape.donnees.get('confiance_taric')
-                donnees['justification_ia'] = etape.donnees.get('justification', '')
+            # Sauvegarder les codes dans ClassificationData
+            classification_data.code_sh = form.cleaned_data['code_sh']
+            classification_data.code_nc = form.cleaned_data.get('code_nc', '')
+            classification_data.code_taric = form.cleaned_data.get('code_taric', '')
+            classification_data.save()
 
             # Marquer l'étape comme terminée
-            etape.marquer_termine(donnees)
+            etape.marquer_termine()
 
             messages.success(
                 request,
-                f'Classification validée: SH {donnees["code_sh"]}'
+                f'Classification validée: SH {classification_data.code_sh}'
             )
 
             # Rediriger vers l'étape suivante ou le détail
@@ -264,13 +281,15 @@ class DocumentDeleteView(LoginRequiredMixin, View):
             return redirect('apps_expeditions:classification', pk=pk)
 
         document = get_object_or_404(
-            ExpeditionDocument.objects.filter(expedition=expedition),
+            ExpeditionDocument.objects.filter(etape=etape),
             pk=doc_id
         )
 
-        # Supprimer le fichier physique
+        # Supprimer le fichier physique du disque
         if document.fichier:
-            document.fichier.delete(save=False)
+            file_path = document.fichier.path
+            if os.path.isfile(file_path):
+                os.remove(file_path)
 
         document.delete()
 
@@ -302,7 +321,7 @@ class DocumentRenameView(LoginRequiredMixin, View):
             return redirect('apps_expeditions:classification', pk=pk)
 
         document = get_object_or_404(
-            ExpeditionDocument.objects.filter(expedition=expedition),
+            ExpeditionDocument.objects.filter(etape=etape),
             pk=doc_id
         )
 
@@ -367,7 +386,7 @@ class DocumentReorderView(LoginRequiredMixin, View):
             for index, doc_id in enumerate(ordre_ids):
                 ExpeditionDocument.objects.filter(
                     pk=doc_id,
-                    expedition=expedition
+                    etape=etape
                 ).update(ordre=index)
 
             return JsonResponse({'success': True, 'message': 'Ordre mis à jour'})
@@ -392,76 +411,85 @@ class ClassificationChatView(LoginRequiredMixin, View):
             pk=pk
         )
 
-        # Récupérer ou créer le chat
-        chat, created = ClassificationChat.objects.get_or_create(
-            expedition=expedition
-        )
-
-        # Récupérer les messages
-        messages_qs = chat.messages.all().order_by('created_at')
-
-        messages_data = []
-        for msg in messages_qs:
-            msg_data = {
-                'id': msg.id,
-                'role': msg.role,
-                'content': msg.content,
-                'created_at': msg.created_at.isoformat(),
-                'metadata': msg.metadata,
-            }
-
-            # Ajouter les proposals si présentes
-            if msg.metadata.get('has_proposals'):
-                proposals = msg.proposals.all().order_by('-probability')
-                msg_data['proposals'] = [{
-                    'id': p.id,
-                    'code_sh': p.code_sh,
-                    'code_nc': p.code_nc,
-                    'code_taric': p.code_taric,
-                    'probability': p.probability,
-                    'description': p.description,
-                    'justification': p.justification,
-                    'is_selected': p.is_selected,
-                    'formatted_code': p.formatted_code,
-                    'confidence_level': p.confidence_level,
-                    'confidence_color': p.confidence_color,
-                } for p in proposals]
-
-            messages_data.append(msg_data)
-
-        # Vérifier l'état de l'étape
         etape = expedition.get_etape(1)
+        classification_data = etape.get_data()
 
-        # Si chat vient d'être créé, ajouter message de bienvenue
-        if created:
+        # Récupérer l'historique depuis le JSONField
+        chat_historique = classification_data.chat_historique or []
+
+        # Si le chat est vide, ajouter le message de bienvenue
+        if not chat_historique:
             from agent_ia_core.chatbots.etapes_classification_taric import TARICClassificationService
             service = TARICClassificationService(request.user, expedition)
             welcome = service.get_welcome_message()
 
-            welcome_msg = ClassificationMessage.objects.create(
-                chat=chat,
+            # Ajouter le message de bienvenue
+            classification_data.add_message(
                 role='assistant',
-                content=welcome['content'],
-                metadata=welcome['metadata']
+                content=welcome['content']
             )
+            chat_historique = classification_data.chat_historique
 
-            messages_data.append({
-                'id': welcome_msg.id,
-                'role': welcome_msg.role,
-                'content': welcome_msg.content,
-                'created_at': welcome_msg.created_at.isoformat(),
-                'metadata': welcome_msg.metadata,
-            })
+        # Construire les données des messages avec les proposals
+        messages_data = []
+        for i, msg in enumerate(chat_historique):
+            msg_data = {
+                'id': i,
+                'role': msg.get('role'),
+                'content': msg.get('content'),
+                'created_at': msg.get('timestamp'),
+                'metadata': msg.get('metadata', {}),
+            }
+            messages_data.append(msg_data)
+
+        # Ajouter les proposals si elles existent
+        if classification_data.propositions:
+            proposals_data = []
+            for i, prop in enumerate(classification_data.propositions):
+                proposals_data.append({
+                    'id': i,
+                    'code_sh': prop.get('code_sh', ''),
+                    'code_nc': prop.get('code_nc', ''),
+                    'code_taric': prop.get('code_taric', ''),
+                    'probability': prop.get('probability', 0),
+                    'description': prop.get('description', ''),
+                    'justification': prop.get('justification', ''),
+                    'is_selected': i == classification_data.proposition_selectionnee,
+                    'formatted_code': self._format_taric_code(prop.get('code_taric', '')),
+                    'confidence_level': self._get_confidence_level(prop.get('probability', 0)),
+                    'confidence_color': self._get_confidence_color(prop.get('probability', 0)),
+                })
 
         return JsonResponse({
             'success': True,
-            'chat_id': chat.id,
             'messages': messages_data,
+            'proposals': classification_data.propositions or [],
+            'selected_proposal': classification_data.proposition_selectionnee,
             'etape_terminee': etape.statut == 'termine',
-            'has_selected_proposal': chat.messages.filter(
-                proposals__is_selected=True
-            ).exists()
+            'has_selected_proposal': classification_data.proposition_selectionnee is not None
         })
+
+    def _format_taric_code(self, code):
+        """Formate le code TARIC avec des points."""
+        if code and len(code) == 10:
+            return f"{code[:4]}.{code[4:6]}.{code[6:8]}.{code[8:]}"
+        return code
+
+    def _get_confidence_level(self, probability):
+        """Retourne le niveau de confiance."""
+        if probability >= 80:
+            return 'Élevé'
+        elif probability >= 60:
+            return 'Moyen'
+        return 'Faible'
+
+    def _get_confidence_color(self, probability):
+        """Retourne la couleur de confiance."""
+        if probability >= 80:
+            return 'success'
+        elif probability >= 60:
+            return 'warning'
+        return 'danger'
 
 
 class ClassificationChatMessageView(LoginRequiredMixin, View):
@@ -481,6 +509,8 @@ class ClassificationChatMessageView(LoginRequiredMixin, View):
                 'error': 'Cette étape est terminée. Le chat est en lecture seule.'
             }, status=403)
 
+        classification_data = etape.get_data()
+
         try:
             data = json.loads(request.body)
             user_message = data.get('message', '').strip()
@@ -491,25 +521,15 @@ class ClassificationChatMessageView(LoginRequiredMixin, View):
                     'error': 'Message vide.'
                 }, status=400)
 
-            # Récupérer le chat
-            chat, _ = ClassificationChat.objects.get_or_create(
-                expedition=expedition
-            )
-
             # Sauvegarder le message utilisateur
-            user_msg = ClassificationMessage.objects.create(
-                chat=chat,
-                role='user',
-                content=user_message,
-                metadata={'type': 'user_input'}
-            )
+            classification_data.add_message(role='user', content=user_message)
 
             # Préparer l'historique pour le service
             history = []
-            for msg in chat.messages.exclude(pk=user_msg.pk).order_by('created_at'):
+            for msg in classification_data.chat_historique:
                 history.append({
-                    'role': msg.role,
-                    'content': msg.content
+                    'role': msg.get('role'),
+                    'content': msg.get('content')
                 })
 
             # Traiter le message avec le service TARIC
@@ -518,54 +538,45 @@ class ClassificationChatMessageView(LoginRequiredMixin, View):
             result = service.process_message(user_message, history)
 
             # Sauvegarder la réponse de l'assistant
-            assistant_msg = ClassificationMessage.objects.create(
-                chat=chat,
+            assistant_msg = classification_data.add_message(
                 role='assistant',
-                content=result['content'],
-                metadata=result.get('metadata', {})
+                content=result['content']
             )
 
             # Sauvegarder les proposals si présentes
             proposals_data = []
             if result.get('metadata', {}).get('proposals'):
-                for i, prop in enumerate(result['metadata']['proposals']):
-                    proposal = TARICProposal.objects.create(
-                        message=assistant_msg,
-                        code_sh=prop.get('code_sh', '')[:6],
-                        code_nc=prop.get('code_nc', '')[:8],
-                        code_taric=prop.get('code_taric', '')[:10],
-                        probability=prop.get('probability', 0),
-                        description=prop.get('description', '')[:255],
-                        justification=prop.get('justification', ''),
-                        ordre=i
-                    )
+                proposals = result['metadata']['proposals']
+                classification_data.set_propositions(proposals)
+
+                for i, prop in enumerate(proposals):
                     proposals_data.append({
-                        'id': proposal.id,
-                        'code_sh': proposal.code_sh,
-                        'code_nc': proposal.code_nc,
-                        'code_taric': proposal.code_taric,
-                        'probability': proposal.probability,
-                        'description': proposal.description,
-                        'justification': proposal.justification,
-                        'formatted_code': proposal.formatted_code,
-                        'confidence_level': proposal.confidence_level,
-                        'confidence_color': proposal.confidence_color,
+                        'id': i,
+                        'code_sh': prop.get('code_sh', ''),
+                        'code_nc': prop.get('code_nc', ''),
+                        'code_taric': prop.get('code_taric', ''),
+                        'probability': prop.get('probability', 0),
+                        'description': prop.get('description', ''),
+                        'justification': prop.get('justification', ''),
+                        'formatted_code': self._format_taric_code(prop.get('code_taric', '')),
+                        'confidence_level': self._get_confidence_level(prop.get('probability', 0)),
+                        'confidence_color': self._get_confidence_color(prop.get('probability', 0)),
                     })
 
             return JsonResponse({
                 'success': True,
                 'user_message': {
-                    'id': user_msg.id,
+                    'id': len(classification_data.chat_historique) - 2,
                     'role': 'user',
-                    'content': user_msg.content,
-                    'created_at': user_msg.created_at.isoformat(),
+                    'content': user_message,
+                    'created_at': classification_data.chat_historique[-2].get('timestamp'),
                 },
                 'assistant_message': {
-                    'id': assistant_msg.id,
+                    'id': len(classification_data.chat_historique) - 1,
                     'role': 'assistant',
-                    'content': assistant_msg.content,
-                    'created_at': assistant_msg.created_at.isoformat(),
-                    'metadata': assistant_msg.metadata,
+                    'content': result['content'],
+                    'created_at': classification_data.chat_historique[-1].get('timestamp'),
+                    'metadata': result.get('metadata', {}),
                     'proposals': proposals_data if proposals_data else None,
                 }
             })
@@ -580,6 +591,28 @@ class ClassificationChatMessageView(LoginRequiredMixin, View):
                 'success': False,
                 'error': str(e)
             }, status=500)
+
+    def _format_taric_code(self, code):
+        """Formate le code TARIC avec des points."""
+        if code and len(code) == 10:
+            return f"{code[:4]}.{code[4:6]}.{code[6:8]}.{code[8:]}"
+        return code
+
+    def _get_confidence_level(self, probability):
+        """Retourne le niveau de confiance."""
+        if probability >= 80:
+            return 'Élevé'
+        elif probability >= 60:
+            return 'Moyen'
+        return 'Faible'
+
+    def _get_confidence_color(self, probability):
+        """Retourne la couleur de confiance."""
+        if probability >= 80:
+            return 'success'
+        elif probability >= 60:
+            return 'warning'
+        return 'danger'
 
 
 class SelectTARICProposalView(LoginRequiredMixin, View):
@@ -599,37 +632,39 @@ class SelectTARICProposalView(LoginRequiredMixin, View):
                 'error': 'Cette étape est terminée.'
             }, status=403)
 
-        # Récupérer la proposition
-        proposal = get_object_or_404(
-            TARICProposal.objects.filter(
-                message__chat__expedition=expedition
-            ),
-            pk=proposal_id
-        )
+        classification_data = etape.get_data()
 
-        # Désélectionner toutes les autres
-        TARICProposal.objects.filter(
-            message__chat__expedition=expedition
-        ).update(is_selected=False)
+        # Vérifier que l'index est valide
+        if not classification_data.propositions or proposal_id >= len(classification_data.propositions):
+            return JsonResponse({
+                'success': False,
+                'error': 'Proposition invalide.'
+            }, status=400)
 
-        # Sélectionner celle-ci
-        proposal.is_selected = True
-        proposal.save()
+        # Sélectionner la proposition
+        classification_data.select_proposition(proposal_id)
+        proposal = classification_data.propositions[proposal_id]
 
         return JsonResponse({
             'success': True,
             'message': 'Proposition sélectionnée',
             'proposal': {
-                'id': proposal.id,
-                'code_taric': proposal.code_taric,
-                'code_nc': proposal.code_nc,
-                'code_sh': proposal.code_sh,
-                'probability': proposal.probability,
-                'description': proposal.description,
-                'justification': proposal.justification,
-                'formatted_code': proposal.formatted_code,
+                'id': proposal_id,
+                'code_taric': proposal.get('code_taric', ''),
+                'code_nc': proposal.get('code_nc', ''),
+                'code_sh': proposal.get('code_sh', ''),
+                'probability': proposal.get('probability', 0),
+                'description': proposal.get('description', ''),
+                'justification': proposal.get('justification', ''),
+                'formatted_code': self._format_taric_code(proposal.get('code_taric', '')),
             }
         })
+
+    def _format_taric_code(self, code):
+        """Formate le code TARIC avec des points."""
+        if code and len(code) == 10:
+            return f"{code[:4]}.{code[4:6]}.{code[6:8]}.{code[8:]}"
+        return code
 
 
 class ValidateTARICCodeView(LoginRequiredMixin, View):
@@ -649,25 +684,20 @@ class ValidateTARICCodeView(LoginRequiredMixin, View):
                 'error': 'Cette étape est déjà terminée.'
             }, status=403)
 
-        # Récupérer le chat
-        try:
-            chat = expedition.classification_chat
-        except ClassificationChat.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'error': 'Aucun chat trouvé pour cette expédition.'
-            }, status=404)
+        classification_data = etape.get_data()
 
-        # Récupérer la proposition sélectionnée
-        selected_proposal = TARICProposal.objects.filter(
-            message__chat=chat,
-            is_selected=True
-        ).first()
-
-        if not selected_proposal:
+        # Vérifier qu'une proposition est sélectionnée
+        if classification_data.proposition_selectionnee is None:
             return JsonResponse({
                 'success': False,
                 'error': 'Veuillez d\'abord sélectionner un code TARIC.'
+            }, status=400)
+
+        selected_proposal = classification_data.selected_proposal
+        if not selected_proposal:
+            return JsonResponse({
+                'success': False,
+                'error': 'Proposition invalide.'
             }, status=400)
 
         # Générer le résumé
@@ -675,56 +705,35 @@ class ValidateTARICCodeView(LoginRequiredMixin, View):
         service = TARICClassificationService(request.user, expedition)
 
         # Récupérer tous les messages pour le résumé
-        messages_list = list(chat.messages.values('role', 'content'))
-        proposal_dict = {
-            'code_taric': selected_proposal.code_taric,
-            'code_nc': selected_proposal.code_nc,
-            'code_sh': selected_proposal.code_sh,
-            'probability': selected_proposal.probability,
-            'description': selected_proposal.description,
-            'justification': selected_proposal.justification,
-        }
+        messages_list = [
+            {'role': m.get('role'), 'content': m.get('content')}
+            for m in classification_data.chat_historique
+        ]
 
-        summary = service.generate_conversation_summary(messages_list, proposal_dict)
+        summary = service.generate_conversation_summary(messages_list, selected_proposal)
 
-        # Préparer les données de l'étape
-        donnees = {
-            'code_sh': selected_proposal.code_sh,
-            'code_nc': selected_proposal.code_nc,
-            'code_taric': selected_proposal.code_taric,
-            'description': selected_proposal.description,
-            'confiance': selected_proposal.probability,
-            'justification': selected_proposal.justification,
-            'mode': 'chatbot',
-            'valide': True,
-            'summary': summary,
-        }
-
-        # Marquer l'étape comme terminée
-        etape.marquer_termine(donnees)
+        # Valider la classification (copie les codes dans ClassificationData)
+        classification_data.validate_classification()
 
         # Ajouter un message système au chat
-        ClassificationMessage.objects.create(
-            chat=chat,
+        classification_data.add_message(
             role='system',
-            content=f"Classification validée: {selected_proposal.formatted_code}",
-            metadata={
-                'type': 'validation',
-                'code_taric': selected_proposal.code_taric,
-                'summary': summary
-            }
+            content=f"Classification validée: {classification_data.formatted_code}"
         )
+
+        # Marquer l'étape comme terminée
+        etape.marquer_termine()
 
         return JsonResponse({
             'success': True,
             'message': 'Classification validée avec succès',
             'result': {
-                'code_taric': selected_proposal.code_taric,
-                'code_nc': selected_proposal.code_nc,
-                'code_sh': selected_proposal.code_sh,
-                'description': selected_proposal.description,
-                'probability': selected_proposal.probability,
-                'justification': selected_proposal.justification,
+                'code_taric': classification_data.code_taric,
+                'code_nc': classification_data.code_nc,
+                'code_sh': classification_data.code_sh,
+                'description': selected_proposal.get('description', ''),
+                'probability': selected_proposal.get('probability', 0),
+                'justification': selected_proposal.get('justification', ''),
             },
             'summary': summary
         })

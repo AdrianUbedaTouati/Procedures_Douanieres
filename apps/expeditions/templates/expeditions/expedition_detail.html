@@ -126,16 +126,16 @@
                                     <p class="text-muted mb-0 small">{{ etape.description }}</p>
 
                                     <!-- Données de l'étape si terminée -->
-                                    {% if etape.statut == 'termine' and etape.numero == 1 %}
+                                    {% if etape.statut == 'termine' and etape.numero == 1 and etape.classification_data %}
                                     <div class="mt-2">
                                         <span class="badge bg-light text-dark">
-                                            SH: {{ etape.donnees.code_sh|default:"-" }}
+                                            SH: {{ etape.classification_data.code_sh|default:"-" }}
                                         </span>
                                         <span class="badge bg-light text-dark">
-                                            NC: {{ etape.donnees.code_nc|default:"-" }}
+                                            NC: {{ etape.classification_data.code_nc|default:"-" }}
                                         </span>
                                         <span class="badge bg-light text-dark">
-                                            TARIC: {{ etape.donnees.code_taric|default:"-" }}
+                                            TARIC: {{ etape.classification_data.code_taric|default:"-" }}
                                         </span>
                                     </div>
                                     {% endif %}
@@ -198,15 +198,16 @@
         </div>
     </div>
 
-    <!-- Documents associés -->
-    {% if documents %}
+    <!-- Documents par étape -->
+    {% for etape in etapes %}
+    {% if etape.documents.exists %}
     <div class="card mb-4">
         <div class="card-header bg-light">
-            <i class="bi bi-paperclip"></i> Documents associés
+            <i class="bi bi-paperclip"></i> Documents - Étape {{ etape.numero }}: {{ etape.nom }}
         </div>
         <div class="card-body">
             <div class="list-group">
-                {% for doc in documents %}
+                {% for doc in etape.documents.all %}
                 <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                         {% if doc.is_image %}
@@ -228,6 +229,7 @@
         </div>
     </div>
     {% endif %}
+    {% endfor %}
 
     <!-- Actions -->
     <div class="d-flex justify-content-between">

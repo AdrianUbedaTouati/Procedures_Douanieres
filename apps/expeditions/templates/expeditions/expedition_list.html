@@ -125,6 +125,12 @@
                                     <i class="bi bi-arrow-right-circle"></i>
                                 </a>
                                 {% endif %}
+                                <button type="button" class="btn btn-outline-danger btn-delete-expedition"
+                                        data-id="{{ expedition.pk }}"
+                                        data-reference="{{ expedition.reference }}"
+                                        title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -183,4 +189,53 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Modal Supprimer Expedition -->
+<div class="modal fade" id="deleteExpeditionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash"></i> Supprimer l'expedition</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Etes-vous sur de vouloir supprimer l'expedition <strong id="deleteExpeditionRef"></strong> ?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Attention :</strong> Cette action est irreversible. Tous les documents et donnees associes seront supprimes.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form id="deleteExpeditionForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteExpeditionModal'));
+    const deleteForm = document.getElementById('deleteExpeditionForm');
+    const deleteRefSpan = document.getElementById('deleteExpeditionRef');
+
+    document.querySelectorAll('.btn-delete-expedition').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const expeditionId = this.dataset.id;
+            const reference = this.dataset.reference;
+
+            deleteRefSpan.textContent = reference;
+            deleteForm.action = `/expeditions/${expeditionId}/supprimer/`;
+            deleteModal.show();
+        });
+    });
+});
+</script>
 {% endblock %}

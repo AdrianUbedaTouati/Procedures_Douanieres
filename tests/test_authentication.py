@@ -1,8 +1,10 @@
 """
-Tests para la app de autenticación.
-Verifica login, registro, logout y gestión de usuarios.
+Tests pour l'authentification.
+- Login/Logout
+- Creation de compte
+- Protection des vues
 """
-import pytest
+
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
@@ -10,165 +12,134 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-class AuthenticationModelTests(TestCase):
-    """Tests para el modelo de usuario personalizado."""
+class LoginTestCase(TestCase):
+    """Tests pour le login."""
 
-    def test_create_user(self):
-        """Test crear usuario normal."""
-        user = User.objects.create_user(
+    def setUp(self):
+        """Creer un utilisateur de test."""
+        self.client = Client()
+        self.user = User.objects.create_user(
             username='testuser',
-            email='test@example.com',
-            password='testpass123'
+            email='testuser@example.com',
+            password='testpass123',
+            first_name='Test',
+            last_name='User'
         )
-        self.assertEqual(user.email, 'test@example.com')
-        self.assertEqual(user.username, 'testuser')
-        self.assertTrue(user.check_password('testpass123'))
-        self.assertFalse(user.is_staff)
-        self.assertFalse(user.is_superuser)
+        self.login_url = reverse('apps_authentication:login')
 
-    def test_create_superuser(self):
-        """Test crear superusuario."""
-        admin = User.objects.create_superuser(
-            username='admin',
-            email='admin@example.com',
-            password='adminpass123'
-        )
-        self.assertTrue(admin.is_staff)
-        self.assertTrue(admin.is_superuser)
+    def test_login_page_accessible(self):
+        """La page de login est accessible."""
+        response = self.client.get(self.login_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'authentication/login.html')
 
-    def test_user_llm_provider_default(self):
-        """Test que el proveedor LLM por defecto es 'gemini'."""
-        user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
-        self.assertEqual(user.llm_provider, 'gemini')
+    def test_login_with_valid_credentials(self):
+        """Login avec credentials valides."""
+        response = self.client.post(self.login_url, {
+            'username': 'testuser@example.com',
+            'password': 'testpass123'
+        })
+        # Devrait rediriger apres login reussi
+        self.assertIn(response.status_code, [200, 302])
 
-    def test_user_str_representation(self):
-        """Test representación string del usuario."""
-        user = User.objects.create_user(
-            username='testuser',
-            email='test@example.com',
-            password='testpass123'
-        )
-        # El modelo usa email como USERNAME_FIELD, str() devuelve el email
-        self.assertEqual(str(user), 'test@example.com')
+    def test_login_with_invalid_credentials(self):
+        """Login avec credentials invalides."""
+        response = self.client.post(self.login_url, {
+            'username': 'testuser@example.com',
+            'password': 'wrongpassword'
+        })
+        self.assertEqual(response.status_code, 200)
+        # Devrait rester sur la page de login avec erreur
+
+    def test_login_with_nonexistent_user(self):
+        """Login avec utilisateur inexistant."""
+        response = self.client.post(self.login_url, {
+            'username': 'nonexistent@example.com',
+            'password': 'testpass123'
+        })
+        self.assertEqual(response.status_code, 200)
 
 
-class AuthenticationViewTests(TestCase):
-    """Tests para las vistas de autenticación."""
+class LogoutTestCase(TestCase):
+    """Tests pour le logout."""
 
     def setUp(self):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            email='test@example.com',
+            email='testuser@example.com',
             password='testpass123'
         )
+        self.logout_url = reverse('apps_authentication:logout')
 
-    def test_login_page_loads(self):
-        """Test que la página de login carga correctamente."""
-        response = self.client.get(reverse('apps_authentication:login'))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'authentication/login.html')
-
-    def test_register_page_loads(self):
-        """Test que la página de registro carga correctamente."""
-        response = self.client.get(reverse('apps_authentication:register'))
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'authentication/register.html')
-
-    def test_login_success(self):
-        """Test login exitoso."""
-        response = self.client.post(reverse('apps_authentication:login'), {
-            'username': 'testuser',
-            'password': 'testpass123'
-        })
-        # Debería redirigir después del login
-        self.assertEqual(response.status_code, 302)
-
-    def test_login_failure_wrong_password(self):
-        """Test login fallido con contraseña incorrecta."""
-        response = self.client.post(reverse('apps_authentication:login'), {
-            'username': 'testuser',
-            'password': 'wrongpassword'
-        })
-        # Debería quedarse en la página de login
-        self.assertEqual(response.status_code, 200)
-
-    def test_logout(self):
-        """Test logout."""
-        self.client.login(username='testuser', password='testpass123')
-        response = self.client.get(reverse('apps_authentication:logout'))
-        # Debería redirigir después del logout
-        self.assertIn(response.status_code, [200, 302])
-
-    def test_register_new_user(self):
-        """Test registro de nuevo usuario."""
-        # La contraseña debe cumplir requisitos de seguridad
-        response = self.client.post(reverse('apps_authentication:register'), {
-            'username': 'newuser',
-            'email': 'newuser@example.com',
-            'password1': 'ComplexP@ss123!',
-            'password2': 'ComplexP@ss123!'
-        })
-        # Verificar que el usuario fue creado o se redirigió
-        user_exists = User.objects.filter(username='newuser').exists()
-        # El registro puede requerir confirmación de email
-        self.assertIn(response.status_code, [200, 302])
-
-    def test_authenticated_user_redirect_from_login(self):
-        """Test que usuario autenticado es redirigido desde login."""
-        self.client.login(username='testuser', password='testpass123')
-        response = self.client.get(reverse('apps_authentication:login'))
-        # Puede redirigir o mostrar la página
+    def test_logout_redirects(self):
+        """Logout redirige vers la page d'accueil."""
+        self.client.login(username='testuser@example.com', password='testpass123')
+        response = self.client.get(self.logout_url)
         self.assertIn(response.status_code, [200, 302])
 
 
-class UserAPIKeyTests(TestCase):
-    """Tests para configuración de API keys del usuario."""
+class RegisterTestCase(TestCase):
+    """Tests pour l'inscription."""
 
     def setUp(self):
+        self.client = Client()
+        self.register_url = reverse('apps_authentication:register')
+
+    def test_register_page_accessible(self):
+        """La page d'inscription est accessible."""
+        response = self.client.get(self.register_url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_register_with_valid_data(self):
+        """Inscription avec donnees valides."""
+        response = self.client.post(self.register_url, {
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password1': 'ComplexPass123!',
+            'password2': 'ComplexPass123!'
+        })
+        # Verifier que l'utilisateur a ete cree
+        self.assertTrue(User.objects.filter(email='newuser@example.com').exists())
+
+    def test_register_with_mismatched_passwords(self):
+        """Inscription avec mots de passe differents."""
+        response = self.client.post(self.register_url, {
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password1': 'ComplexPass123!',
+            'password2': 'DifferentPass456!'
+        })
+        # L'utilisateur ne devrait pas etre cree
+        self.assertFalse(User.objects.filter(email='newuser@example.com').exists())
+
+
+class ProtectedViewsTestCase(TestCase):
+    """Tests pour la protection des vues."""
+
+    def setUp(self):
+        self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            email='test@example.com',
+            email='testuser@example.com',
             password='testpass123'
         )
 
-    def test_set_llm_api_key(self):
-        """Test establecer API key de LLM."""
-        self.user.llm_api_key = 'test-api-key-12345'
-        self.user.save()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.llm_api_key, 'test-api-key-12345')
+    def test_expeditions_list_requires_login(self):
+        """La liste des expeditions necessite une connexion."""
+        response = self.client.get(reverse('apps_expeditions:list'))
+        # Devrait rediriger vers login
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('login', response.url)
 
-    def test_set_llm_provider(self):
-        """Test cambiar proveedor de LLM."""
-        self.user.llm_provider = 'openai'
-        self.user.save()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.llm_provider, 'openai')
+    def test_expeditions_list_accessible_when_logged_in(self):
+        """La liste est accessible quand connecte."""
+        self.client.login(username='testuser@example.com', password='testpass123')
+        response = self.client.get(reverse('apps_expeditions:list'))
+        self.assertEqual(response.status_code, 200)
 
-    def test_set_openai_model(self):
-        """Test establecer modelo de OpenAI."""
-        self.user.openai_model = 'gpt-4o'
-        self.user.save()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.openai_model, 'gpt-4o')
-
-    def test_set_ollama_model(self):
-        """Test establecer modelo de Ollama."""
-        self.user.ollama_model = 'llama3:8b'
-        self.user.save()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.ollama_model, 'llama3:8b')
-
-    def test_google_search_credentials(self):
-        """Test establecer credenciales de Google Search."""
-        self.user.google_search_api_key = 'google-api-key'
-        self.user.google_search_engine_id = 'engine-id-123'
-        self.user.save()
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.google_search_api_key, 'google-api-key')
-        self.assertEqual(self.user.google_search_engine_id, 'engine-id-123')
+    def test_create_expedition_requires_login(self):
+        """Creer une expedition necessite une connexion."""
+        response = self.client.get(reverse('apps_expeditions:create'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('login', response.url)

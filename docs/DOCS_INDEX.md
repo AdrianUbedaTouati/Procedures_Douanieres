@@ -10,7 +10,8 @@ Si c'est votre première fois, lisez dans cet ordre :
 
 1. **[README.md](../README.md)** - Présentation et installation
 2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Architecture technique
-3. **[Cahier des charges](../Cahier%20des%20charges%20-%20Procédures%20douanières.pdf)** - Spécifications du projet
+3. **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schéma de base de données
+4. **[Cahier des charges](../Cahier%20des%20charges%20-%20Procédures%20douanières.pdf)** - Spécifications du projet
 
 ---
 
@@ -51,6 +52,23 @@ Si c'est votre première fois, lisez dans cet ordre :
 
 ---
 
+### DATABASE_SCHEMA.md
+
+**Contenu :**
+- Structure hiérarchique des tables (Expedition → ExpeditionEtape → *Data)
+- Détail de chaque modèle (ClassificationData, DocumentsData, etc.)
+- Relations 1:1 et 1:N
+- Structure des fichiers media
+- Format des champs JSON (chat_historique, propositions)
+- Diagramme entité-relation
+
+**Quand le lire :**
+- Comprendre la structure de données
+- Développer des fonctionnalités sur les étapes
+- Modifier les modèles Django
+
+---
+
 ## Structure du Projet
 
 ```
@@ -83,11 +101,13 @@ Procedures_Douanieres/
 │       └── etapes_classification_taric/  # Chatbot TARIC
 │
 ├── data/                        # Données
-│   └── db.sqlite3
+│   ├── db.sqlite3               # Base de données
+│   └── media_expediciones/      # Fichiers par expédition
 │
 ├── docs/                        # Documentation
 │   ├── DOCS_INDEX.md            # Ce fichier
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md          # Architecture
+│   └── DATABASE_SCHEMA.md       # Schéma BDD
 │
 └── tests/                       # Tests
 ```
