@@ -1,245 +1,645 @@
 {% extends 'core/base.html' %}
+{% load static %}
 
-{% block title %}Accueil - Procédures Douanières{% endblock %}
+{% block title %}Procédures Douanières - Automatisation IA{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Override body padding for hero */
+    body {
+        padding-top: 0 !important;
+    }
+
+    /* Navbar transparent on hero */
+    .navbar-hero {
+        background: transparent !important;
+        backdrop-filter: none !important;
+        border-bottom: none !important;
+    }
+
+    .navbar-hero .navbar-brand,
+    .navbar-hero .nav-link {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    .navbar-hero .nav-link:hover {
+        color: #fff !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Hero Particles */
+    .hero-particles {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 0;
+    }
+
+    .particle {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        animation: particleFloat 15s infinite;
+    }
+
+    @keyframes particleFloat {
+        0%, 100% {
+            transform: translateY(100vh) rotate(0deg);
+            opacity: 0;
+        }
+        10% {
+            opacity: 1;
+        }
+        90% {
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(-100vh) rotate(720deg);
+            opacity: 0;
+        }
+    }
+
+    /* Animated Gradient Border */
+    .gradient-border {
+        position: relative;
+        background: linear-gradient(var(--gray-900), var(--gray-900)) padding-box,
+                    linear-gradient(135deg, #64d2ff, #5e5ce6, #bf5af2, #ff375f) border-box;
+        border: 2px solid transparent;
+        border-radius: var(--radius-2xl);
+    }
+
+    .gradient-border::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        background: linear-gradient(135deg, #64d2ff, #5e5ce6, #bf5af2, #ff375f);
+        border-radius: inherit;
+        z-index: -1;
+        animation: gradientRotate 3s linear infinite;
+        background-size: 200% 200%;
+    }
+
+    @keyframes gradientRotate {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+
+    /* Scroll Indicator */
+    .scroll-indicator {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        animation: fadeInUp 1s ease-out 0.8s both;
+    }
+
+    .scroll-indicator .mouse {
+        width: 26px;
+        height: 42px;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        border-radius: 20px;
+        display: flex;
+        justify-content: center;
+        padding-top: 8px;
+    }
+
+    .scroll-indicator .wheel {
+        width: 4px;
+        height: 8px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 2px;
+        animation: scrollWheel 1.5s ease-in-out infinite;
+    }
+
+    @keyframes scrollWheel {
+        0% { transform: translateY(0); opacity: 1; }
+        100% { transform: translateY(10px); opacity: 0; }
+    }
+
+    .scroll-indicator span {
+        display: block;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.75rem;
+        margin-top: 8px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    /* 3D Tilt Effect */
+    .tilt-card {
+        transform-style: preserve-3d;
+        transition: transform 0.5s ease;
+    }
+
+    .tilt-card:hover {
+        transform: perspective(1000px) rotateX(5deg) rotateY(-5deg) translateZ(20px);
+    }
+
+    /* Glowing Number */
+    .glow-number {
+        font-size: 5rem;
+        font-weight: 800;
+        background: var(--gradient-ocean);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        filter: drop-shadow(0 0 30px rgba(0, 113, 227, 0.5));
+        line-height: 1;
+    }
+
+    /* Animated List Items */
+    .animated-list li {
+        opacity: 0;
+        transform: translateX(-20px);
+        animation: slideInList 0.5s ease forwards;
+    }
+
+    .animated-list li:nth-child(1) { animation-delay: 0.1s; }
+    .animated-list li:nth-child(2) { animation-delay: 0.2s; }
+    .animated-list li:nth-child(3) { animation-delay: 0.3s; }
+    .animated-list li:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes slideInList {
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    /* Marquee Tech Strip */
+    .tech-marquee {
+        overflow: hidden;
+        background: var(--gray-900);
+        padding: 16px 0;
+        white-space: nowrap;
+    }
+
+    .tech-marquee-content {
+        display: inline-block;
+        animation: marquee 30s linear infinite;
+    }
+
+    .tech-marquee-content span {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        margin-right: 60px;
+        color: var(--gray-400);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .tech-marquee-content span i {
+        font-size: 1.5rem;
+        color: var(--primary);
+    }
+
+    @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+
+    /* Feature Icon Animation */
+    .feature-icon-animated {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 24px;
+    }
+
+    .feature-icon-animated::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--gradient-ocean);
+        border-radius: 28px;
+        transform: rotate(45deg);
+        transition: transform 0.5s var(--ease-spring);
+    }
+
+    .feature-icon-animated:hover::before {
+        transform: rotate(135deg);
+    }
+
+    .feature-icon-animated i {
+        position: relative;
+        z-index: 1;
+        font-size: 2.5rem;
+        color: white;
+        line-height: 100px;
+    }
+
+    /* CTA Section */
+    .cta-section {
+        background: var(--gradient-hero);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .cta-section::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--gradient-mesh);
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="hero-section text-center py-5">
-                <h1 class="display-3"><i class="bi bi-box-seam text-primary"></i> Procédures Douanières</h1>
-                <p class="lead">Solution d'Automatisation du Parcours Douanier - Corridor France ↔ Algérie</p>
-                <hr class="my-4">
+<!-- Hero Section -->
+<section class="hero">
+    <!-- Floating Gradient Orbs -->
+    <div class="hero-float hero-float-1"></div>
+    <div class="hero-float hero-float-2"></div>
+    <div class="hero-float hero-float-3"></div>
 
+    <!-- Animated Particles -->
+    <div class="hero-particles" id="particles"></div>
+
+    <!-- Hero Content -->
+    <div class="hero-content">
+        <div class="hero-badge">
+            <i class="bi bi-stars"></i>
+            <span>Propulsé par l'Intelligence Artificielle</span>
+        </div>
+
+        <h1 class="hero-title">
+            Procédures<br>
+            <span class="gradient-text">Douanières</span>
+        </h1>
+
+        <p class="hero-subtitle">
+            Solution d'automatisation complète du parcours douanier.<br>
+            Classification IA, génération documentaire et calcul des droits.<br>
+            <strong>Corridor France ↔ Algérie</strong>
+        </p>
+
+        <div class="hero-buttons">
+            {% if user.is_authenticated %}
+                <a href="{% url 'apps_expeditions:list' %}" class="btn btn-primary">
+                    <i class="bi bi-box-seam"></i> Mes Expéditions
+                </a>
+                <a href="{% url 'apps_chat:session_list' %}" class="btn btn-outline">
+                    <i class="bi bi-chat-dots"></i> Assistant IA
+                </a>
+            {% else %}
+                <a href="{% url 'apps_authentication:register' %}" class="btn btn-primary">
+                    <i class="bi bi-rocket-takeoff"></i> Commencer Gratuitement
+                </a>
+                <a href="{% url 'apps_authentication:login' %}" class="btn btn-outline">
+                    <i class="bi bi-box-arrow-in-right"></i> Connexion
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Scroll Indicator -->
+    <div class="scroll-indicator">
+        <div class="mouse">
+            <div class="wheel"></div>
+        </div>
+        <span>Découvrir</span>
+    </div>
+</section>
+
+<!-- Tech Marquee -->
+<div class="tech-marquee">
+    <div class="tech-marquee-content">
+        <span><i class="bi bi-robot"></i> OpenAI GPT-4o</span>
+        <span><i class="bi bi-database"></i> ChromaDB</span>
+        <span><i class="bi bi-cpu"></i> Ollama</span>
+        <span><i class="bi bi-google"></i> Google Gemini</span>
+        <span><i class="bi bi-code-slash"></i> Django 5.0</span>
+        <span><i class="bi bi-browser-chrome"></i> Playwright</span>
+        <span><i class="bi bi-robot"></i> OpenAI GPT-4o</span>
+        <span><i class="bi bi-database"></i> ChromaDB</span>
+        <span><i class="bi bi-cpu"></i> Ollama</span>
+        <span><i class="bi bi-google"></i> Google Gemini</span>
+        <span><i class="bi bi-code-slash"></i> Django 5.0</span>
+        <span><i class="bi bi-browser-chrome"></i> Playwright</span>
+    </div>
+</div>
+
+<!-- Stats Section -->
+<section class="section section-gradient">
+    <div class="container">
+        <div class="stats-grid scroll-animate">
+            <div class="stat-item">
+                <div class="stat-number" data-count="5">0</div>
+                <div class="stat-label">Axes d'automatisation</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" data-count="10">0</div>
+                <div class="stat-label">Chiffres code TARIC</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" data-count="4">0</div>
+                <div class="stat-label">Fournisseurs IA</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" data-count="100">0</div>
+                <div class="stat-label">% Automatisé</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 5 Axes Section -->
+<section class="section bg-white">
+    <div class="container">
+        <div class="section-header scroll-animate">
+            <h2>Les 5 Axes de la Solution</h2>
+            <p>Une approche complète pour automatiser l'ensemble du processus douanier, de la classification à la gestion OEA.</p>
+        </div>
+
+        <div class="features-grid stagger-children">
+            <!-- Axe 1 -->
+            <div class="feature-card tilt-card">
+                <div class="feature-icon-animated">
+                    <i class="bi bi-tags"></i>
+                </div>
+                <h3>Classification Douanière</h3>
+                <p>Identification automatique des codes SH, NC et TARIC par Intelligence Artificielle.</p>
+                <ul class="list-unstyled text-start mt-4 animated-list">
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Code SH (6 chiffres)</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Code NC (8 chiffres UE)</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Code TARIC (10 chiffres)</li>
+                </ul>
+            </div>
+
+            <!-- Axe 2 -->
+            <div class="feature-card tilt-card">
+                <div class="feature-icon-animated" style="--gradient: linear-gradient(135deg, #30d158, #64d2ff);">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <h3>Génération Documentaire</h3>
+                <p>Production automatique de tous les documents douaniers requis.</p>
+                <ul class="list-unstyled text-start mt-4 animated-list">
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> DAU (France)</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> D10, D12 (Algérie)</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Certificats d'origine</li>
+                </ul>
+            </div>
+
+            <!-- Axe 3 -->
+            <div class="feature-card tilt-card">
+                <div class="feature-icon-animated" style="--gradient: linear-gradient(135deg, #64d2ff, #5e5ce6);">
+                    <i class="bi bi-cloud-upload"></i>
+                </div>
+                <h3>Transmission Électronique</h3>
+                <p>Connexion directe aux systèmes douaniers pour l'envoi automatisé.</p>
+                <ul class="list-unstyled text-start mt-4 animated-list">
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> DELTA (France)</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> BADR (Algérie)</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> ENS/ICS2</li>
+                </ul>
+            </div>
+
+            <!-- Axe 4 -->
+            <div class="feature-card tilt-card">
+                <div class="feature-icon-animated" style="--gradient: linear-gradient(135deg, #ff9f0a, #ff375f);">
+                    <i class="bi bi-calculator"></i>
+                </div>
+                <h3>Calcul et Paiement</h3>
+                <p>Calcul automatique des droits et taxes avec initiation du paiement.</p>
+                <ul class="list-unstyled text-start mt-4 animated-list">
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Droits de douane</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> TVA (19% DZ / 20% FR)</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Taxes spécifiques</li>
+                </ul>
+            </div>
+
+            <!-- Axe 5 -->
+            <div class="feature-card tilt-card">
+                <div class="feature-icon-animated" style="--gradient: linear-gradient(135deg, #bf5af2, #5e5ce6);">
+                    <i class="bi bi-award"></i>
+                </div>
+                <h3>Gestion OEA</h3>
+                <p>Prise en compte du statut d'Opérateur Économique Agréé.</p>
+                <ul class="list-unstyled text-start mt-4 animated-list">
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Paiement différé</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Procédures simplifiées</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i> Réduction contrôles</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Process Section -->
+<section class="section section-dark">
+    <div class="container">
+        <div class="section-header scroll-animate">
+            <h2>Comment ça marche ?</h2>
+            <p>Un processus simple et automatisé pour gérer vos opérations douanières en quelques clics.</p>
+        </div>
+
+        <div class="process-steps">
+            <div class="process-step scroll-animate">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Créez votre expédition</h3>
+                    <p>Renseignez les informations de base de votre produit et téléchargez les documents (photos, fiches techniques).</p>
+                </div>
+            </div>
+
+            <div class="process-step scroll-animate">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Classification automatique</h3>
+                    <p>Notre IA analyse vos documents et propose les codes TARIC les plus pertinents avec justification.</p>
+                </div>
+            </div>
+
+            <div class="process-step scroll-animate">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Génération des documents</h3>
+                    <p>Les déclarations douanières sont générées automatiquement avec toutes les informations requises.</p>
+                </div>
+            </div>
+
+            <div class="process-step scroll-animate">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Transmission et paiement</h3>
+                    <p>Envoi électronique aux autorités et calcul automatique des droits et taxes à acquitter.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section section">
+    <div class="container position-relative" style="z-index: 1;">
+        <div class="text-center scroll-animate">
+            <h2 class="text-white mb-4">Prêt à automatiser vos procédures douanières ?</h2>
+            <p class="text-white opacity-75 mb-5" style="max-width: 600px; margin: 0 auto;">
+                Rejoignez notre plateforme et simplifiez vos opérations d'import-export entre la France et l'Algérie.
+            </p>
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
                 {% if user.is_authenticated %}
-                    <p class="mb-4">Bonjour, <strong>{{ user.email }}</strong> !</p>
-                    <div class="d-flex justify-content-center gap-2">
-                        <a class="btn btn-primary btn-lg" href="{% url 'apps_chat:session_list' %}" role="button">
-                            <i class="bi bi-chat-dots"></i> Assistant IA
-                        </a>
-                        <a class="btn btn-outline-primary btn-lg" href="{% url 'apps_core:profile' %}" role="button">
-                            <i class="bi bi-gear"></i> Configuration
-                        </a>
-                    </div>
+                    <a href="{% url 'apps_expeditions:create' %}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-plus-circle"></i> Nouvelle Expédition
+                    </a>
+                    <a href="{% url 'apps_core:profile' %}" class="btn btn-outline btn-lg">
+                        <i class="bi bi-gear"></i> Configuration
+                    </a>
                 {% else %}
-                    <p class="mb-4">Assistant IA pour la classification douanière, la génération de documents et le calcul des droits</p>
-                    <div class="d-flex justify-content-center gap-2">
-                        <a class="btn btn-primary btn-lg" href="{% url 'apps_authentication:login' %}" role="button">
-                            <i class="bi bi-box-arrow-in-right"></i> Connexion
-                        </a>
-                        <a class="btn btn-outline-primary btn-lg" href="{% url 'apps_authentication:register' %}" role="button">
-                            <i class="bi bi-person-plus"></i> S'inscrire
-                        </a>
-                    </div>
+                    <a href="{% url 'apps_authentication:register' %}" class="btn btn-primary btn-lg">
+                        <i class="bi bi-rocket-takeoff"></i> Créer un compte gratuit
+                    </a>
+                    <a href="{% url 'apps_authentication:login' %}" class="btn btn-outline btn-lg">
+                        <i class="bi bi-info-circle"></i> En savoir plus
+                    </a>
                 {% endif %}
             </div>
         </div>
     </div>
+</section>
 
-    <!-- Les 5 Axes -->
-    <div class="row mt-5">
-        <div class="col-md-12">
-            <h2 class="text-center mb-4">Les 5 Axes de la Solution</h2>
-        </div>
-
-        <!-- Axe 1 : Classification -->
-        <div class="col-md-4">
-            <div class="feature-card mb-4">
-                <div class="card h-100 border-primary">
-                    <div class="card-header bg-primary text-white">
-                        <strong>Axe 1</strong>
+<!-- Info Banner -->
+<section class="section bg-gray-100">
+    <div class="container">
+        <div class="card card-premium scroll-animate">
+            <div class="card-body p-5">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="mb-2"><i class="bi bi-info-circle text-primary me-2"></i> Périmètre Phase 1</h4>
+                        <p class="text-muted mb-0">
+                            <strong>Corridor :</strong> France ↔ Algérie |
+                            <strong>Articles :</strong> Produits de base (hors pétrole, matières dangereuses, licences) |
+                            <strong>Contexte :</strong> Projet académique
+                        </p>
                     </div>
-                    <div class="card-body text-center">
-                        <i class="bi bi-tags display-3 text-primary mb-3"></i>
-                        <h3>Classification Douanière</h3>
-                        <p>Identification des codes SH, NC et TARIC par Intelligence Artificielle à partir des fiches techniques produits</p>
-                        <ul class="list-unstyled text-start small">
-                            <li><i class="bi bi-check-circle text-success"></i> Code SH (6 chiffres)</li>
-                            <li><i class="bi bi-check-circle text-success"></i> Code NC (8 chiffres UE)</li>
-                            <li><i class="bi bi-check-circle text-success"></i> Code TARIC (10 chiffres)</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Axe 2 : Documents -->
-        <div class="col-md-4">
-            <div class="feature-card mb-4">
-                <div class="card h-100 border-success">
-                    <div class="card-header bg-success text-white">
-                        <strong>Axe 2</strong>
-                    </div>
-                    <div class="card-body text-center">
-                        <i class="bi bi-file-earmark-text display-3 text-success mb-3"></i>
-                        <h3>Automatisation Documentaire</h3>
-                        <p>Génération automatique de tous les documents douaniers requis à partir d'un fichier Excel</p>
-                        <ul class="list-unstyled text-start small">
-                            <li><i class="bi bi-check-circle text-success"></i> DAU (France)</li>
-                            <li><i class="bi bi-check-circle text-success"></i> D10, D12 (Algérie)</li>
-                            <li><i class="bi bi-check-circle text-success"></i> Certificats d'origine</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Axe 3 : Transmission -->
-        <div class="col-md-4">
-            <div class="feature-card mb-4">
-                <div class="card h-100 border-info">
-                    <div class="card-header bg-info text-white">
-                        <strong>Axe 3</strong>
-                    </div>
-                    <div class="card-body text-center">
-                        <i class="bi bi-cloud-upload display-3 text-info mb-3"></i>
-                        <h3>Transmission Électronique</h3>
-                        <p>Connexion aux systèmes douaniers pour l'envoi automatisé des déclarations</p>
-                        <ul class="list-unstyled text-start small">
-                            <li><i class="bi bi-check-circle text-success"></i> DELTA (France)</li>
-                            <li><i class="bi bi-check-circle text-success"></i> BADR (Algérie)</li>
-                            <li><i class="bi bi-check-circle text-success"></i> ENS/ICS2</li>
-                        </ul>
+                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                        <span class="badge bg-primary text-white px-3 py-2">
+                            <i class="bi bi-mortarboard me-1"></i> Projet Académique
+                        </span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</section>
+{% endblock %}
 
-    <div class="row">
-        <!-- Axe 4 : Paiement -->
-        <div class="col-md-6">
-            <div class="feature-card mb-4">
-                <div class="card h-100 border-warning">
-                    <div class="card-header bg-warning text-dark">
-                        <strong>Axe 4</strong>
-                    </div>
-                    <div class="card-body text-center">
-                        <i class="bi bi-calculator display-3 text-warning mb-3"></i>
-                        <h3>Calcul et Paiement</h3>
-                        <p>Calcul automatique des droits et taxes, initiation du paiement</p>
-                        <div class="row text-start small">
-                            <div class="col-6">
-                                <strong>Taux Algérie :</strong>
-                                <ul class="list-unstyled">
-                                    <li>5% - 1ère nécessité</li>
-                                    <li>15% - Matières premières</li>
-                                    <li>30% - Semi-finis</li>
-                                    <li>60% - Produits finis</li>
-                                </ul>
-                            </div>
-                            <div class="col-6">
-                                <strong>TVA :</strong>
-                                <ul class="list-unstyled">
-                                    <li>19% - Algérie</li>
-                                    <li>20% - France</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Generate particles
+    const particlesContainer = document.getElementById('particles');
+    if (particlesContainer) {
+        for (let i = 0; i < 50; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            particle.style.animationDelay = Math.random() * 15 + 's';
+            particle.style.width = (Math.random() * 4 + 2) + 'px';
+            particle.style.height = particle.style.width;
+            particlesContainer.appendChild(particle);
+        }
+    }
 
-        <!-- Axe 5 : OEA -->
-        <div class="col-md-6">
-            <div class="feature-card mb-4">
-                <div class="card h-100 border-secondary">
-                    <div class="card-header bg-secondary text-white">
-                        <strong>Axe 5</strong>
-                    </div>
-                    <div class="card-body text-center">
-                        <i class="bi bi-award display-3 text-secondary mb-3"></i>
-                        <h3>Gestion OEA</h3>
-                        <p>Prise en compte du statut d'Opérateur Économique Agréé</p>
-                        <ul class="list-unstyled text-start small">
-                            <li><i class="bi bi-check-circle text-success"></i> Paiement différé</li>
-                            <li><i class="bi bi-check-circle text-success"></i> Procédures simplifiées</li>
-                            <li><i class="bi bi-check-circle text-success"></i> Réduction des contrôles</li>
-                            <li><i class="bi bi-check-circle text-success"></i> Comptes de crédit</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    // Navbar transparency on scroll
+    const navbar = document.querySelector('.navbar');
+    const hero = document.querySelector('.hero');
 
-    <!-- Technologies -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <h2 class="text-center mb-4">Technologies</h2>
-        </div>
-        <div class="col-md-3">
-            <div class="card h-100 text-center">
-                <div class="card-body">
-                    <i class="bi bi-robot display-4 text-primary mb-2"></i>
-                    <h5>IA avec Function Calling</h5>
-                    <small class="text-muted">LangChain + LLMs</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card h-100 text-center">
-                <div class="card-body">
-                    <i class="bi bi-database display-4 text-success mb-2"></i>
-                    <h5>Base Vectorielle</h5>
-                    <small class="text-muted">ChromaDB SH/NC/TARIC</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card h-100 text-center">
-                <div class="card-body">
-                    <i class="bi bi-cpu display-4 text-info mb-2"></i>
-                    <h5>Multi-Fournisseurs</h5>
-                    <small class="text-muted">Ollama, OpenAI, Gemini</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card h-100 text-center">
-                <div class="card-body">
-                    <i class="bi bi-browser-chrome display-4 text-warning mb-2"></i>
-                    <h5>Automatisation Web</h5>
-                    <small class="text-muted">Playwright</small>
-                </div>
-            </div>
-        </div>
-    </div>
+    function updateNavbar() {
+        if (window.scrollY < hero.offsetHeight - 100) {
+            navbar.classList.add('navbar-hero');
+        } else {
+            navbar.classList.remove('navbar-hero');
+        }
+    }
 
-    {% if user.is_authenticated %}
-    <div class="row mt-5">
-        <div class="col-md-12">
-            <div class="card bg-light">
-                <div class="card-body text-center py-5">
-                    <h3 class="mb-4">Prêt à commencer ?</h3>
-                    <p class="mb-4">Utilisez l'assistant IA pour classifier vos produits, générer des documents ou calculer les droits de douane.</p>
-                    <div class="d-flex justify-content-center gap-3 flex-wrap">
-                        <a href="{% url 'apps_chat:session_list' %}" class="btn btn-primary btn-lg">
-                            <i class="bi bi-chat-dots"></i> Ouvrir l'Assistant
-                        </a>
-                        <a href="{% url 'apps_core:edit_profile' %}" class="btn btn-info btn-lg">
-                            <i class="bi bi-gear"></i> Configurer les API Keys
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
+    window.addEventListener('scroll', updateNavbar);
+    updateNavbar();
 
-    <!-- Périmètre -->
-    <div class="row mt-5">
-        <div class="col-md-12">
-            <div class="alert alert-info">
-                <h5><i class="bi bi-info-circle"></i> Périmètre Phase 1</h5>
-                <p class="mb-0">
-                    <strong>Corridor :</strong> France ↔ Algérie uniquement |
-                    <strong>Articles :</strong> Produits de base (hors pétrole, matières dangereuses, licences) |
-                    <strong>Contexte :</strong> Projet académique
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
+    // Scroll animations
+    const observerOptions = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.1
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.scroll-animate, .stagger-children').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Animated counter
+    function animateCounter(element, target) {
+        let current = 0;
+        const increment = target / 50;
+        const duration = 2000;
+        const stepTime = duration / 50;
+
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                element.textContent = target;
+                clearInterval(timer);
+            } else {
+                element.textContent = Math.floor(current);
+            }
+        }, stepTime);
+    }
+
+    const statObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const statNumbers = entry.target.querySelectorAll('.stat-number');
+                statNumbers.forEach(stat => {
+                    const target = parseInt(stat.dataset.count);
+                    animateCounter(stat, target);
+                });
+                statObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.5 });
+
+    const statsGrid = document.querySelector('.stats-grid');
+    if (statsGrid) {
+        statObserver.observe(statsGrid);
+    }
+
+    // 3D tilt effect
+    document.querySelectorAll('.tilt-card').forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const rotateX = (y - centerY) / 20;
+            const rotateY = (centerX - x) / 20;
+
+            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px)`;
+        });
+
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';
+        });
+    });
+});
+</script>
 {% endblock %}

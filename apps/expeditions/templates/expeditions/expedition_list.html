@@ -1,152 +1,545 @@
 {% extends 'core/base.html' %}
+{% load static %}
 
 {% block title %}Mes Expéditions - Procédures Douanières{% endblock %}
 
+{% block extra_css %}
+<style>
+    .page-header {
+        padding: 60px 0 40px;
+        background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 100%);
+        margin-top: 70px;
+    }
+
+    .page-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+        color: var(--gray-500);
+        font-size: 1.125rem;
+    }
+
+    /* Stats Cards */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        background: var(--white);
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: var(--shadow-card);
+        transition: all var(--duration-normal) var(--ease-out);
+        border: 1px solid var(--gray-100);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .stat-icon.total {
+        background: var(--gray-100);
+        color: var(--gray-600);
+    }
+
+    .stat-icon.en-cours {
+        background: var(--info-bg);
+        color: var(--info);
+    }
+
+    .stat-icon.termine {
+        background: var(--success-bg);
+        color: var(--success);
+    }
+
+    .stat-icon.erreur {
+        background: var(--danger-bg);
+        color: var(--danger);
+    }
+
+    .stat-content h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 2px;
+        line-height: 1;
+    }
+
+    .stat-content span {
+        color: var(--gray-500);
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    /* Expedition Cards */
+    .expeditions-grid {
+        display: grid;
+        gap: 16px;
+    }
+
+    .expedition-card {
+        background: var(--white);
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        display: grid;
+        grid-template-columns: 1fr auto auto auto;
+        align-items: center;
+        gap: 24px;
+        box-shadow: var(--shadow-card);
+        transition: all var(--duration-normal) var(--ease-out);
+        border: 1px solid var(--gray-100);
+    }
+
+    .expedition-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary);
+    }
+
+    .expedition-card.status-termine {
+        border-left: 4px solid var(--success);
+    }
+
+    .expedition-card.status-erreur {
+        border-left: 4px solid var(--danger);
+    }
+
+    .expedition-card.status-en_cours {
+        border-left: 4px solid var(--info);
+    }
+
+    .expedition-info {
+        min-width: 0;
+    }
+
+    .expedition-ref {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--gray-900);
+        text-decoration: none;
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .expedition-ref:hover {
+        color: var(--primary);
+    }
+
+    .expedition-article {
+        color: var(--gray-500);
+        font-size: 0.9375rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 8px;
+    }
+
+    .expedition-meta {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .expedition-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8125rem;
+        color: var(--gray-500);
+    }
+
+    .direction-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: var(--radius-full);
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+
+    .direction-badge.fr-dz {
+        background: linear-gradient(135deg, #0055a4 0%, #ef4135 100%);
+        color: white;
+    }
+
+    .direction-badge.dz-fr {
+        background: linear-gradient(135deg, #006233 0%, #d21034 100%);
+        color: white;
+    }
+
+    /* Progress */
+    .expedition-progress {
+        min-width: 180px;
+    }
+
+    .progress-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .progress-bar-custom {
+        height: 8px;
+        background: var(--gray-200);
+        border-radius: var(--radius-full);
+        overflow: hidden;
+    }
+
+    .progress-bar-custom .fill {
+        height: 100%;
+        background: var(--gradient-ocean);
+        border-radius: var(--radius-full);
+        transition: width 0.5s var(--ease-out);
+    }
+
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8125rem;
+    }
+
+    .progress-info .percentage {
+        font-weight: 600;
+        color: var(--primary);
+    }
+
+    .progress-info .step {
+        color: var(--gray-500);
+    }
+
+    /* Status Badge */
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: var(--radius-full);
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+    }
+
+    .status-badge.brouillon {
+        background: var(--gray-100);
+        color: var(--gray-600);
+    }
+
+    .status-badge.en_cours {
+        background: var(--info-bg);
+        color: #0a6278;
+    }
+
+    .status-badge.termine {
+        background: var(--success-bg);
+        color: #1a7431;
+    }
+
+    .status-badge.erreur {
+        background: var(--danger-bg);
+        color: #c92a21;
+    }
+
+    /* Actions */
+    .expedition-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .action-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        cursor: pointer;
+        transition: all var(--duration-fast) var(--ease-out);
+        font-size: 1rem;
+    }
+
+    .action-btn.view {
+        background: var(--gray-100);
+        color: var(--gray-600);
+    }
+
+    .action-btn.view:hover {
+        background: var(--primary);
+        color: var(--white);
+    }
+
+    .action-btn.continue {
+        background: var(--success-bg);
+        color: var(--success);
+    }
+
+    .action-btn.continue:hover {
+        background: var(--success);
+        color: var(--white);
+    }
+
+    .action-btn.delete {
+        background: var(--danger-bg);
+        color: var(--danger);
+    }
+
+    .action-btn.delete:hover {
+        background: var(--danger);
+        color: var(--white);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 40px;
+        background: var(--white);
+        border-radius: var(--radius-2xl);
+        box-shadow: var(--shadow-card);
+    }
+
+    .empty-state-icon {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: var(--gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 24px;
+        font-size: 3rem;
+        color: var(--gray-400);
+    }
+
+    .empty-state h3 {
+        font-size: 1.5rem;
+        margin-bottom: 8px;
+    }
+
+    .empty-state p {
+        color: var(--gray-500);
+        margin-bottom: 24px;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Modal Override */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+    }
+
+    .modal-header {
+        border-bottom: none;
+        padding: 24px 24px 16px;
+    }
+
+    .modal-body {
+        padding: 0 24px 16px;
+    }
+
+    .modal-footer {
+        border-top: none;
+        padding: 16px 24px 24px;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .expedition-card {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .expedition-progress {
+            min-width: 100%;
+        }
+
+        .expedition-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .stats-row {
+            grid-template-columns: 1fr;
+        }
+
+        .page-header {
+            padding: 40px 0 24px;
+        }
+
+        .page-title {
+            font-size: 1.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h1><i class="bi bi-box-seam"></i> Mes Expéditions</h1>
-            <p class="text-muted">Gérez vos expéditions douanières France ↔ Algérie</p>
-        </div>
-        <div class="col-md-4 text-end">
+<!-- Page Header -->
+<div class="page-header">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h1 class="page-title">Mes Expéditions</h1>
+                <p class="page-subtitle">Gérez vos opérations douanières France ↔ Algérie</p>
+            </div>
             <a href="{% url 'apps_expeditions:create' %}" class="btn btn-primary btn-lg">
-                <i class="bi bi-plus-circle"></i> Nouvelle Expédition
+                <i class="bi bi-plus-lg"></i> Nouvelle Expédition
             </a>
         </div>
     </div>
+</div>
 
-    <!-- Statistiques -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card bg-light">
-                <div class="card-body text-center">
-                    <h3 class="mb-0">{{ stats.total }}</h3>
-                    <small class="text-muted">Total</small>
-                </div>
+<div class="container py-4">
+    <!-- Statistics -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon total">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.total }}</h3>
+                <span>Total</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body text-center">
-                    <h3 class="mb-0">{{ stats.en_cours }}</h3>
-                    <small>En cours</small>
-                </div>
+        <div class="stat-card">
+            <div class="stat-icon en-cours">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.en_cours }}</h3>
+                <span>En cours</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-success text-white">
-                <div class="card-body text-center">
-                    <h3 class="mb-0">{{ stats.terminees }}</h3>
-                    <small>Terminées</small>
-                </div>
+        <div class="stat-card">
+            <div class="stat-icon termine">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.terminees }}</h3>
+                <span>Terminées</span>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-danger text-white">
-                <div class="card-body text-center">
-                    <h3 class="mb-0">{{ stats.erreurs }}</h3>
-                    <small>Erreurs</small>
-                </div>
+        <div class="stat-card">
+            <div class="stat-icon erreur">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.erreurs }}</h3>
+                <span>Erreurs</span>
             </div>
         </div>
     </div>
 
-    <!-- Liste des expéditions -->
     {% if expeditions %}
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <i class="bi bi-list"></i> Liste des expéditions
+    <!-- Expeditions List -->
+    <div class="expeditions-grid">
+        {% for expedition in expeditions %}
+        <div class="expedition-card status-{{ expedition.statut }}">
+            <div class="expedition-info">
+                <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="expedition-ref">
+                    {{ expedition.reference }}
+                </a>
+                <div class="expedition-article">{{ expedition.nom_article|truncatechars:50 }}</div>
+                <div class="expedition-meta">
+                    {% if expedition.direction == 'FR_DZ' %}
+                        <span class="direction-badge fr-dz">
+                            <i class="bi bi-airplane"></i> FR → DZ
+                        </span>
+                    {% else %}
+                        <span class="direction-badge dz-fr">
+                            <i class="bi bi-airplane"></i> DZ → FR
+                        </span>
+                    {% endif %}
+                    <span>
+                        <i class="bi bi-calendar3"></i>
+                        {{ expedition.created_at|date:"d/m/Y" }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="expedition-progress">
+                <div class="progress-wrapper">
+                    <div class="progress-bar-custom">
+                        <div class="fill" style="width: {{ expedition.get_progress_percentage }}%"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span class="percentage">{{ expedition.get_progress_percentage }}%</span>
+                        <span class="step">Étape {{ expedition.etape_courante }}/5</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-badge {{ expedition.statut }}">
+                {% if expedition.statut == 'brouillon' %}
+                    Brouillon
+                {% elif expedition.statut == 'en_cours' %}
+                    En cours
+                {% elif expedition.statut == 'termine' %}
+                    Terminé
+                {% else %}
+                    Erreur
+                {% endif %}
+            </div>
+
+            <div class="expedition-actions">
+                <a href="{% url 'apps_expeditions:detail' expedition.pk %}"
+                   class="action-btn view" title="Voir le détail">
+                    <i class="bi bi-eye"></i>
+                </a>
+                {% if expedition.statut != 'termine' %}
+                <a href="{% if expedition.etape_courante == 1 %}{% url 'apps_expeditions:classification' expedition.pk %}{% elif expedition.etape_courante == 2 %}{% url 'apps_expeditions:documents' expedition.pk %}{% elif expedition.etape_courante == 3 %}{% url 'apps_expeditions:transmission' expedition.pk %}{% elif expedition.etape_courante == 4 %}{% url 'apps_expeditions:paiement' expedition.pk %}{% else %}{% url 'apps_expeditions:oea' expedition.pk %}{% endif %}"
+                   class="action-btn continue" title="Continuer étape {{ expedition.etape_courante }}">
+                    <i class="bi bi-arrow-right"></i>
+                </a>
+                {% endif %}
+                <button type="button" class="action-btn delete btn-delete-expedition"
+                        data-id="{{ expedition.pk }}"
+                        data-reference="{{ expedition.reference }}"
+                        title="Supprimer">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Référence</th>
-                        <th>Article</th>
-                        <th>Direction</th>
-                        <th>Progression</th>
-                        <th>Statut</th>
-                        <th>Date</th>
-                        <th class="text-center">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for expedition in expeditions %}
-                    <tr class="{% if expedition.statut == 'erreur' %}table-danger{% elif expedition.statut == 'termine' %}table-success{% endif %}">
-                        <td>
-                            <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="fw-bold text-decoration-none">
-                                {{ expedition.reference }}
-                            </a>
-                        </td>
-                        <td>{{ expedition.nom_article|truncatechars:40 }}</td>
-                        <td>
-                            {% if expedition.direction == 'FR_DZ' %}
-                                <span class="badge bg-primary">FR → DZ</span>
-                            {% else %}
-                                <span class="badge bg-secondary">DZ → FR</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="progress" style="height: 20px; min-width: 100px;">
-                                <div class="progress-bar bg-success" role="progressbar"
-                                     style="width: {{ expedition.get_progress_percentage }}%"
-                                     aria-valuenow="{{ expedition.get_progress_percentage }}"
-                                     aria-valuemin="0" aria-valuemax="100">
-                                    {{ expedition.get_progress_percentage }}%
-                                </div>
-                            </div>
-                            <small class="text-muted">Étape {{ expedition.etape_courante }}/5</small>
-                        </td>
-                        <td>
-                            {% if expedition.statut == 'brouillon' %}
-                                <span class="badge bg-secondary">Brouillon</span>
-                            {% elif expedition.statut == 'en_cours' %}
-                                <span class="badge bg-info">En cours</span>
-                            {% elif expedition.statut == 'termine' %}
-                                <span class="badge bg-success">Terminé</span>
-                            {% else %}
-                                <span class="badge bg-danger">Erreur</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <small>{{ expedition.created_at|date:"d/m/Y" }}</small>
-                        </td>
-                        <td class="text-center">
-                            <div class="btn-group btn-group-sm">
-                                <a href="{% url 'apps_expeditions:detail' expedition.pk %}"
-                                   class="btn btn-outline-primary" title="Voir le détail">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                {% if expedition.statut != 'termine' %}
-                                <a href="{% url 'apps_expeditions:classification' expedition.pk %}"
-                                   class="btn btn-outline-success" title="Continuer">
-                                    <i class="bi bi-arrow-right-circle"></i>
-                                </a>
-                                {% endif %}
-                                <button type="button" class="btn btn-outline-danger btn-delete-expedition"
-                                        data-id="{{ expedition.pk }}"
-                                        data-reference="{{ expedition.reference }}"
-                                        title="Supprimer">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% endfor %}
     </div>
 
     <!-- Pagination -->
     {% if page_obj.has_other_pages %}
-    <nav class="mt-4">
-        <ul class="pagination justify-content-center">
+    <nav class="mt-5">
+        <ul class="pagination justify-content-center gap-2">
             {% if page_obj.has_previous %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                <a class="page-link rounded-pill px-4" href="?page={{ page_obj.previous_page_number }}">
                     <i class="bi bi-chevron-left"></i> Précédent
                 </a>
             </li>
@@ -155,18 +548,18 @@
             {% for num in page_obj.paginator.page_range %}
                 {% if page_obj.number == num %}
                 <li class="page-item active">
-                    <span class="page-link">{{ num }}</span>
+                    <span class="page-link rounded-pill">{{ num }}</span>
                 </li>
                 {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    <a class="page-link rounded-pill" href="?page={{ num }}">{{ num }}</a>
                 </li>
                 {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                <a class="page-link rounded-pill px-4" href="?page={{ page_obj.next_page_number }}">
                     Suivant <i class="bi bi-chevron-right"></i>
                 </a>
             </li>
@@ -176,33 +569,41 @@
     {% endif %}
 
     {% else %}
-    <!-- État vide -->
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="bi bi-inbox display-1 text-muted"></i>
-            <h3 class="mt-3">Aucune expédition</h3>
-            <p class="text-muted">Vous n'avez pas encore créé d'expédition douanière.</p>
-            <a href="{% url 'apps_expeditions:create' %}" class="btn btn-primary btn-lg">
-                <i class="bi bi-plus-circle"></i> Créer ma première expédition
-            </a>
+    <!-- Empty State -->
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <i class="bi bi-inbox"></i>
         </div>
+        <h3>Aucune expédition</h3>
+        <p>Vous n'avez pas encore créé d'expédition douanière. Commencez par créer votre première expédition pour automatiser vos procédures.</p>
+        <a href="{% url 'apps_expeditions:create' %}" class="btn btn-primary btn-lg">
+            <i class="bi bi-plus-lg"></i> Créer ma première expédition
+        </a>
     </div>
     {% endif %}
 </div>
 
-<!-- Modal Supprimer Expedition -->
+<!-- Delete Modal -->
 <div class="modal fade" id="deleteExpeditionModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="bi bi-trash"></i> Supprimer l'expedition</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon erreur">
+                        <i class="bi bi-trash3"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title mb-0">Supprimer l'expédition</h5>
+                        <small class="text-muted">Cette action est irréversible</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p>Etes-vous sur de vouloir supprimer l'expedition <strong id="deleteExpeditionRef"></strong> ?</p>
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <strong>Attention :</strong> Cette action est irreversible. Tous les documents et donnees associes seront supprimes.
+                <p class="mb-3">Êtes-vous sûr de vouloir supprimer l'expédition <strong id="deleteExpeditionRef"></strong> ?</p>
+                <div class="alert alert-warning d-flex align-items-center gap-2 mb-0">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div>Tous les documents et données associés seront définitivement supprimés.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -210,7 +611,7 @@
                 <form id="deleteExpeditionForm" method="post" style="display: inline;">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash"></i> Supprimer
+                        <i class="bi bi-trash3"></i> Supprimer définitivement
                     </button>
                 </form>
             </div>
@@ -235,6 +636,27 @@ document.addEventListener('DOMContentLoaded', function() {
             deleteForm.action = `/expeditions/${expeditionId}/supprimer/`;
             deleteModal.show();
         });
+    });
+
+    // Add animation on load
+    document.querySelectorAll('.expedition-card').forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
+
+    document.querySelectorAll('.stat-card').forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
     });
 });
 </script>

@@ -6,7 +6,13 @@
     <title>{% block title %}Procédures Douanières - Assistant IA{% endblock %}</title>
 
     <meta name="description" content="Solution d'automatisation des procédures douanières - Corridor France ↔ Algérie">
-    <meta name="theme-color" content="#007AFF">
+    <meta name="theme-color" content="#0071e3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -19,98 +25,180 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <!-- Navigation - Glassmorphism -->
+    <nav class="navbar navbar-expand-lg">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="{% url 'apps_core:home' %}">
-                <i class="bi bi-box-seam"></i> Procédures Douanières
+            <a class="navbar-brand" href="{% url 'apps_core:home' %}">
+                <i class="bi bi-box-seam"></i>
+                <span>Procédures Douanières</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <i class="bi bi-list" style="font-size: 1.5rem;"></i>
             </button>
+
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav mx-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'apps_core:home' %}">
-                            <i class="bi bi-house"></i> Accueil
+                        <a class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" href="{% url 'apps_core:home' %}">
+                            Accueil
                         </a>
                     </li>
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_expeditions:list' %}">
-                                <i class="bi bi-box-seam"></i> Expéditions
+                            <a class="nav-link {% if 'expeditions' in request.path %}active{% endif %}" href="{% url 'apps_expeditions:list' %}">
+                                Expéditions
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_chat:session_list' %}">
-                                <i class="bi bi-chat-dots"></i> Assistant
-                            </a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                                <i class="bi bi-person-circle"></i> {{ user.email|truncatechars:20 }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'apps_core:profile' %}">
-                                        <i class="bi bi-person"></i> Mon Profil
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'apps_authentication:logout' %}">
-                                        <i class="bi bi-box-arrow-right"></i> Déconnexion
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'apps_authentication:login' %}">
-                                <i class="bi bi-box-arrow-in-right"></i> Connexion
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link btn btn-light text-primary ms-2" href="{% url 'apps_authentication:register' %}">
-                                <i class="bi bi-person-plus"></i> S'inscrire
+                            <a class="nav-link {% if 'chat' in request.path %}active{% endif %}" href="{% url 'apps_chat:session_list' %}">
+                                Assistant IA
                             </a>
                         </li>
                     {% endif %}
                 </ul>
+
+                <div class="d-flex align-items-center gap-2">
+                    {% if user.is_authenticated %}
+                        <div class="dropdown">
+                            <button class="btn btn-secondary dropdown-toggle d-flex align-items-center gap-2" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="avatar-circle">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                                <span class="d-none d-lg-inline">{{ user.username|truncatechars:15 }}</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" aria-labelledby="userDropdown" style="border-radius: var(--radius-lg); min-width: 200px;">
+                                <li class="px-3 py-2 border-bottom">
+                                    <small class="text-muted">Connecté en tant que</small>
+                                    <div class="fw-semibold text-truncate">{{ user.email }}</div>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'apps_core:profile' %}">
+                                        <i class="bi bi-person-circle"></i> Mon Profil
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="{% url 'apps_core:edit_profile' %}">
+                                        <i class="bi bi-gear"></i> Paramètres
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" href="{% url 'apps_authentication:logout' %}">
+                                        <i class="bi bi-box-arrow-right"></i> Déconnexion
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    {% else %}
+                        <a class="btn btn-secondary" href="{% url 'apps_authentication:login' %}">
+                            Connexion
+                        </a>
+                        <a class="btn btn-primary" href="{% url 'apps_authentication:register' %}">
+                            <i class="bi bi-rocket-takeoff"></i>
+                            <span class="d-none d-sm-inline">Commencer</span>
+                        </a>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </nav>
 
-    <!-- Messages -->
+    <!-- Messages/Alerts -->
     {% if messages %}
-        <div class="container mt-3">
+        <div class="messages-container" style="position: fixed; top: 80px; right: 20px; z-index: 1100; max-width: 400px;">
             {% for message in messages %}
-                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show shadow-lg" role="alert" style="animation: slideInDown 0.4s ease-out;">
+                    <div class="d-flex align-items-center gap-2">
+                        {% if message.tags == 'success' %}
+                            <i class="bi bi-check-circle-fill"></i>
+                        {% elif message.tags == 'error' or message.tags == 'danger' %}
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        {% elif message.tags == 'warning' %}
+                            <i class="bi bi-exclamation-circle-fill"></i>
+                        {% else %}
+                            <i class="bi bi-info-circle-fill"></i>
+                        {% endif %}
+                        <span>{{ message }}</span>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             {% endfor %}
         </div>
     {% endif %}
 
     <!-- Main Content -->
-    <main class="py-4">
+    <main class="flex-grow-1">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-dark text-white mt-auto py-4">
+    <!-- Footer - Modern Design -->
+    <footer>
         <div class="container">
-            <div class="row">
-                <div class="col-md-6 text-center text-md-start">
-                    <p class="mb-0">
-                        <strong>Procédures Douanières</strong> &copy; 2025 - Corridor France ↔ Algérie
+            <div class="footer-grid">
+                <!-- Brand Column -->
+                <div>
+                    <div class="footer-brand">
+                        <i class="bi bi-box-seam"></i>
+                        <span>Procédures Douanières</span>
+                    </div>
+                    <p class="footer-text">
+                        Solution d'automatisation complète pour vos opérations douanières sur le corridor France ↔ Algérie.
                     </p>
                 </div>
-                <div class="col-md-6 text-center text-md-end">
-                    <small class="text-muted">
-                        <i class="bi bi-robot"></i> Powered by IA avec Function Calling
-                    </small>
+
+                <!-- Navigation Column -->
+                <div>
+                    <h6 class="footer-title">Navigation</h6>
+                    <ul class="footer-links">
+                        <li><a href="{% url 'apps_core:home' %}">Accueil</a></li>
+                        {% if user.is_authenticated %}
+                            <li><a href="{% url 'apps_expeditions:list' %}">Mes Expéditions</a></li>
+                            <li><a href="{% url 'apps_chat:session_list' %}">Assistant IA</a></li>
+                        {% else %}
+                            <li><a href="{% url 'apps_authentication:login' %}">Connexion</a></li>
+                            <li><a href="{% url 'apps_authentication:register' %}">Inscription</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <!-- Features Column -->
+                <div>
+                    <h6 class="footer-title">Fonctionnalités</h6>
+                    <ul class="footer-links">
+                        <li><a href="#">Classification TARIC</a></li>
+                        <li><a href="#">Génération Documents</a></li>
+                        <li><a href="#">Calcul des Droits</a></li>
+                        <li><a href="#">Transmission DELTA</a></li>
+                    </ul>
+                </div>
+
+                <!-- Technologies Column -->
+                <div>
+                    <h6 class="footer-title">Technologies</h6>
+                    <ul class="footer-links">
+                        <li><a href="#">OpenAI GPT-4o</a></li>
+                        <li><a href="#">Google Gemini</a></li>
+                        <li><a href="#">Ollama (Local)</a></li>
+                        <li><a href="#">Django 5.0</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p class="footer-copyright">
+                    &copy; 2025 Procédures Douanières. Projet Académique - Master 2 Informatique.
+                </p>
+                <div class="footer-social">
+                    <a href="#" title="GitHub">
+                        <i class="bi bi-github"></i>
+                    </a>
+                    <a href="#" title="LinkedIn">
+                        <i class="bi bi-linkedin"></i>
+                    </a>
+                    <a href="#" title="Twitter">
+                        <i class="bi bi-twitter-x"></i>
+                    </a>
                 </div>
             </div>
         </div>
@@ -118,9 +206,29 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <!-- Core JS -->
-    {% load static %}
     <script src="{% static 'core/js/main.js' %}"></script>
+
+    <!-- Global Script -->
+    <script>
+        // Auto-dismiss alerts after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+                    bsAlert.close();
+                }, 5000);
+            });
+
+            // Navbar scroll effect (for pages without hero)
+            const navbar = document.querySelector('.navbar');
+            if (navbar && !document.querySelector('.hero')) {
+                navbar.classList.remove('navbar-hero');
+            }
+        });
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

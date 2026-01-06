@@ -1,112 +1,269 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Verificado - BasePage</title>
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-
+    <title>Email Verificado | Procédures Douanières</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            position: relative;
+            overflow: hidden;
         }
+
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.5;
+            animation: float 15s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            top: 10%;
+            left: -10%;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            bottom: 10%;
+            right: -5%;
+            animation-delay: -5s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -30px) scale(1.05); }
+            66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+
         .success-container {
+            position: relative;
+            z-index: 10;
             text-align: center;
-            background: white;
-            padding: 3rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            max-width: 500px;
-            margin: 20px;
-            animation: fadeInUp 0.6s ease-out;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 3.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            animation: cardEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 480px;
+            margin: 1rem;
         }
-        @keyframes fadeInUp {
+
+        @keyframes cardEnter {
             from {
                 opacity: 0;
-                transform: translateY(20px);
+                transform: translateY(30px) scale(0.96);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
         }
+
         .success-icon {
-            font-size: 5rem;
-            color: #28a745;
-            animation: checkmark 0.8s ease-out;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+            animation: successPop 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
         }
-        @keyframes checkmark {
-            0% {
-                transform: scale(0) rotate(45deg);
+
+        @keyframes successPop {
+            from {
+                opacity: 0;
+                transform: scale(0);
             }
             50% {
-                transform: scale(1.2) rotate(45deg);
+                transform: scale(1.1);
             }
-            100% {
-                transform: scale(1) rotate(0);
+            to {
+                opacity: 1;
+                transform: scale(1);
             }
         }
-        .btn-login {
-            margin-top: 2rem;
-            padding: 12px 40px;
+
+        .success-icon i {
+            font-size: 3rem;
+            color: white;
+        }
+
+        .success-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.02em;
+        }
+
+        .success-message {
+            color: #86868b;
             font-size: 1.1rem;
-            border-radius: 50px;
-            transition: all 0.3s;
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
         }
+
+        .success-user {
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .success-note {
+            color: #86868b;
+            font-size: 0.95rem;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: #f5f5f7;
+            border-radius: 12px;
+        }
+
+        .btn-login {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem 2.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 12px;
+            text-decoration: none;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-top: 1rem;
+        }
+
         .btn-login:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+            color: white;
         }
+
         .countdown {
-            color: #6c757d;
+            color: #86868b;
+            font-size: 0.85rem;
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .countdown-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
             font-size: 0.9rem;
-            margin-top: 1rem;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            opacity: 0;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
     <div class="success-container">
         <div class="success-icon">
-            <i class="bi bi-check-circle-fill"></i>
+            <i class="bi bi-check-lg"></i>
         </div>
 
-        <h1 class="mt-4 mb-3">¡Email Verificado!</h1>
+        <h1 class="success-title">Email Verificado</h1>
 
         {% if user %}
-            <p class="lead mb-4">
-                Hola <strong>{{ user.username }}</strong>,<br>
-                Tu cuenta ha sido verificada exitosamente.
+            <p class="success-message">
+                Hola <span class="success-user">{{ user.username }}</span>,<br>
+                tu cuenta ha sido verificada exitosamente.
             </p>
         {% else %}
-            <p class="lead mb-4">
+            <p class="success-message">
                 Tu cuenta ha sido verificada exitosamente.
             </p>
         {% endif %}
 
-        <p class="text-muted">
+        <div class="success-note">
+            <i class="bi bi-info-circle me-2"></i>
             Ya puedes iniciar sesión con tu email y contraseña.
-        </p>
+        </div>
 
-        <a href="{% url 'apps_authentication:login' %}" class="btn btn-primary btn-login">
-            <i class="bi bi-box-arrow-in-right me-2"></i>
+        <a href="{% url 'apps_authentication:login' %}" class="btn-login">
+            <i class="bi bi-box-arrow-in-right"></i>
             Iniciar Sesión
         </a>
 
         <div class="countdown">
-            Esta ventana se cerrará en <span id="countdown">10</span> segundos...
+            Redirigiendo en <span class="countdown-number" id="countdown">10</span> segundos
         </div>
     </div>
 
     <script>
-        // Countdown para cerrar la ventana
+        // Create confetti
+        function createConfetti() {
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#10b981', '#fbbf24'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                confetti.style.animation = `confettiFall ${2 + Math.random() * 3}s linear ${Math.random() * 2}s`;
+                document.body.appendChild(confetti);
+            }
+        }
+
+        createConfetti();
+
+        // Countdown
         let seconds = 10;
         const countdownElement = document.getElementById('countdown');
 
@@ -116,22 +273,17 @@
 
             if (seconds <= 0) {
                 clearInterval(interval);
-                // Intentar cerrar la ventana/pestaña
                 window.close();
-                // Si no puede cerrar (por restricciones del navegador), redirigir al login
                 setTimeout(() => {
                     window.location.href = "{% url 'apps_authentication:login' %}";
                 }, 500);
             }
         }, 1000);
 
-        // Si el usuario hace click en cualquier lugar, detener el countdown
+        // Stop countdown on click
         document.addEventListener('click', () => {
             clearInterval(interval);
-            const countdownDiv = document.querySelector('.countdown');
-            if (countdownDiv) {
-                countdownDiv.style.display = 'none';
-            }
+            document.querySelector('.countdown').style.display = 'none';
         });
     </script>
 </body>

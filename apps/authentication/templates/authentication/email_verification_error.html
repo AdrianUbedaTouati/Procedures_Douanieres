@@ -1,83 +1,216 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error de Verificación - BasePage</title>
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-
+    <title>Error de Verificación | Procédures Douanières</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            position: relative;
+            overflow: hidden;
         }
+
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.5;
+            animation: float 15s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            top: 10%;
+            left: -10%;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            bottom: 10%;
+            right: -5%;
+            animation-delay: -5s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -30px) scale(1.05); }
+            66% { transform: translate(-20px, 20px) scale(0.95); }
+        }
+
         .error-container {
+            position: relative;
+            z-index: 10;
             text-align: center;
-            background: white;
-            padding: 3rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            max-width: 500px;
-            margin: 20px;
-            animation: fadeInUp 0.6s ease-out;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 3.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            animation: cardEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 480px;
+            margin: 1rem;
         }
-        @keyframes fadeInUp {
+
+        @keyframes cardEnter {
             from {
                 opacity: 0;
-                transform: translateY(20px);
+                transform: translateY(30px) scale(0.96);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
         }
+
         .error-icon {
-            font-size: 5rem;
-            color: #dc3545;
-            animation: shake 0.5s ease-out;
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+            box-shadow: 0 12px 30px rgba(239, 68, 68, 0.4);
+            animation: errorShake 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
         }
-        @keyframes shake {
+
+        @keyframes errorShake {
             0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
         }
+
+        .error-icon i {
+            font-size: 3rem;
+            color: white;
+        }
+
+        .error-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.02em;
+        }
+
+        .error-message {
+            color: #86868b;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+
+        .error-note {
+            color: #86868b;
+            font-size: 0.95rem;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            color: #dc2626;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
         .btn-action {
-            margin: 0.5rem;
-            padding: 10px 30px;
-            border-radius: 50px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-primary-action {
+            color: white;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+            color: white;
+        }
+
+        .btn-secondary-action {
+            color: #1d1d1f;
+            background: #f5f5f7;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        .btn-secondary-action:hover {
+            background: #e5e5e7;
+            color: #1d1d1f;
+        }
+
+        @media (min-width: 480px) {
+            .btn-group {
+                flex-direction: row;
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
     <div class="error-container">
         <div class="error-icon">
-            <i class="bi bi-x-circle-fill"></i>
+            <i class="bi bi-x-lg"></i>
         </div>
 
-        <h1 class="mt-4 mb-3">Enlace Inválido</h1>
+        <h1 class="error-title">Enlace Inválido</h1>
 
-        <p class="lead mb-4">
+        <p class="error-message">
             El enlace de verificación es inválido o ha expirado.
         </p>
 
-        <p class="text-muted mb-4">
-            Por favor, regístrate nuevamente o solicita un nuevo enlace de verificación.
-        </p>
+        <div class="error-note">
+            <i class="bi bi-info-circle me-2"></i>
+            Regístrate nuevamente o solicita un nuevo enlace de verificación desde la página de inicio de sesión.
+        </div>
 
-        <div>
-            <a href="{% url 'apps_authentication:register' %}" class="btn btn-primary btn-action">
-                <i class="bi bi-person-plus me-2"></i>
+        <div class="btn-group">
+            <a href="{% url 'apps_authentication:register' %}" class="btn-action btn-primary-action">
+                <i class="bi bi-person-plus"></i>
                 Registrarse
             </a>
-            <a href="{% url 'apps_authentication:login' %}" class="btn btn-outline-secondary btn-action">
-                <i class="bi bi-box-arrow-in-right me-2"></i>
+            <a href="{% url 'apps_authentication:login' %}" class="btn-action btn-secondary-action">
+                <i class="bi bi-box-arrow-in-right"></i>
                 Iniciar Sesión
             </a>
         </div>
