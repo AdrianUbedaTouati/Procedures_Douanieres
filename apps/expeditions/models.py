@@ -357,6 +357,23 @@ class ClassificationData(models.Model):
         verbose_name="Code TARIC (10 chiffres)"
     )
 
+    # Droits et taxes
+    droits_douane = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name="Droits de douane",
+        help_text="Taux de droits de douane (ex: 0%, 2.7%, Variable selon origine)"
+    )
+    tva = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default="20%",
+        verbose_name="TVA",
+        help_text="Taux de TVA applicable"
+    )
+
     # Historique du chat (simplifie)
     chat_historique = models.JSONField(
         default=list,
@@ -404,13 +421,15 @@ class ClassificationData(models.Model):
                 return self.propositions[self.proposition_selectionnee]
         return None
 
-    def add_message(self, role: str, content: str):
+    def add_message(self, role: str, content: str, metadata: dict = None):
         """Ajoute un message a l'historique du chat."""
         message = {
             'role': role,
             'content': content,
             'timestamp': timezone.now().isoformat()
         }
+        if metadata:
+            message['metadata'] = metadata
         self.chat_historique.append(message)
         self.save(update_fields=['chat_historique'])
         return message
@@ -436,7 +455,9 @@ class ClassificationData(models.Model):
             self.code_sh = proposal.get('code_sh', '')[:6]
             self.code_nc = proposal.get('code_nc', '')[:8]
             self.code_taric = proposal.get('code_taric', '')[:10]
-            self.save(update_fields=['code_sh', 'code_nc', 'code_taric'])
+            self.droits_douane = proposal.get('droits_douane', '-')[:50] if proposal.get('droits_douane') else '-'
+            self.tva = proposal.get('tva', '20%')[:20] if proposal.get('tva') else '20%'
+            self.save(update_fields=['code_sh', 'code_nc', 'code_taric', 'droits_douane', 'tva'])
             return True
         return False
 
@@ -678,3 +699,101 @@ class ExpeditionDocument(models.Model):
     def is_pdf(self):
         """Verifie si le document est un PDF."""
         return self.extension == 'pdf'
+
+
+# =============================================================================
+# DOCUMENTS WEB (descargados por el agente IA)
+# =============================================================================
+
+def web_document_upload_path(instance, filename):
+    """
+    Genera el path de upload para documentos web descargados por el agente.
+    Format: {exp_id}/etape_1_classification/web_documents/{filename}
+    """
+    exp_id = instance.etape.expedition_id
+    return f'{exp_id}/etape_1_classification/web_documents/{filename}'
+
+
+class WebDocument(models.Model):
+    """
+    Documento descargado de internet por el agente IA durante la clasificacion.
+    Puede ser una ficha tecnica, datasheet, normativa, etc.
+    """
+
+    etape = models.ForeignKey(
+        ExpeditionEtape,
+        on_delete=models.CASCADE,
+        related_name='web_documents',
+        verbose_name="Etape"
+    )
+    url_origen = models.URLField(
+        max_length=2000,
+        verbose_name="URL de origen",
+        help_text="URL desde donde se descargo el documento"
+    )
+    titulo = models.CharField(
+        max_length=255,
+        verbose_name="Titulo",
+        help_text="Titulo o descripcion del documento"
+    )
+    fichier = models.FileField(
+        upload_to=web_document_upload_path,
+        verbose_name="Fichier"
+    )
+    nom_fichier = models.CharField(
+        max_length=255,
+        verbose_name="Nom du fichier",
+        help_text="Nombre del archivo guardado"
+    )
+    razon_guardado = models.TextField(
+        blank=True,
+        verbose_name="Razon de guardado",
+        help_text="Por que el agente considero util guardar este documento"
+    )
+    texto_extraido = models.TextField(
+        blank=True,
+        verbose_name="Texto extraido",
+        help_text="Preview del texto extraido del PDF"
+    )
+    tamano_bytes = models.IntegerField(
+        default=0,
+        verbose_name="Tamano en bytes"
+    )
+    paginas = models.IntegerField(
+        default=0,
+        verbose_name="Numero de paginas"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Descargado el")
+
+    class Meta:
+        verbose_name = "Document web"
+        verbose_name_plural = "Documents web"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.titulo[:50]} - {self.etape.expedition.reference}"
+
+    @property
+    def expedition(self):
+        """Raccourci pour acceder a l'expedition."""
+        return self.etape.expedition
+
+    @property
+    def tamano_legible(self):
+        """Retorna el tamano en formato legible (KB/MB)."""
+        if self.tamano_bytes < 1024:
+            return f"{self.tamano_bytes} B"
+        elif self.tamano_bytes < 1024 * 1024:
+            return f"{self.tamano_bytes / 1024:.1f} KB"
+        else:
+            return f"{self.tamano_bytes / (1024 * 1024):.1f} MB"
+
+    @property
+    def dominio_origen(self):
+        """Extrae el dominio de la URL de origen."""
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(self.url_origen)
+            return parsed.netloc
+        except Exception:
+            return "unknown"

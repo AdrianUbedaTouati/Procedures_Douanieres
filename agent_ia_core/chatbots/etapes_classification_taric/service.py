@@ -12,6 +12,8 @@ import re
 import sys
 from typing import Dict, Any, List, Optional
 
+from openai import OpenAI
+
 from .config import CHATBOT_CONFIG
 from .prompts import (
     TARIC_SYSTEM_PROMPT,
@@ -19,6 +21,32 @@ from .prompts import (
     TARIC_ANALYSIS_PROMPT,
     TARIC_VALIDATION_MESSAGE
 )
+
+# Schema JSON pour l'extraction structuree des codes TARIC
+# IMPORTANT: En mode strict, TOUS les champs de properties doivent etre dans required
+TARIC_EXTRACTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "proposals": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "code_taric": {"type": "string", "description": "Code TARIC 10 chiffres sans espaces"},
+                    "description": {"type": "string", "description": "Description officielle du code"},
+                    "probability": {"type": "integer", "description": "Probabilite estimee en %"},
+                    "droits_douane": {"type": "string", "description": "Taux droits de douane (ex: 2.7%)"},
+                    "tva": {"type": "string", "description": "Taux TVA (ex: 20%)"},
+                    "justification": {"type": "string", "description": "Justification du choix"}
+                },
+                "required": ["code_taric", "description", "probability", "droits_douane", "tva", "justification"],
+                "additionalProperties": False
+            }
+        }
+    },
+    "required": ["proposals"],
+    "additionalProperties": False
+}
 
 
 class TARICClassificationService:
@@ -59,7 +87,14 @@ class TARICClassificationService:
         """Obtenir le service de chat sous-jacent."""
         if self._chat_service is None:
             from apps.chat.services import ChatAgentService
-            self._chat_service = ChatAgentService(self.user)
+            # Passer le contexte expedition pour les tools qui en ont besoin
+            etape_id = self.etape.id if self.etape else None
+            self._chat_service = ChatAgentService(
+                self.user,
+                expedition_id=self.expedition.id,
+                etape_id=etape_id,
+                system_prompt=TARIC_SYSTEM_PROMPT
+            )
         return self._chat_service
 
     def get_welcome_message(self) -> Dict[str, Any]:
@@ -130,12 +165,18 @@ class TARICClassificationService:
             chat_service = self._get_chat_service()
             result = chat_service.process_message(enriched_message, history)
 
+            # S'assurer que metadata existe
+            if 'metadata' not in result:
+                result['metadata'] = {}
+
             # Analyser la reponse pour extraire les proposals
             proposals = self._extract_proposals(result['content'])
+            print(f"[TARIC_SERVICE] Proposals extracted: {proposals is not None and len(proposals) if proposals else 0}", file=sys.stderr)
 
             # Ajouter les proposals au metadata
             result['metadata']['proposals'] = proposals
             result['metadata']['has_proposals'] = proposals is not None and len(proposals) > 0
+            print(f"[TARIC_SERVICE] Result metadata has_proposals: {result['metadata']['has_proposals']}", file=sys.stderr)
 
             # Si des proposals ont ete detectes, nettoyer le contenu
             if proposals:
@@ -184,62 +225,157 @@ class TARICClassificationService:
         """
         Extrait les propositions de codes TARIC de la reponse.
 
-        Cherche un bloc JSON dans la reponse.
+        Utilise TOUJOURS OpenAI avec JSON structured output pour garantir un format valide.
+        Simple, robuste et economique (gpt-4o-mini).
+        """
+        print(f"[TARIC_SERVICE] Extracting proposals with OpenAI structured output ({len(content)} chars)", file=sys.stderr)
+        return self._extract_with_openai(content)
+
+    def _extract_with_openai(self, content: str) -> Optional[List[Dict]]:
+        """
+        Utilise OpenAI avec response_format pour extraire les codes TARIC.
+        Garantit un JSON valide grace au mode structured output.
         """
         try:
-            # Chercher un bloc JSON dans la reponse
-            json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-                data = json.loads(json_str)
-                if 'proposals' in data:
-                    return data['proposals']
+            # Utiliser directement la llm_api_key de l'utilisateur (OpenAI)
+            api_key = getattr(self.user, 'llm_api_key', None)
 
-            # Essayer de parser directement si c'est du JSON
-            if content.strip().startswith('{'):
-                data = json.loads(content)
-                if 'proposals' in data:
-                    return data['proposals']
+            if not api_key:
+                print(f"[TARIC_SERVICE] No API key found for user", file=sys.stderr)
+                return None
 
+            print(f"[TARIC_SERVICE] Calling OpenAI gpt-4o-mini for extraction", file=sys.stderr)
+            client = OpenAI(api_key=api_key)
+
+            extraction_prompt = """Analyse le texte suivant et extrait TOUS les codes TARIC mentionnes.
+
+Pour chaque code TARIC trouve, extrais:
+- code_taric: le code a EXACTEMENT 10 chiffres (SANS espaces, points ou tirets)
+- description: la description officielle du code
+- probability: la probabilite/precision estimee (nombre entier de 0 a 100)
+- droits_douane: le taux de droits de douane (ex: "2.7%", "0%")
+- tva: le taux de TVA (ex: "20%")
+- justification: la raison du choix de ce code
+
+REGLES CRITIQUES:
+- Les codes TARIC font EXACTEMENT 10 chiffres, pas plus, pas moins
+- Nettoie les codes: "7013 99 00 00" devient "7013990000"
+- Si le code a 8 chiffres (NC), ajoute "00" a la fin: "70139900" devient "7013990000"
+- Si le code a 6 chiffres (SH), ajoute "0000" a la fin: "701399" devient "7013990000"
+- REJETTE les codes avec X ou similaires: "7013XXXXXX" n'est PAS valide
+- Si le code contient des X, essaie de deviner les chiffres manquants ou ignore-le
+- Si une info manque (droits, tva), mets une valeur par defaut ("0%" ou "20%")
+
+TEXTE A ANALYSER:
+"""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "Tu extrais des codes TARIC depuis du texte. Reponds uniquement en JSON."},
+                    {"role": "user", "content": extraction_prompt + content}
+                ],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "taric_proposals",
+                        "strict": True,
+                        "schema": TARIC_EXTRACTION_SCHEMA
+                    }
+                },
+                temperature=0.1,
+                max_tokens=2000
+            )
+
+            result_text = response.choices[0].message.content
+            print(f"[TARIC_SERVICE] OpenAI extraction response: {result_text[:200]}...", file=sys.stderr)
+
+            data = json.loads(result_text)
+            if 'proposals' in data and len(data['proposals']) > 0:
+                proposals = self._ensure_proposal_fields(data['proposals'])
+                print(f"[TARIC_SERVICE] OpenAI extracted {len(proposals)} proposals", file=sys.stderr)
+                return proposals
+
+            print(f"[TARIC_SERVICE] OpenAI returned no proposals", file=sys.stderr)
             return None
 
-        except (json.JSONDecodeError, AttributeError):
+        except Exception as e:
+            print(f"[TARIC_SERVICE] OpenAI extraction error: {e}", file=sys.stderr)
             return None
+
+    def _ensure_proposal_fields(self, proposals: List[Dict]) -> List[Dict]:
+        """
+        S'assure que tous les champs obligatoires sont presents dans les proposals.
+        Filtre les codes invalides (avec X ou incomplets).
+        """
+        valid_proposals = []
+
+        for prop in proposals:
+            code_taric = prop.get('code_taric', '')
+
+            # Nettoyer le code: enlever espaces, points, tirets
+            code_taric = re.sub(r'[\s.\-]', '', code_taric)
+
+            # Rejeter les codes avec X ou non numeriques
+            if 'X' in code_taric.upper() or not code_taric.isdigit():
+                print(f"[TARIC_SERVICE] Rejecting invalid code: {prop.get('code_taric')}", file=sys.stderr)
+                continue
+
+            # Completer les codes trop courts
+            if len(code_taric) == 8:
+                code_taric = code_taric + '00'
+            elif len(code_taric) == 6:
+                code_taric = code_taric + '0000'
+            elif len(code_taric) != 10:
+                print(f"[TARIC_SERVICE] Rejecting code with wrong length ({len(code_taric)}): {code_taric}", file=sys.stderr)
+                continue
+
+            prop['code_taric'] = code_taric
+
+            # Codes derives
+            if not prop.get('code_nc'):
+                prop['code_nc'] = code_taric[:8]
+            if not prop.get('code_sh'):
+                prop['code_sh'] = code_taric[:6]
+
+            # Taxes avec valeurs par defaut
+            if not prop.get('droits_douane'):
+                prop['droits_douane'] = '-'
+            if not prop.get('tva'):
+                prop['tva'] = '20%'
+
+            # Lien tarifdouanier.eu
+            if not prop.get('lien_taric'):
+                prop['lien_taric'] = f"https://www.tarifdouanier.eu/2026/{code_taric[:8]}"
+
+            valid_proposals.append(prop)
+
+        print(f"[TARIC_SERVICE] Valid proposals after filtering: {len(valid_proposals)}", file=sys.stderr)
+        return valid_proposals
 
     def _format_response_with_proposals(self, content: str, proposals: List[Dict]) -> str:
         """
-        Formate la reponse en incluant les proposals de maniere lisible.
+        Formate la reponse en gardant le texte explicatif du LLM et retirant seulement le JSON brut.
+        Les boutons de propositions sont affiches separement par le frontend.
+
+        Le LLM genere maintenant:
+        1. Une analyse textuelle detaillee (PARTIE 1)
+        2. Un bloc JSON structure (PARTIE 2)
+
+        On garde la PARTIE 1 et on retire le JSON (PARTIE 2) car les boutons l'affichent.
         """
-        # Retirer le bloc JSON brut de la reponse
+        # Retirer le bloc JSON brut de la reponse (pas visible pour l'utilisateur)
+        # Le frontend affiche les boutons a partir des proposals extraites
         content = re.sub(r'```json\s*.*?\s*```', '', content, flags=re.DOTALL)
 
-        # Construire l'affichage des proposals
-        proposals_text = "\n## Codes TARIC Proposes\n\n"
+        # Nettoyer les lignes vides multiples
+        content = re.sub(r'\n{3,}', '\n\n', content)
 
-        for i, prop in enumerate(proposals, 1):
-            code = prop.get('code_taric', 'N/A')
-            desc = prop.get('description', '')
-            prob = prop.get('probability', 0)
+        # Ajouter indication pour les boutons
+        content = content.strip()
+        content += "\n\n---\n*Cliquez sur un bouton ci-dessous pour sélectionner votre code TARIC.*"
 
-            # Barre de progression
-            bar_filled = int(prob / 5)  # 20 caracteres max
-            bar_empty = 20 - bar_filled
-            bar = '█' * bar_filled + '░' * bar_empty
-
-            proposals_text += f"**{i}. {code}** - {desc}\n"
-            proposals_text += f"   Precision: {prob}% {bar}\n\n"
-
-        # Ajouter le raisonnement si present
-        try:
-            json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group(1))
-                if 'raisonnement_global' in data:
-                    proposals_text += f"\n### Raisonnement\n{data['raisonnement_global']}\n"
-        except:
-            pass
-
-        return content.strip() + proposals_text
+        return content
 
     def generate_classification_summary(self, proposal: Dict) -> str:
         """

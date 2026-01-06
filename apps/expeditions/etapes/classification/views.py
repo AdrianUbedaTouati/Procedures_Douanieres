@@ -18,7 +18,7 @@ from django.http import JsonResponse
 from django.db.models import Max
 
 from apps.expeditions.models import (
-    Expedition, ExpeditionEtape, ExpeditionDocument, ClassificationData
+    Expedition, ExpeditionEtape, ExpeditionDocument, ClassificationData, WebDocument
 )
 from .forms import ClassificationUploadForm, ClassificationManuelleForm
 from .services import ClassificationService
@@ -41,6 +41,9 @@ class ClassificationView(LoginRequiredMixin, View):
         photos = etape.documents.filter(type='photo').order_by('ordre', '-created_at')
         fiches_techniques = etape.documents.filter(type='fiche_technique').order_by('ordre', '-created_at')
 
+        # Récupérer les documents web téléchargés par l'IA
+        web_documents = etape.web_documents.all().order_by('-created_at')
+
         # Vérifier si l'étape est terminée (lecture seule)
         etape_terminee = etape.statut == 'termine'
 
@@ -50,6 +53,7 @@ class ClassificationView(LoginRequiredMixin, View):
             'classification_data': classification_data,
             'photos': photos,
             'fiches_techniques': fiches_techniques,
+            'web_documents': web_documents,
             'has_documents': photos.exists() or fiches_techniques.exists(),
             'upload_form': ClassificationUploadForm(),
             'manuel_form': ClassificationManuelleForm(),
@@ -443,19 +447,23 @@ class ClassificationChatView(LoginRequiredMixin, View):
             messages_data.append(msg_data)
 
         # Ajouter les proposals si elles existent
+        proposals_data = []
         if classification_data.propositions:
-            proposals_data = []
             for i, prop in enumerate(classification_data.propositions):
+                code_taric = prop.get('code_taric', '')
                 proposals_data.append({
                     'id': i,
                     'code_sh': prop.get('code_sh', ''),
                     'code_nc': prop.get('code_nc', ''),
-                    'code_taric': prop.get('code_taric', ''),
+                    'code_taric': code_taric,
                     'probability': prop.get('probability', 0),
                     'description': prop.get('description', ''),
                     'justification': prop.get('justification', ''),
+                    'droits_douane': prop.get('droits_douane', '-'),
+                    'tva': prop.get('tva', '20%'),
+                    'lien_taric': prop.get('lien_taric') or f"https://www.tarifdouanier.eu/2026/{code_taric[:8]}" if code_taric else '',
                     'is_selected': i == classification_data.proposition_selectionnee,
-                    'formatted_code': self._format_taric_code(prop.get('code_taric', '')),
+                    'formatted_code': self._format_taric_code(code_taric),
                     'confidence_level': self._get_confidence_level(prop.get('probability', 0)),
                     'confidence_color': self._get_confidence_color(prop.get('probability', 0)),
                 })
@@ -463,7 +471,7 @@ class ClassificationChatView(LoginRequiredMixin, View):
         return JsonResponse({
             'success': True,
             'messages': messages_data,
-            'proposals': classification_data.propositions or [],
+            'proposals': proposals_data,  # Utiliser proposals_data formate, pas les donnees brutes
             'selected_proposal': classification_data.proposition_selectionnee,
             'etape_terminee': etape.statut == 'termine',
             'has_selected_proposal': classification_data.proposition_selectionnee is not None
@@ -537,31 +545,47 @@ class ClassificationChatMessageView(LoginRequiredMixin, View):
             service = TARICClassificationService(request.user, expedition)
             result = service.process_message(user_message, history)
 
-            # Sauvegarder la réponse de l'assistant
+            # Extraer tools_used del metadata
+            tools_used = result.get('metadata', {}).get('tools_used', [])
+
+            # Sauvegarder la réponse de l'assistant con metadata
             assistant_msg = classification_data.add_message(
                 role='assistant',
-                content=result['content']
+                content=result['content'],
+                metadata={
+                    'tools_used': tools_used,
+                    'iterations': result.get('metadata', {}).get('iterations', 0),
+                    'review_score': result.get('metadata', {}).get('review', {}).get('final_score', 0)
+                }
             )
 
             # Sauvegarder les proposals si présentes
             proposals_data = []
-            if result.get('metadata', {}).get('proposals'):
-                proposals = result['metadata']['proposals']
-                classification_data.set_propositions(proposals)
+            raw_proposals = result.get('metadata', {}).get('proposals')
+            print(f"[VIEW-CHAT] Raw proposals from service: {raw_proposals}", flush=True)
 
-                for i, prop in enumerate(proposals):
+            if raw_proposals:
+                classification_data.set_propositions(raw_proposals)
+
+                for i, prop in enumerate(raw_proposals):
+                    code_taric = prop.get('code_taric', '')
                     proposals_data.append({
                         'id': i,
                         'code_sh': prop.get('code_sh', ''),
                         'code_nc': prop.get('code_nc', ''),
-                        'code_taric': prop.get('code_taric', ''),
+                        'code_taric': code_taric,
                         'probability': prop.get('probability', 0),
                         'description': prop.get('description', ''),
                         'justification': prop.get('justification', ''),
-                        'formatted_code': self._format_taric_code(prop.get('code_taric', '')),
+                        'droits_douane': prop.get('droits_douane', '-'),
+                        'tva': prop.get('tva', '20%'),
+                        'lien_taric': prop.get('lien_taric') or f"https://www.tarifdouanier.eu/2026/{code_taric[:8]}" if code_taric else '',
+                        'formatted_code': self._format_taric_code(code_taric),
                         'confidence_level': self._get_confidence_level(prop.get('probability', 0)),
                         'confidence_color': self._get_confidence_color(prop.get('probability', 0)),
                     })
+
+            print(f"[VIEW-CHAT] Proposals data to send: {len(proposals_data)} items", flush=True)
 
             return JsonResponse({
                 'success': True,
@@ -577,6 +601,7 @@ class ClassificationChatMessageView(LoginRequiredMixin, View):
                     'content': result['content'],
                     'created_at': classification_data.chat_historique[-1].get('timestamp'),
                     'metadata': result.get('metadata', {}),
+                    'tools_used': tools_used,
                     'proposals': proposals_data if proposals_data else None,
                 }
             })
@@ -613,6 +638,203 @@ class ClassificationChatMessageView(LoginRequiredMixin, View):
         elif probability >= 60:
             return 'warning'
         return 'danger'
+
+
+class ClassificationAnalyzeDocumentsView(LoginRequiredMixin, View):
+    """API pour lancer l'analyse automatique des documents."""
+
+    def post(self, request, pk):
+        expedition = get_object_or_404(
+            Expedition.objects.filter(user=request.user),
+            pk=pk
+        )
+
+        # Vérifier si l'étape est terminée
+        etape = expedition.get_etape(1)
+        if etape.statut == 'termine':
+            return JsonResponse({
+                'success': False,
+                'error': 'Cette étape est terminée.'
+            }, status=403)
+
+        classification_data = etape.get_data()
+
+        try:
+            data = json.loads(request.body)
+            additional_context = data.get('context', '').strip()
+
+            # ================================================================
+            # ETAPE 1: Appeler get_expedition_documents directement
+            # ================================================================
+            from agent_ia_core.chatbots.etapes_classification_taric.tools.get_expedition_documents import get_expedition_documents
+            from agent_ia_core.chatbots.etapes_classification_taric.tools.analyze_documents import analyze_documents
+
+            docs_result = get_expedition_documents(
+                expedition_id=expedition.pk,
+                type_filter="all",
+                user=request.user
+            )
+
+            if not docs_result.get('success') or docs_result.get('total', 0) == 0:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Aucun document à analyser. Veuillez d\'abord télécharger des photos ou fiches techniques.'
+                }, status=400)
+
+            # ================================================================
+            # ETAPE 2: Appeler analyze_documents directement
+            # ================================================================
+            analysis_result = analyze_documents(
+                expedition_id=expedition.pk,
+                document_ids=None,  # Analyser tous les documents
+                user=request.user
+            )
+
+            # ================================================================
+            # ETAPE 3: Construire le contexte avec les résultats des tools
+            # ================================================================
+            tools_context = "## RÉSULTATS DES OUTILS D'ANALYSE\n\n"
+
+            # Résultat de get_expedition_documents
+            tools_context += "### 📁 get_expedition_documents\n"
+            tools_context += f"- Référence expédition: {docs_result.get('expedition_reference', 'N/A')}\n"
+            tools_context += f"- Produit: {docs_result.get('product_name', 'Non spécifié')}\n"
+            tools_context += f"- Documents trouvés: {docs_result.get('summary', '0 documents')}\n"
+
+            if docs_result.get('photos'):
+                tools_context += f"- Photos: {', '.join([p['nom'] for p in docs_result['photos']])}\n"
+            if docs_result.get('fiches_techniques'):
+                tools_context += f"- Fiches techniques: {', '.join([f['nom'] for f in docs_result['fiches_techniques']])}\n"
+
+            tools_context += "\n### 🔍 analyze_documents\n"
+            if analysis_result.get('success'):
+                tools_context += f"- Documents analysés: {len(analysis_result.get('documents_analyzed', []))}\n"
+                tools_context += f"- Méthode: {'Vision IA' if analysis_result.get('images_analyzed', 0) > 0 else 'Extraction texte'}\n"
+                if analysis_result.get('analysis'):
+                    tools_context += f"\n**Analyse détaillée:**\n{analysis_result['analysis']}\n"
+            else:
+                tools_context += f"- Erreur: {analysis_result.get('error', 'Erreur inconnue')}\n"
+
+            # Ajouter le contexte utilisateur si présent
+            if additional_context:
+                tools_context += f"\n### 💬 Informations de l'utilisateur\n{additional_context}\n"
+
+            # ================================================================
+            # ETAPE 4: Construire le message pour le LLM
+            # ================================================================
+            analyze_message = f"""{tools_context}
+
+## INSTRUCTIONS
+
+Basé sur l'analyse automatique des documents ci-dessus, génère une réponse complète pour l'utilisateur avec:
+
+1. **Résumé du produit** identifié à partir des photos/documents
+2. **5 propositions de codes TARIC** avec:
+   - Code complet (10 chiffres)
+   - Probabilité estimée (%)
+   - Description officielle
+   - Justification
+
+Présente les résultats de manière claire et professionnelle en français.
+Si l'analyse n'a pas pu identifier clairement le produit, pose des questions à l'utilisateur."""
+
+            # Sauvegarder le message utilisateur (simplifié pour l'affichage)
+            user_display_message = "Analyser les documents"
+            if additional_context:
+                user_display_message += f": {additional_context}"
+
+            classification_data.add_message(role='user', content=user_display_message)
+
+            # Préparer l'historique pour le service
+            history = []
+            for msg in classification_data.chat_historique:
+                history.append({
+                    'role': msg.get('role'),
+                    'content': msg.get('content')
+                })
+
+            # Traiter avec le service TARIC
+            from agent_ia_core.chatbots.etapes_classification_taric import TARICClassificationService
+            service = TARICClassificationService(request.user, expedition)
+            result = service.process_message(analyze_message, history[:-1])
+
+            # Marquer les tools utilisées (car on les a appelées directement)
+            tools_used = ['get_expedition_documents', 'analyze_documents']
+            if result.get('metadata', {}).get('tools_used'):
+                tools_used.extend(result['metadata']['tools_used'])
+
+            # Sauvegarder la réponse de l'assistant
+            classification_data.add_message(
+                role='assistant',
+                content=result['content'],
+                metadata={
+                    'tools_used': tools_used,
+                    'iterations': result.get('metadata', {}).get('iterations', 0),
+                    'review_score': result.get('metadata', {}).get('review', {}).get('final_score', 0)
+                }
+            )
+
+            # Sauvegarder les proposals si présentes
+            proposals_data = []
+            raw_proposals = result.get('metadata', {}).get('proposals')
+            print(f"[VIEW] Raw proposals from service: {raw_proposals}", flush=True)
+
+            if raw_proposals:
+                classification_data.set_propositions(raw_proposals)
+
+                for i, prop in enumerate(raw_proposals):
+                    code_taric = prop.get('code_taric', '')
+                    proposals_data.append({
+                        'id': i,
+                        'code_sh': prop.get('code_sh', ''),
+                        'code_nc': prop.get('code_nc', ''),
+                        'code_taric': code_taric,
+                        'probability': prop.get('probability', 0),
+                        'description': prop.get('description', ''),
+                        'justification': prop.get('justification', ''),
+                        'droits_douane': prop.get('droits_douane', '-'),
+                        'tva': prop.get('tva', '20%'),
+                        'lien_taric': prop.get('lien_taric') or f"https://www.tarifdouanier.eu/2026/{code_taric[:8]}" if code_taric else '',
+                        'formatted_code': self._format_taric_code(code_taric),
+                    })
+
+            print(f"[VIEW] Proposals data to send: {len(proposals_data)} items", flush=True)
+
+            return JsonResponse({
+                'success': True,
+                'user_message': {
+                    'id': len(classification_data.chat_historique) - 2,
+                    'role': 'user',
+                    'content': user_display_message,
+                    'created_at': classification_data.chat_historique[-2].get('timestamp'),
+                },
+                'assistant_message': {
+                    'id': len(classification_data.chat_historique) - 1,
+                    'role': 'assistant',
+                    'content': result['content'],
+                    'created_at': classification_data.chat_historique[-1].get('timestamp'),
+                    'metadata': result.get('metadata', {}),
+                    'tools_used': tools_used,
+                    'proposals': proposals_data if proposals_data else None,
+                }
+            })
+
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'error': 'JSON invalide.'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+
+    def _format_taric_code(self, code):
+        """Formate le code TARIC avec des points."""
+        if code and len(code) == 10:
+            return f"{code[:4]}.{code[4:6]}.{code[6:8]}.{code[8:]}"
+        return code
 
 
 class SelectTARICProposalView(LoginRequiredMixin, View):
@@ -656,6 +878,8 @@ class SelectTARICProposalView(LoginRequiredMixin, View):
                 'probability': proposal.get('probability', 0),
                 'description': proposal.get('description', ''),
                 'justification': proposal.get('justification', ''),
+                'droits_douane': proposal.get('droits_douane', '-'),
+                'tva': proposal.get('tva', '20%'),
                 'formatted_code': self._format_taric_code(proposal.get('code_taric', '')),
             }
         })
@@ -686,19 +910,43 @@ class ValidateTARICCodeView(LoginRequiredMixin, View):
 
         classification_data = etape.get_data()
 
-        # Vérifier qu'une proposition est sélectionnée
-        if classification_data.proposition_selectionnee is None:
-            return JsonResponse({
-                'success': False,
-                'error': 'Veuillez d\'abord sélectionner un code TARIC.'
-            }, status=400)
+        # Récupérer les données de la requête
+        try:
+            data = json.loads(request.body) if request.body else {}
+        except json.JSONDecodeError:
+            data = {}
 
-        selected_proposal = classification_data.selected_proposal
-        if not selected_proposal:
-            return JsonResponse({
-                'success': False,
-                'error': 'Proposition invalide.'
-            }, status=400)
+        proposal_index = data.get('proposal_index')
+        proposal_data = data.get('proposal_data')
+
+        # Si on reçoit les données directement du frontend
+        if proposal_data and proposal_data.get('code_taric'):
+            selected_proposal = proposal_data
+            # Mettre à jour la proposition sélectionnée dans la BD
+            if proposal_index is not None and classification_data.propositions:
+                classification_data.select_proposition(int(proposal_index))
+        else:
+            # Fallback: utiliser la proposition déjà sélectionnée
+            if classification_data.proposition_selectionnee is None:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Veuillez d\'abord sélectionner un code TARIC.'
+                }, status=400)
+
+            selected_proposal = classification_data.selected_proposal
+            if not selected_proposal:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Proposition invalide.'
+                }, status=400)
+
+        # Sauvegarder les codes et taxes dans ClassificationData
+        classification_data.code_sh = selected_proposal.get('code_sh', '')[:6] if selected_proposal.get('code_sh') else ''
+        classification_data.code_nc = selected_proposal.get('code_nc', '')[:8] if selected_proposal.get('code_nc') else ''
+        classification_data.code_taric = selected_proposal.get('code_taric', '')[:10] if selected_proposal.get('code_taric') else ''
+        classification_data.droits_douane = selected_proposal.get('droits_douane', '-')[:50] if selected_proposal.get('droits_douane') else '-'
+        classification_data.tva = selected_proposal.get('tva', '20%')[:20] if selected_proposal.get('tva') else '20%'
+        classification_data.save()
 
         # Générer le résumé
         from agent_ia_core.chatbots.etapes_classification_taric import TARICClassificationService
@@ -711,9 +959,6 @@ class ValidateTARICCodeView(LoginRequiredMixin, View):
         ]
 
         summary = service.generate_conversation_summary(messages_list, selected_proposal)
-
-        # Valider la classification (copie les codes dans ClassificationData)
-        classification_data.validate_classification()
 
         # Ajouter un message système au chat
         classification_data.add_message(
@@ -734,6 +979,46 @@ class ValidateTARICCodeView(LoginRequiredMixin, View):
                 'description': selected_proposal.get('description', ''),
                 'probability': selected_proposal.get('probability', 0),
                 'justification': selected_proposal.get('justification', ''),
+                'droits_douane': selected_proposal.get('droits_douane', '-'),
+                'tva': selected_proposal.get('tva', '20%'),
             },
             'summary': summary
+        })
+
+
+# ============================================================================
+# API WEB DOCUMENTS (documentos descargados por el agente IA)
+# ============================================================================
+
+class WebDocumentsListView(LoginRequiredMixin, View):
+    """API para listar los documentos web descargados por el agente IA."""
+
+    def get(self, request, pk):
+        expedition = get_object_or_404(
+            Expedition.objects.filter(user=request.user),
+            pk=pk
+        )
+
+        etape = expedition.get_etape(1)
+        web_documents = etape.web_documents.all().order_by('-created_at')
+
+        documents_list = []
+        for doc in web_documents:
+            documents_list.append({
+                'id': doc.id,
+                'titulo': doc.titulo,
+                'url_origen': doc.url_origen,
+                'dominio': doc.dominio_origen,
+                'nom_fichier': doc.nom_fichier,
+                'tamano': doc.tamano_legible,
+                'paginas': doc.paginas,
+                'razon': doc.razon_guardado,
+                'fichier_url': doc.fichier.url if doc.fichier else None,
+                'created_at': doc.created_at.isoformat() if doc.created_at else None,
+            })
+
+        return JsonResponse({
+            'success': True,
+            'count': len(documents_list),
+            'documents': documents_list
         })

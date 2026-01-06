@@ -64,12 +64,19 @@ urlpatterns = [
     path('<int:pk>/classification/chat/message/',
          classification_views.ClassificationChatMessageView.as_view(),
          name='classification_chat_message'),
+    path('<int:pk>/classification/chat/analyze/',
+         classification_views.ClassificationAnalyzeDocumentsView.as_view(),
+         name='classification_chat_analyze'),
     path('<int:pk>/classification/chat/proposal/<int:proposal_id>/select/',
          classification_views.SelectTARICProposalView.as_view(),
          name='classification_select_proposal'),
     path('<int:pk>/classification/chat/validate/',
          classification_views.ValidateTARICCodeView.as_view(),
          name='classification_validate_taric'),
+    # API Web Documents (descargados por IA)
+    path('<int:pk>/classification/web-documents/',
+         classification_views.WebDocumentsListView.as_view(),
+         name='classification_web_documents'),
 
     # =========================================================================
     # ÉTAPE 2: GÉNÉRATION DES DOCUMENTS

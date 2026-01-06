@@ -22,7 +22,8 @@ class ToolRegistry:
     """
 
     def __init__(self, all_tools: List[ToolDefinition], retriever=None, db_session=None, user=None, max_retries: int = 3,
-                 llm=None, google_api_key: str = None, google_engine_id: str = None, chat_logger=None):
+                 llm=None, google_api_key: str = None, google_engine_id: str = None, chat_logger=None,
+                 expedition_id: int = None, etape_id: int = None):
         """
         Inicializa el registro con autodiscovery de todas las tools.
 
@@ -36,6 +37,8 @@ class ToolRegistry:
             google_api_key: Google Custom Search API Key para web_search (opcional)
             google_engine_id: Google Custom Search Engine ID para web_search (opcional)
             chat_logger: ChatLogger instance para logging detallado (opcional)
+            expedition_id: ID de la expedición para tools de contexto (opcional)
+            etape_id: ID de la etapa para tools de contexto (opcional)
         """
         self.retriever = retriever
         self.db_session = db_session
@@ -45,6 +48,8 @@ class ToolRegistry:
         self.google_api_key = google_api_key
         self.google_engine_id = google_engine_id
         self.chat_logger = chat_logger
+        self.expedition_id = expedition_id
+        self.etape_id = etape_id
         self.tool_definitions: Dict[str, ToolDefinition] = {}
         self._register_all_tools(all_tools)
 
@@ -221,6 +226,14 @@ class ToolRegistry:
         # Inyectar chat_logger para tools que lo requieren (find_best_tender, find_top_tenders, etc.)
         if 'chat_logger' in tool_def.function.__code__.co_varnames:
             injected_kwargs['chat_logger'] = self.chat_logger
+
+        # Inyectar expedition_id para tools que lo requieren (guardar_pdf_expediente, etc.)
+        if 'expedition_id' in tool_def.function.__code__.co_varnames:
+            injected_kwargs['expedition_id'] = self.expedition_id
+
+        # Inyectar etape_id para tools que lo requieren
+        if 'etape_id' in tool_def.function.__code__.co_varnames:
+            injected_kwargs['etape_id'] = self.etape_id
 
         # Sistema de reintentos
         last_error = None

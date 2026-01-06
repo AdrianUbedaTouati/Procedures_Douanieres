@@ -43,13 +43,23 @@
     function initSmoothScroll() {
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+                const href = this.getAttribute('href');
+                // Verifier que c'est bien un selecteur d'ancre valide (commence par # et a plus d'un caractere)
+                if (!href || href.length <= 1 || !href.startsWith('#')) {
+                    return; // Laisser le comportement par defaut
+                }
+                try {
+                    const target = document.querySelector(href);
+                    if (target) {
+                        e.preventDefault();
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                } catch (error) {
+                    // Selecteur invalide, laisser le comportement par defaut
+                    console.warn('Invalid selector for smooth scroll:', href);
                 }
             });
         });

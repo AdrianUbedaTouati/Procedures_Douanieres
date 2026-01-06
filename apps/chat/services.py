@@ -18,13 +18,16 @@ from apps.core.logging_config import ChatLogger
 class ChatAgentService:
     """Service to interact with the Agent_IA system"""
 
-    def __init__(self, user, session_id=None):
+    def __init__(self, user, session_id=None, expedition_id=None, etape_id=None, system_prompt=None):
         """
         Initialize the chat agent service
 
         Args:
             user: Django User instance with llm_api_key, llm_provider, openai_model, ollama_model, ollama_embedding_model
             session_id: Optional session ID for logging purposes
+            expedition_id: Optional expedition ID for tool context injection
+            etape_id: Optional etape ID for tool context injection
+            system_prompt: Optional custom system prompt for specialized chatbots (e.g., TARIC classification)
         """
         self.user = user
         self.api_key = user.llm_api_key if hasattr(user, 'llm_api_key') else None
@@ -34,6 +37,13 @@ class ChatAgentService:
         self.ollama_model = user.ollama_model if hasattr(user, 'ollama_model') else 'qwen2.5:72b'
         self.ollama_embedding_model = user.ollama_embedding_model if hasattr(user, 'ollama_embedding_model') else 'nomic-embed-text'
         self._agent = None
+
+        # Contexto de expedición para tools
+        self.expedition_id = expedition_id
+        self.etape_id = etape_id
+
+        # System prompt personalizado (opcional)
+        self.system_prompt = system_prompt
 
         # Inicializar logger si tenemos session_id
         self.chat_logger = None
@@ -86,7 +96,10 @@ class ChatAgentService:
                 user=self.user,
                 max_iterations=15,
                 temperature=0.3,
-                chat_logger=self.chat_logger
+                chat_logger=self.chat_logger,
+                expedition_id=self.expedition_id,
+                etape_id=self.etape_id,
+                system_prompt=self.system_prompt
             )
 
             print(f"[SERVICE] FunctionCallingAgent creado con {len(self._agent.tool_registry.tool_definitions)} tools", file=sys.stderr)

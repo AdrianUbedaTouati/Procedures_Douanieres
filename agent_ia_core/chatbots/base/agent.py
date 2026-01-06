@@ -70,7 +70,10 @@ class FunctionCallingAgent:
         user=None,
         max_iterations: int = 5,
         temperature: float = 0.3,
-        chat_logger=None
+        chat_logger=None,
+        expedition_id: int = None,
+        etape_id: int = None,
+        system_prompt: Optional[str] = None
     ):
         """
         Inicializa el agente con function calling.
@@ -83,6 +86,9 @@ class FunctionCallingAgent:
             max_iterations: Máximo de iteraciones del loop
             temperature: Temperatura del LLM
             chat_logger: ChatLogger instance para logging detallado (opcional)
+            expedition_id: ID de la expedición para tools de contexto (opcional)
+            etape_id: ID de la etapa para tools de contexto (opcional)
+            system_prompt: System prompt personalizado (opcional). Si no se proporciona, usa el genérico.
         """
         self.llm_provider = llm_provider.lower()
         self.llm_model = llm_model
@@ -91,6 +97,9 @@ class FunctionCallingAgent:
         self.temperature = temperature
         self.user = user
         self.chat_logger = chat_logger
+        self.expedition_id = expedition_id
+        self.etape_id = etape_id
+        self.custom_system_prompt = system_prompt
 
         # Validaciones
         if self.llm_provider not in ['ollama', 'openai', 'google']:
@@ -118,7 +127,9 @@ class FunctionCallingAgent:
             llm=self.llm,
             google_api_key=google_api_key,
             google_engine_id=google_engine_id,
-            chat_logger=self.chat_logger
+            chat_logger=self.chat_logger,
+            expedition_id=self.expedition_id,
+            etape_id=self.etape_id
         )
 
         logger.info(f"[AGENT] Agente inicializado con {len(self.tool_registry.tool_definitions)} tools")
@@ -296,38 +307,43 @@ class FunctionCallingAgent:
         """Prepara los mensajes para el LLM."""
         messages = []
 
-        # System prompt genérico
-        system_prompt_parts = [
-            "Eres un asistente de IA inteligente y versátil. Puedes ayudar con cualquier tema y tienes acceso a herramientas especializadas.",
-            "",
-            f"CONTEXTO TEMPORAL: {get_current_datetime()}",
-            "",
-            "HERRAMIENTAS DISPONIBLES:",
-        ]
+        # Usar system prompt personalizado si existe, sino el genérico
+        if self.custom_system_prompt:
+            # System prompt personalizado (ej: TARIC classification)
+            system_prompt = self.custom_system_prompt
+        else:
+            # System prompt genérico por defecto
+            system_prompt_parts = [
+                "Eres un asistente de IA inteligente y versátil. Puedes ayudar con cualquier tema y tienes acceso a herramientas especializadas.",
+                "",
+                f"CONTEXTO TEMPORAL: {get_current_datetime()}",
+                "",
+                "HERRAMIENTAS DISPONIBLES:",
+            ]
 
-        # Añadir web_search y browse_webpage si están disponibles
-        if 'web_search' in self.tool_registry.tool_definitions:
+            # Añadir web_search y browse_webpage si están disponibles
+            if 'web_search' in self.tool_registry.tool_definitions:
+                system_prompt_parts.extend([
+                    "- web_search: Buscar información en internet (clima, noticias, precios, datos actuales)",
+                    "- browse_webpage: Navegar a una URL específica para extraer contenido detallado",
+                ])
+
             system_prompt_parts.extend([
-                "- web_search: Buscar información en internet (clima, noticias, precios, datos actuales)",
-                "- browse_webpage: Navegar a una URL específica para extraer contenido detallado",
+                "",
+                "INSTRUCCIONES:",
+                "- Usa las herramientas cuando necesites información actualizada o específica",
+                "- Para preguntas sobre el tiempo, noticias, precios actuales → usa web_search",
+                "- Si ya tienes la información necesaria, responde directamente",
+                "- Sé útil, claro y conversacional",
+                "",
+                "Ejemplos de cuándo usar herramientas:",
+                '- "¿Qué tiempo hace en Madrid?" → USA web_search',
+                '- "Precio del Bitcoin" → USA web_search',
+                '- "Noticias sobre inteligencia artificial" → USA web_search',
+                '- "Explícame qué es Python" → Responde directamente (conocimiento general)',
             ])
 
-        system_prompt_parts.extend([
-            "",
-            "INSTRUCCIONES:",
-            "- Usa las herramientas cuando necesites información actualizada o específica",
-            "- Para preguntas sobre el tiempo, noticias, precios actuales → usa web_search",
-            "- Si ya tienes la información necesaria, responde directamente",
-            "- Sé útil, claro y conversacional",
-            "",
-            "Ejemplos de cuándo usar herramientas:",
-            '- "¿Qué tiempo hace en Madrid?" → USA web_search',
-            '- "Precio del Bitcoin" → USA web_search',
-            '- "Noticias sobre inteligencia artificial" → USA web_search',
-            '- "Explícame qué es Python" → Responde directamente (conocimiento general)',
-        ])
-
-        system_prompt = "\n".join(system_prompt_parts)
+            system_prompt = "\n".join(system_prompt_parts)
 
         messages.append({
             'role': 'system',
