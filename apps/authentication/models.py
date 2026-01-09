@@ -137,7 +137,110 @@ class User(AbstractUser):
     city = models.CharField(max_length=100, blank=True, verbose_name='Ciudad')
     state_province = models.CharField(max_length=100, blank=True, verbose_name='Estado/Provincia')
     postal_code = models.CharField(max_length=20, blank=True, verbose_name='Código Postal')
-    country = models.CharField(max_length=100, blank=True, verbose_name='País', default='España')
+    country = models.CharField(max_length=100, blank=True, verbose_name='País', default='France')
+
+    # ================================================
+    # COMPANY INFORMATION (for customs documents)
+    # ================================================
+    company_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Nom de l'entreprise",
+        help_text="Raison sociale de l'entreprise"
+    )
+    company_legal_form = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Forme juridique",
+        help_text="Ex: SARL, SAS, EURL, SA"
+    )
+
+    # ================================================
+    # CUSTOMS IDENTIFIERS
+    # ================================================
+    eori_number = models.CharField(
+        max_length=17,
+        blank=True,
+        verbose_name="Numero EORI",
+        help_text="Economic Operator Registration and Identification (EU) - Ex: FR12345678901234"
+    )
+    nif_number = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="NIF",
+        help_text="Numero d'Identification Fiscale (Algerie)"
+    )
+    vat_number = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="Numero de TVA",
+        help_text="Numero de TVA intracommunautaire - Ex: FR12345678901"
+    )
+    siret_number = models.CharField(
+        max_length=14,
+        blank=True,
+        verbose_name="SIRET",
+        help_text="Numero SIRET (France) - 14 chiffres"
+    )
+
+    # ================================================
+    # CUSTOMS DEFAULTS
+    # ================================================
+    INCOTERMS_CHOICES = [
+        ('EXW', 'EXW - Ex Works'),
+        ('FCA', 'FCA - Free Carrier'),
+        ('CPT', 'CPT - Carriage Paid To'),
+        ('CIP', 'CIP - Carriage Insurance Paid'),
+        ('DAP', 'DAP - Delivered At Place'),
+        ('DPU', 'DPU - Delivered at Place Unloaded'),
+        ('DDP', 'DDP - Delivered Duty Paid'),
+        ('FAS', 'FAS - Free Alongside Ship'),
+        ('FOB', 'FOB - Free On Board'),
+        ('CFR', 'CFR - Cost and Freight'),
+        ('CIF', 'CIF - Cost Insurance Freight'),
+    ]
+    CURRENCY_CHOICES = [
+        ('EUR', 'Euro (EUR)'),
+        ('DZD', 'Dinar algerien (DZD)'),
+        ('USD', 'Dollar americain (USD)'),
+    ]
+
+    default_incoterms = models.CharField(
+        max_length=3,
+        blank=True,
+        default='CIF',
+        choices=INCOTERMS_CHOICES,
+        verbose_name="Incoterms par defaut"
+    )
+    default_currency = models.CharField(
+        max_length=3,
+        blank=True,
+        default='EUR',
+        choices=CURRENCY_CHOICES,
+        verbose_name="Devise par defaut"
+    )
+
+    # ================================================
+    # CUSTOMS BROKER INFO (optional)
+    # ================================================
+    broker_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Nom du transitaire",
+        help_text="Nom du commissionnaire en douane"
+    )
+    broker_contact = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Contact transitaire",
+        help_text="Telephone ou email du transitaire"
+    )
+    broker_customs_id = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Code agrement transitaire",
+        help_text="Numero d'agrement douanier du transitaire"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -198,6 +301,31 @@ class User(AbstractUser):
     def has_complete_address(self):
         """Verifica si el usuario tiene una dirección completa"""
         return all([self.address_line1, self.city, self.postal_code, self.country])
+
+    def has_complete_customs_profile(self):
+        """Verifie si le profil douanier est complet pour la generation de documents."""
+        return all([
+            self.company_name,
+            self.address_line1,
+            self.city,
+            self.postal_code,
+            self.country,
+            self.eori_number or self.nif_number,  # At least one customs identifier
+        ])
+
+    def get_customs_identifier(self, direction='FR_DZ'):
+        """Retourne l'identifiant douanier selon la direction."""
+        if direction == 'FR_DZ':
+            return self.eori_number
+        else:  # DZ_FR
+            return self.nif_number
+
+    def get_company_full_info(self):
+        """Retourne les informations completes de l'entreprise formatees."""
+        parts = [self.company_name]
+        if self.company_legal_form:
+            parts[0] = f"{self.company_name} ({self.company_legal_form})"
+        return parts[0] if parts else ''
 
 
 class PasswordResetToken(models.Model):

@@ -1,0 +1,637 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Donnees Document - {{ expedition.reference }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .form-section h5 {
+        color: #0d6efd;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .form-section h5 i {
+        margin-right: 8px;
+    }
+    .required-field::after {
+        content: ' *';
+        color: #dc3545;
+    }
+    .help-icon {
+        color: #6c757d;
+        cursor: help;
+    }
+    .classification-summary {
+        background: linear-gradient(135deg, #e7f1ff 0%, #cfe2ff 100%);
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    .classification-summary .code {
+        font-family: monospace;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    .sticky-sidebar {
+        position: sticky;
+        top: 20px;
+    }
+    .form-progress {
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .form-progress .progress-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .form-progress .progress-item:last-child {
+        border-bottom: none;
+    }
+    .form-progress .progress-item i {
+        width: 24px;
+        margin-right: 10px;
+    }
+    .form-progress .progress-item.completed i {
+        color: #198754;
+    }
+    .form-progress .progress-item.active i {
+        color: #0d6efd;
+    }
+    .form-progress .progress-item.pending i {
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expeditions</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:detail' expedition.pk %}">{{ expedition.reference }}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:documents' expedition.pk %}">Documents</a></li>
+            <li class="breadcrumb-item active">Saisie des donnees</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h3">
+                <i class="bi bi-pencil-square text-warning"></i> Saisie des Donnees
+            </h1>
+            <p class="text-muted">{{ expedition.nom_article }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            {% if expedition.direction == 'FR_DZ' %}
+                <span class="badge bg-primary fs-6"><i class="bi bi-airplane"></i> France &rarr; Algerie</span>
+            {% else %}
+                <span class="badge bg-success fs-6"><i class="bi bi-airplane"></i> Algerie &rarr; France</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Classification Summary -->
+    <div class="classification-summary">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <strong>Code TARIC:</strong>
+                <span class="code ms-2">{{ classification.code_taric_formate|default:classification.code_taric }}</span>
+            </div>
+            <div class="col-md-4">
+                <strong>Description:</strong>
+                <span class="ms-2">{{ classification.description|truncatewords:8 }}</span>
+            </div>
+            <div class="col-md-4 text-end">
+                {% if classification.droits_douane %}
+                <span class="badge bg-info">Droits: {{ classification.droits_douane }}</span>
+                {% endif %}
+                {% if classification.tva %}
+                <span class="badge bg-secondary">TVA: {{ classification.tva }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if not profile_complete %}
+    <div class="alert alert-warning mb-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+            <div class="flex-grow-1">
+                <strong>Profil incomplet:</strong> Certaines informations de votre profil entreprise sont manquantes.
+            </div>
+            <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#profileModal">
+                Completer
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Main Form Column -->
+        <div class="col-lg-9">
+            <form method="post" id="documentsForm">
+                {% csrf_token %}
+
+                <!-- Section 1: Destinataire -->
+                <div class="form-section" id="section-consignee">
+                    <h5><i class="bi bi-building"></i> Destinataire / Consignataire</h5>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label required-field">Nom ou Raison sociale</label>
+                            {{ form.consignee_name }}
+                            {% if form.consignee_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.consignee_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">ID Fiscal (NIF/EORI)</label>
+                            {{ form.consignee_tax_id }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label class="form-label required-field">Adresse</label>
+                            {{ form.consignee_address }}
+                            {% if form.consignee_address.errors %}
+                            <div class="invalid-feedback d-block">{{ form.consignee_address.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required-field">Ville</label>
+                            {{ form.consignee_city }}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Code postal</label>
+                            {{ form.consignee_postal_code }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required-field">Pays</label>
+                            {{ form.consignee_country }}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Code ISO</label>
+                            {{ form.consignee_country_code }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Contact</label>
+                            {{ form.consignee_contact_name }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Telephone</label>
+                            {{ form.consignee_phone }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Email</label>
+                            {{ form.consignee_email }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Facture -->
+                <div class="form-section" id="section-invoice">
+                    <h5><i class="bi bi-receipt"></i> Facture Commerciale</h5>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required-field">Numero de facture</label>
+                            {{ form.invoice_number }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required-field">Date de facture</label>
+                            {{ form.invoice_date }}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label required-field">Montant total</label>
+                            {{ form.invoice_total }}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Devise</label>
+                            {{ form.invoice_currency }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Produit -->
+                <div class="form-section" id="section-product">
+                    <h5><i class="bi bi-box-seam"></i> Details du Produit</h5>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label required-field">Quantite</label>
+                            {{ form.quantity }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Unite</label>
+                            {{ form.unit_of_measure }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Prix unitaire</label>
+                            {{ form.unit_price }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Valeur FOB</label>
+                            {{ form.fob_value }}
+                            <div class="form-text">Si vide = montant facture</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label required-field">Poids brut (kg)</label>
+                            {{ form.gross_weight_kg }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label required-field">Poids net (kg)</label>
+                            {{ form.net_weight_kg }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Nombre de colis</label>
+                            {{ form.number_of_packages }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Type d'emballage</label>
+                            {{ form.package_type }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Transport -->
+                <div class="form-section" id="section-transport">
+                    <h5><i class="bi bi-truck"></i> Transport</h5>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required-field">Mode de transport</label>
+                            {{ form.transport_mode }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Type de document</label>
+                            {{ form.transport_document_type }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Reference document</label>
+                            {{ form.transport_document_ref }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Date document</label>
+                            {{ form.transport_document_date }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Navire/Vol</label>
+                            {{ form.vessel_name }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Port de chargement</label>
+                            {{ form.port_of_loading }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Port de dechargement</label>
+                            {{ form.port_of_discharge }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Date d'arrivee prevue</label>
+                            {{ form.expected_arrival_date }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 5: Conditions Commerciales -->
+                <div class="form-section" id="section-commercial">
+                    <h5><i class="bi bi-currency-exchange"></i> Conditions Commerciales</h5>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label required-field">Incoterms</label>
+                            {{ form.incoterms }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Lieu Incoterms</label>
+                            {{ form.incoterms_location }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Cout du fret</label>
+                            {{ form.freight_cost }}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Cout assurance</label>
+                            {{ form.insurance_cost }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 6: Origine -->
+                <div class="form-section" id="section-origin">
+                    <h5><i class="bi bi-globe"></i> Pays d'Origine</h5>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required-field">Pays d'origine</label>
+                            {{ form.country_of_origin }}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Code ISO</label>
+                            {{ form.country_of_origin_code }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Pays d'expedition</label>
+                            {{ form.country_of_dispatch }}
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="form-label">Code ISO</label>
+                            {{ form.country_of_dispatch_code }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 7: Regime Douanier -->
+                <div class="form-section" id="section-customs">
+                    <h5><i class="bi bi-shield-check"></i> Regime Douanier</h5>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Code regime</label>
+                            {{ form.customs_procedure_code }}
+                            <div class="form-text">Ex: 10 00 (mise a la consommation)</div>
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Description regime</label>
+                            {{ form.customs_procedure_description }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
+                    <a href="{% url 'apps_expeditions:documents' expedition.pk %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Retour
+                    </a>
+                    <div>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-lg"></i> Enregistrer
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Sidebar Column -->
+        <div class="col-lg-3">
+            <div class="sticky-sidebar">
+                <!-- Form Progress -->
+                <div class="form-progress mb-4">
+                    <h6 class="mb-3"><i class="bi bi-list-check"></i> Sections</h6>
+                    <div class="progress-item" data-section="section-consignee">
+                        <i class="bi bi-circle"></i>
+                        <span>Destinataire</span>
+                    </div>
+                    <div class="progress-item" data-section="section-invoice">
+                        <i class="bi bi-circle"></i>
+                        <span>Facture</span>
+                    </div>
+                    <div class="progress-item" data-section="section-product">
+                        <i class="bi bi-circle"></i>
+                        <span>Produit</span>
+                    </div>
+                    <div class="progress-item" data-section="section-transport">
+                        <i class="bi bi-circle"></i>
+                        <span>Transport</span>
+                    </div>
+                    <div class="progress-item" data-section="section-commercial">
+                        <i class="bi bi-circle"></i>
+                        <span>Commercial</span>
+                    </div>
+                    <div class="progress-item" data-section="section-origin">
+                        <i class="bi bi-circle"></i>
+                        <span>Origine</span>
+                    </div>
+                    <div class="progress-item" data-section="section-customs">
+                        <i class="bi bi-circle"></i>
+                        <span>Douane</span>
+                    </div>
+                </div>
+
+                <!-- Quick Info -->
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <i class="bi bi-info-circle"></i> Information
+                    </div>
+                    <div class="card-body small">
+                        <p>Les champs marques <span class="text-danger">*</span> sont obligatoires.</p>
+                        <p class="mb-0">La valeur CIF sera calculee automatiquement a partir de la valeur FOB + fret + assurance.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Modal (same as in documents.html) -->
+<div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-person-fill-gear"></i> Profil Entreprise</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="profileForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Nom de l'entreprise *</label>
+                            <input type="text" class="form-control" name="company_name"
+                                   value="{{ request.user.company_name }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Forme juridique</label>
+                            <input type="text" class="form-control" name="company_legal_form"
+                                   value="{{ request.user.company_legal_form }}" placeholder="SARL, SAS...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Adresse *</label>
+                        <input type="text" class="form-control" name="address_line1"
+                               value="{{ request.user.address_line1 }}" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Ville *</label>
+                            <input type="text" class="form-control" name="city"
+                                   value="{{ request.user.city }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Code postal *</label>
+                            <input type="text" class="form-control" name="postal_code"
+                                   value="{{ request.user.postal_code }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Pays *</label>
+                            <input type="text" class="form-control" name="country"
+                                   value="{{ request.user.country|default:'France' }}" required>
+                        </div>
+                    </div>
+                    <hr>
+                    <h6 class="mb-3"><i class="bi bi-card-checklist"></i> Identifiants douaniers</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Numero EORI</label>
+                            <input type="text" class="form-control" name="eori_number"
+                                   value="{{ request.user.eori_number }}" placeholder="FR12345678901234">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">NIF (Algerie)</label>
+                            <input type="text" class="form-control" name="nif_number"
+                                   value="{{ request.user.nif_number }}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Numero TVA</label>
+                            <input type="text" class="form-control" name="vat_number"
+                                   value="{{ request.user.vat_number }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">SIRET</label>
+                            <input type="text" class="form-control" name="siret_number"
+                                   value="{{ request.user.siret_number }}">
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Incoterms par defaut</label>
+                            <select class="form-select" name="default_incoterms">
+                                <option value="CIF" {% if request.user.default_incoterms == 'CIF' %}selected{% endif %}>CIF</option>
+                                <option value="FOB" {% if request.user.default_incoterms == 'FOB' %}selected{% endif %}>FOB</option>
+                                <option value="EXW" {% if request.user.default_incoterms == 'EXW' %}selected{% endif %}>EXW</option>
+                                <option value="DAP" {% if request.user.default_incoterms == 'DAP' %}selected{% endif %}>DAP</option>
+                                <option value="DDP" {% if request.user.default_incoterms == 'DDP' %}selected{% endif %}>DDP</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Devise par defaut</label>
+                            <select class="form-select" name="default_currency">
+                                <option value="EUR" {% if request.user.default_currency == 'EUR' %}selected{% endif %}>EUR</option>
+                                <option value="DZD" {% if request.user.default_currency == 'DZD' %}selected{% endif %}>DZD</option>
+                                <option value="USD" {% if request.user.default_currency == 'USD' %}selected{% endif %}>USD</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = '{{ csrf_token }}';
+
+    // Section navigation
+    document.querySelectorAll('.progress-item').forEach(item => {
+        item.addEventListener('click', function() {
+            const sectionId = this.dataset.section;
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+        item.style.cursor = 'pointer';
+    });
+
+    // Update progress on scroll
+    const sections = document.querySelectorAll('.form-section');
+    const progressItems = document.querySelectorAll('.progress-item');
+
+    function updateProgress() {
+        let currentSection = null;
+        sections.forEach(section => {
+            const rect = section.getBoundingClientRect();
+            if (rect.top <= 100 && rect.bottom > 0) {
+                currentSection = section.id;
+            }
+        });
+
+        progressItems.forEach(item => {
+            item.classList.remove('active');
+            const icon = item.querySelector('i');
+            icon.className = 'bi bi-circle';
+
+            if (item.dataset.section === currentSection) {
+                item.classList.add('active');
+                icon.className = 'bi bi-circle-fill';
+            }
+        });
+    }
+
+    window.addEventListener('scroll', updateProgress);
+    updateProgress();
+
+    // Profile form
+    const profileForm = document.getElementById('profileForm');
+    if (profileForm) {
+        profileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(profileForm);
+            const submitBtn = profileForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            fetch('{% url "apps_expeditions:update_profile" %}', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('profileModal')).hide();
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + JSON.stringify(data.errors));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Erreur de connexion');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
+
+    // Auto uppercase for country codes
+    document.querySelectorAll('input[style*="text-transform: uppercase"]').forEach(input => {
+        input.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,576 +1,89 @@
-{% load static %}
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Autenticación{% endblock %} | Procédures Douanières</title>
+    <title>{% block title %}Autenticación{% endblock %}</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <style>
-        :root {
-            --primary: #0071e3;
-            --primary-hover: #0077ED;
-            --text-primary: #1d1d1f;
-            --text-secondary: #86868b;
-            --surface: #ffffff;
-            --surface-secondary: #f5f5f7;
-            --border: rgba(0, 0, 0, 0.08);
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-            --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
-            --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 20px;
-            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        /* Animated background */
-        .auth-bg {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            overflow: hidden;
-        }
-
-        .auth-bg::before {
-            content: '';
-            position: absolute;
-            width: 150%;
-            height: 150%;
-            top: -25%;
-            left: -25%;
-            background:
-                radial-gradient(ellipse at 20% 80%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-                radial-gradient(ellipse at 40% 40%, rgba(99, 102, 241, 0.3) 0%, transparent 40%);
-            animation: meshFloat 20s ease-in-out infinite;
-        }
-
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(60px);
-            opacity: 0.5;
-            animation: float 15s ease-in-out infinite;
-        }
-
-        .orb-1 {
-            width: 400px;
-            height: 400px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            top: 10%;
-            left: -10%;
-            animation-delay: 0s;
-        }
-
-        .orb-2 {
-            width: 300px;
-            height: 300px;
-            background: linear-gradient(135deg, #f093fb, #f5576c);
-            bottom: 10%;
-            right: -5%;
-            animation-delay: -5s;
-        }
-
-        .orb-3 {
-            width: 250px;
-            height: 250px;
-            background: linear-gradient(135deg, #4facfe, #00f2fe);
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            animation-delay: -10s;
-        }
-
-        @keyframes meshFloat {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            33% { transform: translate(2%, 2%) rotate(1deg); }
-            66% { transform: translate(-1%, 1%) rotate(-1deg); }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -30px) scale(1.05); }
-            66% { transform: translate(-20px, 20px) scale(0.95); }
-        }
-
-        /* Navbar */
-        .auth-navbar {
-            position: relative;
-            z-index: 100;
-            padding: 1rem 2rem;
-        }
-
-        .auth-navbar .brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            text-decoration: none;
-            color: white;
-            font-weight: 600;
-            font-size: 1.25rem;
-            transition: opacity 0.3s ease;
-        }
-
-        .auth-navbar .brand:hover {
-            opacity: 0.9;
-        }
-
-        .auth-navbar .brand-icon {
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-        }
-
-        /* Main content */
-        .auth-main {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* Auth card */
-        .auth-card {
-            width: 100%;
-            max-width: 440px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-lg);
-            padding: 3rem;
-            animation: cardEnter 0.6s var(--ease-out);
-        }
-
-        @keyframes cardEnter {
-            from {
-                opacity: 0;
-                transform: translateY(30px) scale(0.96);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .auth-card-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .auth-card-icon {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1.5rem;
-            font-size: 1.75rem;
-            color: white;
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
-        }
-
-        .auth-card-title {
-            font-size: 1.75rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.02em;
-        }
-
-        .auth-card-subtitle {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-        }
-
-        /* Form styles */
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-
-        .form-label {
-            display: block;
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 0.875rem 1rem;
-            font-size: 1rem;
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius-md);
-            background: var(--surface);
-            color: var(--text-primary);
-            transition: all 0.2s ease;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
-        }
-
-        .form-control::placeholder {
-            color: var(--text-secondary);
-        }
-
-        .input-group {
-            position: relative;
-        }
-
-        .input-group .form-control {
-            padding-right: 3rem;
-        }
-
-        .password-toggle {
-            position: absolute;
-            right: 0.75rem;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
-            padding: 0.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: color 0.2s ease;
-        }
-
-        .password-toggle:hover {
-            color: var(--text-primary);
-        }
-
-        .form-check {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin: 1rem 0;
-        }
-
-        .form-check-input {
-            width: 18px;
-            height: 18px;
-            border: 2px solid var(--border);
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .form-check-input:checked {
-            background-color: var(--primary);
-            border-color: var(--primary);
-        }
-
-        .form-check-label {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            cursor: pointer;
-        }
-
-        .form-text {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            margin-top: 0.5rem;
-        }
-
-        /* Buttons */
-        .btn-auth {
-            width: 100%;
-            padding: 0.875rem 1.5rem;
-            font-size: 1rem;
-            font-weight: 600;
-            border: none;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            transition: all 0.3s var(--ease-out);
-        }
-
-        .btn-primary-auth {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-primary-auth:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
-        }
-
-        .btn-primary-auth:active {
-            transform: translateY(0);
-        }
-
-        /* Links */
-        .auth-links {
-            text-align: center;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid var(--border);
-        }
-
-        .auth-links p {
-            margin: 0.5rem 0;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .auth-links a {
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 500;
-            transition: opacity 0.2s ease;
-        }
-
-        .auth-links a:hover {
-            opacity: 0.8;
-            text-decoration: underline;
-        }
-
-        /* Alerts */
-        .auth-alert {
-            padding: 1rem 1.25rem;
-            border-radius: var(--radius-md);
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-            font-size: 0.9rem;
-            animation: alertEnter 0.3s ease;
-        }
-
-        @keyframes alertEnter {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .auth-alert-danger {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-        }
-
-        .auth-alert-success {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            color: #16a34a;
-        }
-
-        .auth-alert-info {
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            color: #2563eb;
-        }
-
-        .auth-alert-warning {
-            background: #fffbeb;
-            border: 1px solid #fde68a;
-            color: #d97706;
-        }
-
-        .auth-alert i {
-            font-size: 1.1rem;
-            flex-shrink: 0;
-            margin-top: 0.1rem;
-        }
-
-        .field-error {
-            color: #dc2626;
-            font-size: 0.8rem;
-            margin-top: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-        }
-
-        /* Modal styles */
-        .modal-content {
-            border: none;
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-        }
-
-        .modal-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            padding: 1.5rem;
-        }
-
-        .modal-header .btn-close {
-            filter: brightness(0) invert(1);
-            opacity: 0.8;
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-        }
-
-        .modal-footer {
-            border: none;
-            padding: 1rem 1.5rem 1.5rem;
-        }
-
-        /* Spinner */
-        .spinner-border-sm {
-            width: 1rem;
-            height: 1rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 480px) {
-            .auth-card {
-                padding: 2rem 1.5rem;
-                margin: 1rem;
-            }
-
-            .auth-card-title {
-                font-size: 1.5rem;
-            }
-        }
-
-        /* Toast messages */
-        .toast-container {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 1100;
-        }
-    </style>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'authentication/css/auth-style.css' %}">
 
     {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <!-- Animated Background -->
-    <div class="auth-bg">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-    </div>
-
-    <!-- Navbar -->
-    <nav class="auth-navbar">
-        <a href="{% url 'apps_core:home' %}" class="brand">
-            <span class="brand-icon">
-                <i class="bi bi-box-seam"></i>
-            </span>
-            <span>Procédures Douanières</span>
-        </a>
+<body class="auth-body">
+    <!-- Simple Auth Navbar -->
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'apps_core:home' %}">
+                <i class="bi bi-shield-lock"></i> BasePage
+            </a>
+        </div>
     </nav>
 
     <!-- Messages -->
     {% if messages %}
-        <div class="toast-container">
+        <div class="container mt-3" id="django-messages-container">
             {% for message in messages %}
-                <div class="auth-alert auth-alert-{{ message.tags|default:'info' }}"
-                     role="alert" data-message="{{ message }}" data-tags="{{ message.tags }}">
-                    {% if message.tags == 'success' %}
-                        <i class="bi bi-check-circle-fill"></i>
-                    {% elif message.tags == 'danger' or message.tags == 'error' %}
-                        <i class="bi bi-exclamation-circle-fill"></i>
-                    {% elif message.tags == 'warning' %}
-                        <i class="bi bi-exclamation-triangle-fill"></i>
-                    {% else %}
-                        <i class="bi bi-info-circle-fill"></i>
-                    {% endif %}
-                    <span>{{ message }}</span>
+                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert"
+                     data-message="{{ message }}" data-tags="{{ message.tags }}">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             {% endfor %}
         </div>
     {% endif %}
 
-    <!-- Modal de Verificación de Email -->
+    <!-- Modal Simple para Verificación de Email (sin fade para evitar auto-cierre) -->
     {% if EMAIL_VERIFICATION_REQUIRED %}
-    <div class="modal fade" id="emailVerificationModal" tabindex="-1" aria-hidden="true"
-         data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal" id="emailVerificationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-envelope-exclamation me-2"></i>
-                        Verificación de Email
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title" id="modalTitle">
+                        <i class="bi bi-envelope-exclamation-fill text-warning"></i>
+                        Verificación de Email Requerida
                     </h5>
                     <button type="button" class="btn-close" id="closeModalX"></button>
                 </div>
 
                 <div class="modal-body">
+                    <!-- Mensaje Principal -->
                     <div id="modalMessage" class="mb-3">
                         <p>Tu cuenta aún no ha sido verificada. Por favor verifica tu email para poder iniciar sesión.</p>
                     </div>
 
-                    <div id="resendAlert" class="auth-alert d-none" role="alert">
-                        <span id="resendAlertIcon"></span>
-                        <span id="resendAlertText"></span>
+                    <!-- Alert para mensajes de estado -->
+                    <div id="resendAlert" class="alert d-none" role="alert">
+                        <div class="d-flex align-items-center">
+                            <div id="resendAlertIcon" class="me-2"></div>
+                            <div id="resendAlertText"></div>
+                        </div>
                     </div>
 
+                    <!-- Timer de countdown -->
                     <div id="resendTimer" class="d-none">
                         <div class="text-muted small mb-2">
-                            <i class="bi bi-clock me-1"></i>
+                            <i class="bi bi-clock"></i>
                             Podrás reenviar el email en <strong><span id="timerSeconds">120</span></strong> segundos
                         </div>
-                        <div class="progress" style="height: 4px; border-radius: 2px;">
-                            <div id="timerProgress" class="progress-bar" role="progressbar"
-                                 style="width: 0%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+                        <div class="progress" style="height: 5px;">
+                            <div id="timerProgress" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="modal-footer">
+                <div class="modal-footer border-top">
                     <button type="button" class="btn btn-secondary" id="closeModalBtn">
                         Cerrar
                     </button>
-                    <button type="button" id="resendEmailBtn" class="btn-auth btn-primary-auth" style="width: auto;">
+                    <button type="button" id="resendEmailBtn" class="btn btn-primary">
                         <i class="bi bi-send"></i>
-                        Reenviar Email
+                        Reenviar Email de Verificación
                     </button>
                 </div>
             </div>
@@ -579,42 +92,14 @@
     {% endif %}
 
     <!-- Main Content -->
-    <main class="auth-main">
+    <main class="auth-main py-5">
         {% block content %}{% endblock %}
     </main>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <script>
-    // Password toggle functionality
-    document.querySelectorAll('.password-toggle').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const targetId = this.getAttribute('data-target');
-            const input = document.getElementById(targetId) || this.previousElementSibling;
-            const icon = this.querySelector('i');
-
-            if (input.type === 'password') {
-                input.type = 'text';
-                icon.classList.remove('bi-eye');
-                icon.classList.add('bi-eye-slash');
-            } else {
-                input.type = 'password';
-                icon.classList.remove('bi-eye-slash');
-                icon.classList.add('bi-eye');
-            }
-        });
-    });
-
-    // Auto-dismiss alerts
-    document.querySelectorAll('.toast-container .auth-alert').forEach(alert => {
-        setTimeout(() => {
-            alert.style.opacity = '0';
-            alert.style.transform = 'translateX(100%)';
-            setTimeout(() => alert.remove(), 300);
-        }, 5000);
-    });
-    </script>
+    {% load static %}
+    <script src="{% static 'authentication/js/auth.js' %}"></script>
 
     <!-- Script para Modal de Verificación -->
     {% if EMAIL_VERIFICATION_REQUIRED %}
@@ -629,13 +114,16 @@
         let currentUser = null;
         let isModalActive = false;
 
+        // Función para detectar mensajes de verificación
         function checkForVerificationMessages() {
-            const formErrors = document.querySelector('.auth-alert-danger[data-form-errors="true"]');
-            const alerts = document.querySelectorAll('.auth-alert[data-message]');
+            // Buscar errores del formulario
+            const formErrors = document.querySelector('.alert-danger[data-form-errors="true"]');
+            const alerts = document.querySelectorAll('.alert[data-message]');
 
             let needsModal = false;
             let messageText = '';
 
+            // Verificar errores del formulario
             if (formErrors) {
                 const errorText = formErrors.textContent || formErrors.innerText || '';
                 if (errorText.toLowerCase().includes('no ha sido confirmada') ||
@@ -648,8 +136,10 @@
                 }
             }
 
+            // Verificar mensajes de Django
             alerts.forEach(alert => {
                 const message = alert.getAttribute('data-message') || '';
+
                 if (message.toLowerCase().includes('verificar') ||
                     message.toLowerCase().includes('confirmar') ||
                     message.toLowerCase().includes('revisa tu correo')) {
@@ -664,16 +154,27 @@
             }
         }
 
+        // Variable para guardar el mensaje activo
+        let activeAlertMessage = null;
+        let activeAlertType = null;
+
+        // Función para mostrar la modal (mejorada)
         function showVerificationModal(message) {
             const modal = document.getElementById('emailVerificationModal');
             if (!modal) return;
 
+            // Limpiar cualquier backdrop residual antes de mostrar
+            removeModalBackdrop();
+
+            // Actualizar mensaje
             const modalMessage = document.getElementById('modalMessage');
             if (modalMessage) {
                 modalMessage.innerHTML = `<p>${message}</p>`;
             }
 
+            // Si ya existe una instancia, usarla en lugar de destruirla
             if (!modalInstance) {
+                // Crear nueva instancia de modal solo si no existe
                 modalInstance = new bootstrap.Modal(modal, {
                     backdrop: 'static',
                     keyboard: false,
@@ -681,38 +182,92 @@
                 });
             }
 
+            // Marcar que la modal está activa
             isModalActive = true;
+            modal.setAttribute('data-modal-active', 'true');
+
+            // Mostrar la modal
             modalInstance.show();
 
+            // Restaurar el alert si había uno activo
+            setTimeout(function() {
+                restoreAlert();
+            }, 100);
+
+            // Agregar listeners para prevenir problemas de focus/blur
+            window.addEventListener('blur', handleWindowBlur);
+            window.addEventListener('focus', handleWindowFocus);
+
+            // Guardar username/email si existe
             const usernameInput = document.querySelector('input[name="username"]');
             if (usernameInput && usernameInput.value) {
                 modal.setAttribute('data-user-email', usernameInput.value);
                 currentUser = usernameInput.value;
             }
 
+            // Cargar cooldowns guardados
             loadCooldowns();
 
+            // Verificar si hay un cooldown activo para este usuario
             if (currentUser && cooldownData[currentUser]) {
                 const endTime = cooldownData[currentUser];
                 const now = new Date().getTime();
+
                 if (now < endTime) {
                     const btn = document.getElementById('resendEmailBtn');
                     const remainingTime = Math.floor((endTime - now) / 1000);
                     if (remainingTime > 0) {
                         resumeCountdown(btn, remainingTime);
+                        // Mostrar mensaje de que ya se envió un email
+                        showAlert('success', 'Email de verificación enviado. Revisa tu bandeja de entrada.');
                     }
+                } else {
+                    // El cooldown expiró, eliminar del registro
+                    delete cooldownData[currentUser];
+                    saveCooldowns();
                 }
             }
 
-            document.getElementById('closeModalBtn')?.addEventListener('click', closeModal);
-            document.getElementById('closeModalX')?.addEventListener('click', closeModal);
+            // Configurar los botones de cierre manualmente
+            const closeBtn = document.getElementById('closeModalBtn');
+            const closeX = document.getElementById('closeModalX');
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    closeModal();
+                });
+            }
+
+            if (closeX) {
+                closeX.addEventListener('click', function() {
+                    closeModal();
+                });
+            }
         }
 
+        // Función para cerrar la modal correctamente
         function closeModal() {
-            isModalActive = false;
-            if (modalInstance) modalInstance.hide();
+            const modal = document.getElementById('emailVerificationModal');
+            if (modal) {
+                isModalActive = false;
+                modal.removeAttribute('data-modal-active');
+            }
+
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+
+            // Remover listeners de ventana
+            window.removeEventListener('blur', handleWindowBlur);
+            window.removeEventListener('focus', handleWindowFocus);
+
+            // Limpiar backdrop después de un delay
+            setTimeout(function() {
+                removeModalBackdrop();
+            }, 300);
         }
 
+        // Configurar botón de reenvío
         function setupResendButton() {
             const btn = document.getElementById('resendEmailBtn');
             if (!btn) return;
@@ -720,23 +275,36 @@
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
 
+                // Verificar si hay cooldown para este usuario
                 loadCooldowns();
                 if (currentUser && cooldownData[currentUser]) {
                     const now = new Date().getTime();
-                    if (now < cooldownData[currentUser]) return;
+                    if (now < cooldownData[currentUser]) {
+                        // Aún en cooldown, no permitir envío
+                        return;
+                    }
                 }
 
                 const modal = document.getElementById('emailVerificationModal');
-                const userEmail = modal?.getAttribute('data-user-email') || '';
+                const userEmail = modal.getAttribute('data-user-email') || '';
 
+                // Cambiar estado del botón
                 btn.disabled = true;
                 const originalContent = btn.innerHTML;
                 btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
 
+                // Obtener CSRF token
                 const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-                const formData = new FormData();
-                if (userEmail) formData.append('email', userEmail);
 
+                // Preparar datos
+                const formData = new FormData();
+                if (userEmail) {
+                    formData.append('email', userEmail);
+                }
+
+                // NO limpiar alert anterior - mantener mensaje visible
+
+                // Enviar petición
                 fetch('/auth/resend-verification/', {
                     method: 'POST',
                     headers: {
@@ -746,36 +314,76 @@
                     body: formData,
                     credentials: 'same-origin'
                 })
-                .then(response => response.json())
-                .then(data => {
-                    showAlert(data.success ? 'success' : 'danger', data.message || 'Email enviado correctamente');
-                    btn.disabled = false;
-                    btn.innerHTML = originalContent;
-                    if (data.success) startCountdown(btn);
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
                 })
-                .catch(() => {
+                .then(data => {
+                    // Mostrar mensaje
+                    showAlert(data.success ? 'success' : 'danger', data.message || 'Email enviado correctamente');
+
+                    if (data.success) {
+                        // Restaurar botón inmediatamente después del éxito
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+
+                        // Iniciar countdown
+                        startCountdown(btn, originalContent);
+                    } else {
+                        // Restaurar botón en caso de error
+                        btn.disabled = false;
+                        btn.innerHTML = originalContent;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
                     showAlert('danger', 'Error al enviar el email. Por favor intenta más tarde.');
+
+                    // Restaurar botón
                     btn.disabled = false;
                     btn.innerHTML = originalContent;
                 });
             });
         }
 
+        // Mostrar alert en la modal
         function showAlert(type, message) {
             const alert = document.getElementById('resendAlert');
             const alertIcon = document.getElementById('resendAlertIcon');
             const alertText = document.getElementById('resendAlertText');
 
             if (alert && alertIcon && alertText) {
-                alert.className = `auth-alert auth-alert-${type}`;
+                // Guardar el estado del mensaje
+                activeAlertType = type;
+                activeAlertMessage = message;
+
+                // Limpiar todas las clases y empezar de nuevo
+                alert.className = '';
+                alert.classList.add('alert', `alert-${type}`);
+
+                // Forzar visibilidad
+                alert.style.display = 'block';
+                alert.style.opacity = '1';
                 alert.classList.remove('d-none');
-                alertIcon.innerHTML = type === 'success'
-                    ? '<i class="bi bi-check-circle-fill"></i>'
-                    : '<i class="bi bi-exclamation-circle-fill"></i>';
+
+                alertIcon.innerHTML = type === 'success' ?
+                    '<i class="bi bi-check-circle-fill text-success"></i>' :
+                    '<i class="bi bi-x-circle-fill text-danger"></i>';
+
                 alertText.textContent = message;
             }
         }
 
+        // Función para restaurar el mensaje si existe
+        function restoreAlert() {
+            if (activeAlertMessage && activeAlertType) {
+                showAlert(activeAlertType, activeAlertMessage);
+            }
+        }
+
+        // Funciones para manejar cooldowns en localStorage
         function saveCooldowns() {
             localStorage.setItem('emailVerificationCooldowns', JSON.stringify(cooldownData));
         }
@@ -783,14 +391,53 @@
         function loadCooldowns() {
             try {
                 const saved = localStorage.getItem('emailVerificationCooldowns');
-                if (saved) cooldownData = JSON.parse(saved);
+                if (saved) {
+                    cooldownData = JSON.parse(saved);
+                }
             } catch (e) {
                 cooldownData = {};
             }
         }
 
-        function startCountdown(btn) {
+        // Manejar pérdida de foco de la ventana
+        function handleWindowBlur() {
+            // No hacer nada especial, mantener modal abierta
+        }
+
+        // Manejar regreso del foco a la ventana
+        function handleWindowFocus() {
+            if (isModalActive && modalInstance) {
+                // Asegurar que la modal sigue visible
+                const modal = document.getElementById('emailVerificationModal');
+                if (modal && !modal.classList.contains('show')) {
+                    modalInstance.show();
+                }
+                // Limpiar cualquier backdrop fantasma
+                setTimeout(removeModalBackdrop, 100);
+            }
+        }
+
+        // Función para remover el backdrop de Bootstrap (mejorada)
+        function removeModalBackdrop() {
+            // Remover todos los backdrops de Bootstrap
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => {
+                backdrop.remove();
+            });
+
+            // Solo restaurar el body si la modal NO está activa
+            if (!isModalActive) {
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            }
+        }
+
+        // Iniciar countdown
+        function startCountdown(btn, originalContent) {
+            // Guardar el tiempo de finalización para el usuario actual
             const endTime = new Date().getTime() + (countdownSeconds * 1000);
+
             if (currentUser) {
                 cooldownData[currentUser] = endTime;
                 saveCooldowns();
@@ -799,22 +446,40 @@
             const timer = document.getElementById('resendTimer');
             const seconds = document.getElementById('timerSeconds');
             const progress = document.getElementById('timerProgress');
+
             if (!timer || !seconds || !progress) return;
 
+            // Mostrar timer
             timer.classList.remove('d-none');
+
+            // Deshabilitar el botón durante el countdown
             btn.disabled = true;
 
             let remaining = countdownSeconds;
+
             resendCountdown = setInterval(() => {
                 remaining--;
                 seconds.textContent = remaining;
-                progress.style.width = ((countdownSeconds - remaining) / countdownSeconds) * 100 + '%';
+
+                // Actualizar barra de progreso
+                const percentage = ((countdownSeconds - remaining) / countdownSeconds) * 100;
+                progress.style.width = percentage + '%';
 
                 if (remaining <= 0) {
+                    // Limpiar interval
                     clearInterval(resendCountdown);
-                    if (currentUser) delete cooldownData[currentUser];
-                    saveCooldowns();
+                    resendCountdown = null;
+
+                    // Eliminar cooldown del usuario
+                    if (currentUser && cooldownData[currentUser]) {
+                        delete cooldownData[currentUser];
+                        saveCooldowns();
+                    }
+
+                    // Habilitar el botón de nuevo
                     btn.disabled = false;
+
+                    // Ocultar timer y reiniciar valores
                     timer.classList.add('d-none');
                     progress.style.width = '0%';
                     seconds.textContent = countdownSeconds;
@@ -822,37 +487,84 @@
             }, 1000);
         }
 
+        // Resumir countdown si se cierra y abre la modal
         function resumeCountdown(btn, remainingTime) {
             const timer = document.getElementById('resendTimer');
             const seconds = document.getElementById('timerSeconds');
             const progress = document.getElementById('timerProgress');
+
             if (!timer || !seconds || !progress) return;
 
+            // Mostrar timer
             timer.classList.remove('d-none');
+
+            // Deshabilitar el botón durante el countdown
             btn.disabled = true;
 
             let remaining = remainingTime;
+
+            // Mostrar el valor correcto inmediatamente
             seconds.textContent = remaining;
-            progress.style.width = ((countdownSeconds - remaining) / countdownSeconds) * 100 + '%';
+            const percentage = ((countdownSeconds - remaining) / countdownSeconds) * 100;
+            progress.style.width = percentage + '%';
 
             resendCountdown = setInterval(() => {
                 remaining--;
                 seconds.textContent = remaining;
-                progress.style.width = ((countdownSeconds - remaining) / countdownSeconds) * 100 + '%';
+
+                // Actualizar barra de progreso
+                const percentage = ((countdownSeconds - remaining) / countdownSeconds) * 100;
+                progress.style.width = percentage + '%';
 
                 if (remaining <= 0) {
+                    // Limpiar interval
                     clearInterval(resendCountdown);
-                    if (currentUser) delete cooldownData[currentUser];
-                    saveCooldowns();
+                    resendCountdown = null;
+
+                    // Eliminar cooldown del usuario
+                    if (currentUser && cooldownData[currentUser]) {
+                        delete cooldownData[currentUser];
+                        saveCooldowns();
+                    }
+
+                    // Habilitar el botón de nuevo
                     btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-send"></i> Reenviar Email de Verificación';
+                    canResend = true;
+
+                    // Ocultar timer y reiniciar valores
                     timer.classList.add('d-none');
+                    progress.style.width = '0%';
+                    seconds.textContent = countdownSeconds;
                 }
             }, 1000);
         }
 
+        // Inicializar cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', function() {
             checkForVerificationMessages();
             setupResendButton();
+
+            // Verificar periódicamente solo el backdrop para limpieza
+            setInterval(function() {
+                // Si la modal no está activa, limpiar backdrops residuales
+                if (!isModalActive) {
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    if (backdrops.length > 0) {
+                        removeModalBackdrop();
+                    }
+                }
+            }, 3000); // Solo cada 3 segundos para no afectar rendimiento
+
+            // Listener adicional para limpiar cuando se cierre la modal
+            const modal = document.getElementById('emailVerificationModal');
+            if (modal) {
+                modal.addEventListener('hidden.bs.modal', function() {
+                    if (!modal.hasAttribute('data-modal-active')) {
+                        removeModalBackdrop();
+                    }
+                });
+            }
         });
     })();
     </script>

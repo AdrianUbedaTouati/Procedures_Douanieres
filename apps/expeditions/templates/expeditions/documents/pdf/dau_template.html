@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>DAU - {{ expedition.reference }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 10mm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8pt;
+            line-height: 1.2;
+        }
+
+        .dau-container {
+            width: 100%;
+            border: 2px solid #000;
+        }
+
+        .header-row {
+            display: flex;
+            border-bottom: 1px solid #000;
+        }
+
+        .box {
+            border: 1px solid #000;
+            padding: 2px 4px;
+            min-height: 20px;
+            position: relative;
+        }
+
+        .box-number {
+            font-size: 6pt;
+            color: #666;
+            position: absolute;
+            top: 1px;
+            left: 2px;
+        }
+
+        .box-content {
+            margin-top: 8px;
+            font-size: 8pt;
+        }
+
+        .box-label {
+            font-size: 6pt;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .row {
+            display: flex;
+            width: 100%;
+        }
+
+        .col-1 { width: 8.33%; }
+        .col-2 { width: 16.66%; }
+        .col-3 { width: 25%; }
+        .col-4 { width: 33.33%; }
+        .col-5 { width: 41.66%; }
+        .col-6 { width: 50%; }
+        .col-7 { width: 58.33%; }
+        .col-8 { width: 66.66%; }
+        .col-9 { width: 75%; }
+        .col-10 { width: 83.33%; }
+        .col-11 { width: 91.66%; }
+        .col-12 { width: 100%; }
+
+        .title-box {
+            background: #f0f0f0;
+            font-weight: bold;
+            text-align: center;
+            padding: 5px;
+            font-size: 10pt;
+        }
+
+        .highlight {
+            background: #ffffcc;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .small {
+            font-size: 6pt;
+        }
+
+        .code {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+
+        table.items {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table.items td, table.items th {
+            border: 1px solid #000;
+            padding: 2px 4px;
+            font-size: 7pt;
+        }
+
+        table.items th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .section-title {
+            background: #d0d0d0;
+            font-weight: bold;
+            padding: 3px;
+            font-size: 9pt;
+            border-bottom: 1px solid #000;
+        }
+
+        .signature-box {
+            min-height: 60px;
+            border: 1px solid #000;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dau-container">
+        <!-- Header Row -->
+        <div class="row">
+            <div class="col-6">
+                <div class="title-box" style="border-bottom: 1px solid #000;">
+                    DOCUMENT ADMINISTRATIF UNIQUE<br>
+                    <span style="font-size: 8pt;">COMMUNAUTE EUROPEENNE / UNION EUROPEENNE</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="box">
+                            <span class="box-number">1</span>
+                            <div class="box-label">DECLARATION</div>
+                            <div class="box-content code">EX A</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="box">
+                            <span class="box-number">MRN</span>
+                            <div class="box-label">Reference</div>
+                            <div class="box-content code">{{ expedition.reference }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Exporter -->
+        <div class="row">
+            <div class="col-6">
+                <div class="box" style="min-height: 60px;">
+                    <span class="box-number">2</span>
+                    <div class="box-label">EXPORTATEUR / EXPEDITEUR</div>
+                    <div class="box-content">
+                        <strong>{{ exporter.name }}</strong><br>
+                        {{ exporter.address }}<br>
+                        {{ exporter.postal_code }} {{ exporter.city }}<br>
+                        {{ exporter.country }}<br>
+                        <span class="small">EORI: {{ exporter.eori }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">3</span>
+                    <div class="box-label">FORMULAIRES</div>
+                    <div class="box-content center">1 / 1</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">4</span>
+                    <div class="box-label">LISTES CHARG.</div>
+                    <div class="box-content center">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3: Consignee -->
+        <div class="row">
+            <div class="col-6">
+                <div class="box" style="min-height: 60px;">
+                    <span class="box-number">8</span>
+                    <div class="box-label">DESTINATAIRE</div>
+                    <div class="box-content">
+                        <strong>{{ consignee.name }}</strong><br>
+                        {{ consignee.address }}<br>
+                        {{ consignee.postal_code }} {{ consignee.city }}<br>
+                        {{ consignee.country }}<br>
+                        {% if consignee.tax_id %}<span class="small">ID: {{ consignee.tax_id }}</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="box">
+                            <span class="box-number">14</span>
+                            <div class="box-label">DECLARANT / REPRESENTANT</div>
+                            <div class="box-content">
+                                {{ exporter.name }}<br>
+                                <span class="small">EORI: {{ exporter.eori }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 4: Countries -->
+        <div class="row">
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">15</span>
+                    <div class="box-label">PAYS EXPEDITION</div>
+                    <div class="box-content">
+                        <span class="code">{{ origin.dispatch_code }}</span> {{ origin.dispatch_country }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">15a</span>
+                    <div class="box-label">CODE REGION</div>
+                    <div class="box-content center">-</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">17</span>
+                    <div class="box-label">PAYS DESTINATION</div>
+                    <div class="box-content">
+                        <span class="code">{{ consignee.country_code }}</span> {{ consignee.country }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">17a</span>
+                    <div class="box-label">CODE REGION</div>
+                    <div class="box-content center">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 5: Transport -->
+        <div class="row">
+            <div class="col-4">
+                <div class="box">
+                    <span class="box-number">18</span>
+                    <div class="box-label">IDENTITE MOYEN TRANSPORT DEPART</div>
+                    <div class="box-content">{{ transport.vessel_name }}</div>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="box">
+                    <span class="box-number">19</span>
+                    <div class="box-label">CTR</div>
+                    <div class="box-content center">-</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="box">
+                    <span class="box-number">20</span>
+                    <div class="box-label">CONDITIONS LIVRAISON</div>
+                    <div class="box-content">
+                        <span class="code">{{ commercial.incoterms }}</span> {{ commercial.incoterms_location }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="box">
+                    <span class="box-number">21</span>
+                    <div class="box-label">NATIONALITE</div>
+                    <div class="box-content center code">{{ origin.dispatch_code }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 6: Currency & Transport -->
+        <div class="row">
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">22</span>
+                    <div class="box-label">DEVISE & MONTANT TOTAL</div>
+                    <div class="box-content">
+                        <span class="code">{{ invoice.currency }}</span>
+                        <span class="bold">{{ invoice.total }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="box">
+                    <span class="box-number">23</span>
+                    <div class="box-label">TAUX CHANGE</div>
+                    <div class="box-content center">1.00</div>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="box">
+                    <span class="box-number">24</span>
+                    <div class="box-label">NATURE TRANSACTION</div>
+                    <div class="box-content center code">11</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">25</span>
+                    <div class="box-label">MODE TRANSPORT FRONTIERE</div>
+                    <div class="box-content center code">{{ transport.mode_code }}</div>
+                </div>
+            </div>
+            <div class="col-2">
+                <div class="box">
+                    <span class="box-number">26</span>
+                    <div class="box-label">MODE TRANSPORT INT.</div>
+                    <div class="box-content center">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 7: Loading/Unloading -->
+        <div class="row">
+            <div class="col-4">
+                <div class="box">
+                    <span class="box-number">27</span>
+                    <div class="box-label">LIEU DE CHARGEMENT</div>
+                    <div class="box-content">{{ transport.port_loading }}</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="box">
+                    <span class="box-number">28</span>
+                    <div class="box-label">DONNEES FINANCIERES</div>
+                    <div class="box-content small">-</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="box">
+                    <span class="box-number">29</span>
+                    <div class="box-label">BUREAU SORTIE</div>
+                    <div class="box-content">FR000000</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Title: Articles -->
+        <div class="section-title">
+            ARTICLE 1
+        </div>
+
+        <!-- Row 8: Goods Description -->
+        <div class="row">
+            <div class="col-8">
+                <div class="box" style="min-height: 80px;">
+                    <span class="box-number">31</span>
+                    <div class="box-label">COLIS ET DESIGNATION DES MARCHANDISES</div>
+                    <div class="box-content">
+                        <strong>Marques et numeros - Nombre et nature - Nb et nature des articles</strong><br><br>
+                        {{ goods.packages }} x {{ goods.package_type }}<br><br>
+                        <strong>{{ goods.description }}</strong><br><br>
+                        Code TARIC: <span class="code">{{ goods.taric_code }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="box">
+                    <span class="box-number">32</span>
+                    <div class="box-label">ARTICLE N°</div>
+                    <div class="box-content center code">1</div>
+                </div>
+                <div class="box">
+                    <span class="box-number">33</span>
+                    <div class="box-label highlight">CODE MARCHANDISES (TARIC)</div>
+                    <div class="box-content center">
+                        <span class="code" style="font-size: 11pt;">{{ goods.taric_code }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 9: Origin & Weight -->
+        <div class="row">
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">34</span>
+                    <div class="box-label">PAYS ORIGINE</div>
+                    <div class="box-content">
+                        <span class="code">{{ origin.origin_code }}</span> {{ origin.origin_country }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">35</span>
+                    <div class="box-label">MASSE BRUTE (KG)</div>
+                    <div class="box-content center code">{{ goods.gross_weight }}</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">37</span>
+                    <div class="box-label">REGIME</div>
+                    <div class="box-content center code">{{ customs.procedure_code|default:"10 00" }}</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">38</span>
+                    <div class="box-label">MASSE NETTE (KG)</div>
+                    <div class="box-content center code">{{ goods.net_weight }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 10: Quota & Values -->
+        <div class="row">
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">39</span>
+                    <div class="box-label">CONTINGENT</div>
+                    <div class="box-content center">-</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">41</span>
+                    <div class="box-label">UNITES SUPPL.</div>
+                    <div class="box-content center">
+                        {% if goods.quantity %}{{ goods.quantity }} {{ goods.unit }}{% else %}-{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">42</span>
+                    <div class="box-label">PRIX ARTICLE</div>
+                    <div class="box-content center code">{{ invoice.total }}</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">46</span>
+                    <div class="box-label highlight">VALEUR STATISTIQUE</div>
+                    <div class="box-content center code">{{ values.statistical }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 11: Documents -->
+        <div class="row">
+            <div class="col-12">
+                <div class="box" style="min-height: 40px;">
+                    <span class="box-number">44</span>
+                    <div class="box-label">MENTIONS SPECIALES / DOCUMENTS PRODUITS / CERTIFICATS / AUTORISATIONS</div>
+                    <div class="box-content">
+                        N380 - Facture commerciale n° {{ invoice.number }} du {{ invoice.date }}<br>
+                        {% if transport.document_ref %}
+                        {{ transport.document_type }} - {{ transport.document_ref }} du {{ transport.document_date }}<br>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 12: Totals -->
+        <div class="row">
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">47</span>
+                    <div class="box-label">CALCUL DES IMPOSITIONS</div>
+                    <div class="box-content small">
+                        TYPE | BASE | TAUX | MONTANT | MP<br>
+                        {{ customs.duty_type|default:"A00" }} | {{ values.cif }} | {{ customs.duty_rate|default:"0%" }} | {{ customs.duty_amount|default:"0.00" }} | -
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">48</span>
+                    <div class="box-label">REPORT DIFF. REGL.</div>
+                    <div class="box-content center">-</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">49</span>
+                    <div class="box-label">IDENTIF. ENTREPOT</div>
+                    <div class="box-content center">-</div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="box">
+                    <span class="box-number">B</span>
+                    <div class="box-label">DETAILS CALCUL</div>
+                    <div class="box-content small">
+                        Total: {{ customs.total_duties|default:"0.00" }} {{ invoice.currency }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signature Section -->
+        <div class="row">
+            <div class="col-6">
+                <div class="signature-box">
+                    <span class="box-number">54</span>
+                    <div class="box-label">LIEU, DATE ET SIGNATURE DU DECLARANT/REPRESENTANT</div>
+                    <div class="box-content" style="margin-top: 30px;">
+                        {{ exporter.city }}, le {{ generation_date }}<br><br>
+                        <em>Signature:</em>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="signature-box">
+                    <div class="box-label">RESERVE A L'ADMINISTRATION</div>
+                    <div class="box-content small">
+                        Resultat du controle:<br><br>
+                        Mainlevee le:<br><br>
+                        Cachet du bureau:
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="row">
+            <div class="col-12" style="background: #f0f0f0; padding: 5px; text-align: center; font-size: 6pt;">
+                Document genere automatiquement - {{ expedition.reference }} - {{ generation_date }}
+                <br>Ce document n'est valable que signe et tamponne par l'administration douaniere
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -2,47 +2,706 @@
 
 {% block title %}Documents - {{ expedition.reference }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Document Cards */
+    .doc-card {
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        border: 1px solid #dee2e6;
+    }
+    .doc-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .doc-card.generated {
+        border-color: #198754;
+        background: linear-gradient(135deg, #fff 0%, #d1e7dd 100%);
+    }
+    .doc-card.pending {
+        border-color: #ffc107;
+        background: linear-gradient(135deg, #fff 0%, #fff3cd 100%);
+    }
+    .doc-card .card-header {
+        border-radius: 12px 12px 0 0;
+        font-weight: 600;
+    }
+    .doc-icon {
+        font-size: 3rem;
+        margin-bottom: 10px;
+    }
+    .status-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    /* Profile Alert */
+    .profile-alert {
+        border-radius: 12px;
+        border-left: 5px solid #dc3545;
+    }
+
+    /* Form Status Card */
+    .form-status-card {
+        border-radius: 12px;
+    }
+    .form-status-card.completed {
+        border-color: #198754;
+    }
+    .form-status-card.pending {
+        border-color: #ffc107;
+    }
+
+    /* Generated Document Item */
+    .generated-doc-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        transition: all 0.2s ease;
+    }
+    .generated-doc-item:hover {
+        background: #e9ecef;
+    }
+    .generated-doc-item .doc-info {
+        flex: 1;
+    }
+    .generated-doc-item .doc-name {
+        font-weight: 500;
+    }
+    .generated-doc-item .doc-meta {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    .generated-doc-item .doc-actions .btn {
+        padding: 5px 10px;
+        font-size: 0.85rem;
+    }
+
+    /* Step indicator */
+    .step-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #0d6efd;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    .step-number.completed {
+        background: #198754;
+    }
+    .step-number.pending {
+        background: #6c757d;
+    }
+
+    /* Progress bar */
+    .documents-progress {
+        height: 8px;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
+<div class="container-fluid">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expéditions</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:list' %}">Expeditions</a></li>
             <li class="breadcrumb-item"><a href="{% url 'apps_expeditions:detail' expedition.pk %}">{{ expedition.reference }}</a></li>
             <li class="breadcrumb-item active">Documents</li>
         </ol>
     </nav>
 
-    <div class="row justify-content-center">
+    <!-- Header -->
+    <div class="row mb-4">
         <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h4 class="mb-0">
-                        <i class="bi bi-file-earmark-text"></i> Étape 2: Génération des Documents
-                    </h4>
+            <div class="step-indicator">
+                <div class="step-number {% if etape.statut == 'termine' %}completed{% endif %}">2</div>
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-file-earmark-text text-success"></i> Generation des Documents
+                    </h1>
+                    <p class="text-muted mb-0">{{ expedition.nom_article }}</p>
                 </div>
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-tools display-1 text-muted"></i>
-                    <h3 class="mt-3">Fonctionnalité en développement</h3>
-                    <p class="text-muted">
-                        La génération automatique des documents douaniers (DAU, D10, D12) sera disponible prochainement.
-                    </p>
-                    <hr>
-                    <h5>Documents prévus:</h5>
-                    <ul class="list-unstyled">
-                        <li><i class="bi bi-file-earmark text-primary"></i> DAU - Document Administratif Unique (France)</li>
-                        <li><i class="bi bi-file-earmark text-success"></i> D10 - Mise à la consommation (Algérie)</li>
-                        <li><i class="bi bi-file-earmark text-info"></i> D12 - Admission temporaire (Algérie)</li>
-                        <li><i class="bi bi-file-earmark text-warning"></i> ENS/ICS2 - Entry Summary Declaration</li>
-                    </ul>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            {% if etape.statut == 'termine' %}
+                <span class="badge bg-success fs-6"><i class="bi bi-check-circle"></i> Termine</span>
+            {% elif etape.statut == 'en_cours' %}
+                <span class="badge bg-primary fs-6"><i class="bi bi-clock"></i> En cours</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Classification Summary -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <i class="bi bi-tags"></i> Classification TARIC (Etape 1)
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>Code TARIC:</strong>
+                    <span class="badge bg-primary fs-6 font-monospace ms-2">{{ classification.code_taric_formate|default:classification.code_taric }}</span>
                 </div>
-                <div class="card-footer">
-                    <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Retour
-                    </a>
+                <div class="col-md-4">
+                    <strong>Direction:</strong>
+                    {% if expedition.direction == 'FR_DZ' %}
+                        <span class="ms-2"><i class="bi bi-airplane"></i> France &rarr; Algerie</span>
+                    {% else %}
+                        <span class="ms-2"><i class="bi bi-airplane"></i> Algerie &rarr; France</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <strong>Description:</strong>
+                    <span class="ms-2">{{ classification.description|truncatewords:10 }}</span>
                 </div>
             </div>
         </div>
     </div>
+
+    {% if not profile_complete %}
+    <!-- Profile Alert -->
+    <div class="alert profile-alert alert-danger mb-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+            <div class="flex-grow-1">
+                <h5 class="mb-1">Profil entreprise incomplet</h5>
+                <p class="mb-0">Veuillez completer votre profil entreprise (nom, adresse, EORI/NIF) avant de generer des documents.</p>
+            </div>
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#profileModal">
+                <i class="bi bi-person-fill-gear"></i> Completer le profil
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Left Column: Form Status & Actions -->
+        <div class="col-lg-4 mb-4">
+            <!-- Form Status Card -->
+            <div class="card form-status-card mb-3 {% if form_completed %}completed{% else %}pending{% endif %}">
+                <div class="card-header {% if form_completed %}bg-success text-white{% else %}bg-warning{% endif %}">
+                    {% if form_completed %}
+                        <i class="bi bi-check-circle-fill"></i> Donnees saisies
+                    {% else %}
+                        <i class="bi bi-pencil-square"></i> Donnees requises
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if form_completed %}
+                        <p class="text-success mb-3">
+                            <i class="bi bi-check-lg"></i> Toutes les donnees necessaires ont ete saisies.
+                        </p>
+                        <div class="row small text-muted">
+                            <div class="col-6 mb-2">
+                                <i class="bi bi-building"></i> {{ documents_data.consignee_name|truncatechars:20 }}
+                            </div>
+                            <div class="col-6 mb-2">
+                                <i class="bi bi-receipt"></i> {{ documents_data.invoice_number }}
+                            </div>
+                            <div class="col-6 mb-2">
+                                <i class="bi bi-currency-euro"></i> {{ documents_data.invoice_total }} {{ documents_data.invoice_currency }}
+                            </div>
+                            <div class="col-6 mb-2">
+                                <i class="bi bi-box-seam"></i> {{ documents_data.quantity }} {{ documents_data.unit_of_measure }}
+                            </div>
+                        </div>
+                        <hr>
+                        <a href="{% url 'apps_expeditions:documents_form' expedition.pk %}" class="btn btn-outline-success w-100">
+                            <i class="bi bi-pencil"></i> Modifier les donnees
+                        </a>
+                    {% else %}
+                        <p class="mb-3">
+                            Veuillez saisir les informations de l'expedition:
+                        </p>
+                        <ul class="list-unstyled mb-3 small">
+                            <li><i class="bi bi-circle text-muted"></i> Destinataire/Consignataire</li>
+                            <li><i class="bi bi-circle text-muted"></i> Details de la facture</li>
+                            <li><i class="bi bi-circle text-muted"></i> Informations de transport</li>
+                            <li><i class="bi bi-circle text-muted"></i> Conditions commerciales</li>
+                        </ul>
+                        <a href="{% url 'apps_expeditions:documents_form' expedition.pk %}" class="btn btn-warning w-100">
+                            <i class="bi bi-pencil-square"></i> Saisir les donnees
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Progress Card -->
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <i class="bi bi-list-check"></i> Progression
+                </div>
+                <div class="card-body">
+                    <div class="mb-2 d-flex justify-content-between">
+                        <span>Documents generes</span>
+                        <strong>{{ generation_status.generated }}/{{ generation_status.total }}</strong>
+                    </div>
+                    <div class="progress documents-progress mb-3">
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: {% widthratio generation_status.generated generation_status.total 100 %}%"></div>
+                    </div>
+
+                    {% if all_generated and not etape.statut == 'termine' %}
+                    <button type="button" class="btn btn-success w-100" id="validateStageBtn">
+                        <i class="bi bi-check-lg"></i> Valider l'etape
+                    </button>
+                    {% elif etape.statut == 'termine' %}
+                    <a href="{% url 'apps_expeditions:transmission' expedition.pk %}" class="btn btn-primary w-100">
+                        <i class="bi bi-arrow-right"></i> Etape suivante
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Back Button -->
+            <a href="{% url 'apps_expeditions:detail' expedition.pk %}" class="btn btn-outline-secondary w-100">
+                <i class="bi bi-arrow-left"></i> Retour a l'expedition
+            </a>
+        </div>
+
+        <!-- Right Column: Documents -->
+        <div class="col-lg-8">
+            <!-- Required Documents -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-file-earmark-pdf"></i> Documents a generer
+                    {% if expedition.direction == 'FR_DZ' %}
+                        <span class="badge bg-light text-primary ms-2">Export France &rarr; Algerie</span>
+                    {% else %}
+                        <span class="badge bg-light text-primary ms-2">Import Algerie &rarr; France</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for doc in required_documents %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card doc-card h-100 {% if doc.generated %}generated{% else %}pending{% endif %}">
+                                <div class="card-body text-center position-relative">
+                                    {% if doc.generated %}
+                                    <span class="status-badge badge bg-success">
+                                        <i class="bi bi-check-circle-fill"></i> Genere
+                                    </span>
+                                    {% else %}
+                                    <span class="status-badge badge bg-warning">
+                                        <i class="bi bi-clock"></i> En attente
+                                    </span>
+                                    {% endif %}
+
+                                    <i class="bi bi-file-earmark-pdf doc-icon
+                                        {% if doc.generated %}text-success{% else %}text-warning{% endif %}"></i>
+
+                                    <h5 class="card-title">{{ doc.label }}</h5>
+                                    <p class="card-text small text-muted">{{ doc.description }}</p>
+
+                                    <div class="d-grid gap-2">
+                                        {% if doc.generated %}
+                                            <div class="btn-group">
+                                                <a href="{% url 'apps_expeditions:documents_view' expedition.pk doc.doc_id %}"
+                                                   target="_blank" class="btn btn-success">
+                                                    <i class="bi bi-eye"></i> Voir
+                                                </a>
+                                                <a href="{% url 'apps_expeditions:documents_download' expedition.pk doc.doc_id %}"
+                                                   class="btn btn-outline-success">
+                                                    <i class="bi bi-download"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-outline-danger btn-delete-doc"
+                                                        data-doc-id="{{ doc.doc_id }}" data-doc-type="{{ doc.type }}">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-primary btn-generate"
+                                                    data-doc-type="{{ doc.type }}" data-doc-label="{{ doc.label }}">
+                                                <i class="bi bi-arrow-repeat"></i> Regenerer
+                                            </button>
+                                        {% else %}
+                                            {% if form_completed and profile_complete %}
+                                            <a href="{% url 'apps_expeditions:documents_preview' expedition.pk doc.type %}"
+                                               class="btn btn-outline-info">
+                                                <i class="bi bi-eye"></i> Apercu
+                                            </a>
+                                            <button type="button" class="btn btn-primary btn-generate"
+                                                    data-doc-type="{{ doc.type }}" data-doc-label="{{ doc.label }}">
+                                                <i class="bi bi-file-earmark-plus"></i> Generer
+                                            </button>
+                                            {% else %}
+                                            <button type="button" class="btn btn-secondary" disabled>
+                                                <i class="bi bi-lock"></i>
+                                                {% if not profile_complete %}Profil requis{% else %}Donnees requises{% endif %}
+                                            </button>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generated Documents List -->
+            {% if generated_docs %}
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-folder-check"></i> Documents generes ({{ generated_docs|length }})
+                </div>
+                <div class="card-body">
+                    {% for doc in generated_docs %}
+                    <div class="generated-doc-item">
+                        <i class="bi bi-file-earmark-pdf text-danger fs-3 me-3"></i>
+                        <div class="doc-info">
+                            <div class="doc-name">{{ doc.nom_original }}</div>
+                            <div class="doc-meta">
+                                <span>{{ doc.type|upper }}</span> &bull;
+                                <span>{{ doc.created_at|date:"d/m/Y H:i" }}</span> &bull;
+                                <span>{{ doc.fichier.size|filesizeformat }}</span>
+                            </div>
+                        </div>
+                        <div class="doc-actions">
+                            <a href="{% url 'apps_expeditions:documents_view' expedition.pk doc.pk %}"
+                               target="_blank" class="btn btn-outline-primary" title="Voir">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'apps_expeditions:documents_download' expedition.pk doc.pk %}"
+                               class="btn btn-outline-success" title="Telecharger">
+                                <i class="bi bi-download"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger btn-delete-doc"
+                                    data-doc-id="{{ doc.pk }}" data-doc-type="{{ doc.type }}" title="Supprimer">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
+<!-- Profile Modal -->
+<div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-person-fill-gear"></i> Profil Entreprise</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="profileForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Nom de l'entreprise *</label>
+                            <input type="text" class="form-control" name="company_name"
+                                   value="{{ request.user.company_name }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Forme juridique</label>
+                            <input type="text" class="form-control" name="company_legal_form"
+                                   value="{{ request.user.company_legal_form }}" placeholder="SARL, SAS...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Adresse *</label>
+                        <input type="text" class="form-control" name="address_line1"
+                               value="{{ request.user.address_line1 }}" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Ville *</label>
+                            <input type="text" class="form-control" name="city"
+                                   value="{{ request.user.city }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Code postal *</label>
+                            <input type="text" class="form-control" name="postal_code"
+                                   value="{{ request.user.postal_code }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Pays *</label>
+                            <input type="text" class="form-control" name="country"
+                                   value="{{ request.user.country|default:'France' }}" required>
+                        </div>
+                    </div>
+                    <hr>
+                    <h6 class="mb-3"><i class="bi bi-card-checklist"></i> Identifiants douaniers</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Numero EORI</label>
+                            <input type="text" class="form-control" name="eori_number"
+                                   value="{{ request.user.eori_number }}" placeholder="FR12345678901234">
+                            <div class="form-text">Requis pour les exports UE</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">NIF (Algerie)</label>
+                            <input type="text" class="form-control" name="nif_number"
+                                   value="{{ request.user.nif_number }}">
+                            <div class="form-text">Requis pour les imports Algerie</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Numero TVA</label>
+                            <input type="text" class="form-control" name="vat_number"
+                                   value="{{ request.user.vat_number }}" placeholder="FR12345678901">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">SIRET</label>
+                            <input type="text" class="form-control" name="siret_number"
+                                   value="{{ request.user.siret_number }}" placeholder="12345678901234">
+                        </div>
+                    </div>
+                    <hr>
+                    <h6 class="mb-3"><i class="bi bi-gear"></i> Valeurs par defaut</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Incoterms par defaut</label>
+                            <select class="form-select" name="default_incoterms">
+                                <option value="CIF" {% if request.user.default_incoterms == 'CIF' %}selected{% endif %}>CIF - Cost Insurance Freight</option>
+                                <option value="FOB" {% if request.user.default_incoterms == 'FOB' %}selected{% endif %}>FOB - Free On Board</option>
+                                <option value="EXW" {% if request.user.default_incoterms == 'EXW' %}selected{% endif %}>EXW - Ex Works</option>
+                                <option value="DAP" {% if request.user.default_incoterms == 'DAP' %}selected{% endif %}>DAP - Delivered At Place</option>
+                                <option value="DDP" {% if request.user.default_incoterms == 'DDP' %}selected{% endif %}>DDP - Delivered Duty Paid</option>
+                                <option value="FCA" {% if request.user.default_incoterms == 'FCA' %}selected{% endif %}>FCA - Free Carrier</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Devise par defaut</label>
+                            <select class="form-select" name="default_currency">
+                                <option value="EUR" {% if request.user.default_currency == 'EUR' %}selected{% endif %}>Euro (EUR)</option>
+                                <option value="DZD" {% if request.user.default_currency == 'DZD' %}selected{% endif %}>Dinar algerien (DZD)</option>
+                                <option value="USD" {% if request.user.default_currency == 'USD' %}selected{% endif %}>Dollar US (USD)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Au moins un identifiant douanier (EORI ou NIF) est requis.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Document Modal -->
+<div class="modal fade" id="deleteDocModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash"></i> Supprimer le document</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Etes-vous sur de vouloir supprimer ce document ?</p>
+                <p class="text-muted small">Vous pourrez le regenerer par la suite.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteDoc">
+                    <i class="bi bi-trash"></i> Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const expeditionPk = {{ expedition.pk }};
+    const csrfToken = '{{ csrf_token }}';
+
+    // Profile Form
+    const profileForm = document.getElementById('profileForm');
+    const profileModal = document.getElementById('profileModal');
+    const profileModalInstance = profileModal ? new bootstrap.Modal(profileModal) : null;
+
+    if (profileForm) {
+        profileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(profileForm);
+            const submitBtn = profileForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enregistrement...';
+
+            fetch('{% url "apps_expeditions:update_profile" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    profileModalInstance.hide();
+                    window.location.reload();
+                } else {
+                    let errorMsg = 'Erreur lors de l\'enregistrement';
+                    if (data.errors) {
+                        const firstError = Object.values(data.errors)[0];
+                        if (Array.isArray(firstError)) {
+                            errorMsg = firstError[0];
+                        }
+                    }
+                    alert(errorMsg);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Erreur de connexion');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
+
+    // Generate Document
+    document.querySelectorAll('.btn-generate').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const docType = this.dataset.docType;
+            const docLabel = this.dataset.docLabel;
+            const originalHtml = this.innerHTML;
+
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generation...';
+
+            fetch(`/expeditions/${expeditionPk}/documents/generate/${docType}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Erreur lors de la generation');
+                    this.disabled = false;
+                    this.innerHTML = originalHtml;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Erreur de connexion');
+                this.disabled = false;
+                this.innerHTML = originalHtml;
+            });
+        });
+    });
+
+    // Delete Document
+    let deleteDocId = null;
+    let deleteDocType = null;
+    const deleteDocModal = new bootstrap.Modal(document.getElementById('deleteDocModal'));
+
+    document.querySelectorAll('.btn-delete-doc').forEach(btn => {
+        btn.addEventListener('click', function() {
+            deleteDocId = this.dataset.docId;
+            deleteDocType = this.dataset.docType;
+            deleteDocModal.show();
+        });
+    });
+
+    document.getElementById('confirmDeleteDoc').addEventListener('click', function() {
+        if (!deleteDocId) return;
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Suppression...';
+
+        fetch(`/expeditions/${expeditionPk}/documents/delete/${deleteDocId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                deleteDocModal.hide();
+                window.location.reload();
+            } else {
+                alert(data.error || 'Erreur lors de la suppression');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erreur de connexion');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-trash"></i> Supprimer';
+        });
+    });
+
+    // Validate Stage
+    const validateStageBtn = document.getElementById('validateStageBtn');
+    if (validateStageBtn) {
+        validateStageBtn.addEventListener('click', function() {
+            if (!confirm('Valider cette etape et passer a l\'etape Transmission ?')) {
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Validation...';
+
+            fetch(`/expeditions/${expeditionPk}/documents/validate/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert(data.error || 'Erreur lors de la validation');
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-check-lg"></i> Valider l\'etape';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Erreur de connexion');
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-check-lg"></i> Valider l\'etape';
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -463,14 +463,59 @@ class ClassificationData(models.Model):
 
 
 # =============================================================================
-# DONNEES SPECIFIQUES: ETAPE 2 - DOCUMENTS (PLACEHOLDER)
+# DONNEES SPECIFIQUES: ETAPE 2 - DOCUMENTS
 # =============================================================================
 
 class DocumentsData(models.Model):
     """
     Donnees specifiques a l'etape 2: Generation de Documents.
-    Placeholder pour developpement futur.
+    Stocke les donnees specifiques a chaque expedition pour la generation des documents DAU/D10/D12.
     """
+
+    INCOTERMS_CHOICES = [
+        ('EXW', 'EXW - Ex Works'),
+        ('FCA', 'FCA - Free Carrier'),
+        ('CPT', 'CPT - Carriage Paid To'),
+        ('CIP', 'CIP - Carriage Insurance Paid'),
+        ('DAP', 'DAP - Delivered At Place'),
+        ('DPU', 'DPU - Delivered at Place Unloaded'),
+        ('DDP', 'DDP - Delivered Duty Paid'),
+        ('FAS', 'FAS - Free Alongside Ship'),
+        ('FOB', 'FOB - Free On Board'),
+        ('CFR', 'CFR - Cost and Freight'),
+        ('CIF', 'CIF - Cost Insurance Freight'),
+    ]
+
+    CURRENCY_CHOICES = [
+        ('EUR', 'Euro (EUR)'),
+        ('DZD', 'Dinar algerien (DZD)'),
+        ('USD', 'Dollar americain (USD)'),
+    ]
+
+    UNIT_CHOICES = [
+        ('PCE', 'Pieces (PCE)'),
+        ('KGM', 'Kilogrammes (KGM)'),
+        ('MTR', 'Metres (MTR)'),
+        ('LTR', 'Litres (LTR)'),
+        ('MTQ', 'Metres cubes (MTQ)'),
+        ('CTN', 'Cartons (CTN)'),
+        ('PAL', 'Palettes (PAL)'),
+    ]
+
+    TRANSPORT_MODE_CHOICES = [
+        ('sea', 'Maritime'),
+        ('air', 'Aerien'),
+        ('road', 'Routier'),
+        ('rail', 'Ferroviaire'),
+        ('multimodal', 'Multimodal'),
+    ]
+
+    TRANSPORT_DOC_CHOICES = [
+        ('BL', 'Bill of Lading (B/L)'),
+        ('AWB', 'Air Waybill (AWB)'),
+        ('CMR', 'CMR (Route)'),
+        ('CIM', 'CIM (Rail)'),
+    ]
 
     etape = models.OneToOneField(
         ExpeditionEtape,
@@ -479,9 +524,309 @@ class DocumentsData(models.Model):
         verbose_name="Etape"
     )
 
+    # ================================================
+    # GENERATION STATUS
+    # ================================================
     dau_genere = models.BooleanField(default=False, verbose_name="DAU genere")
     d10_genere = models.BooleanField(default=False, verbose_name="D10 genere")
     d12_genere = models.BooleanField(default=False, verbose_name="D12 genere")
+
+    # ================================================
+    # CONSIGNEE/IMPORTER INFORMATION
+    # ================================================
+    consignee_name = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Nom du destinataire",
+        help_text="Nom ou raison sociale du destinataire/importateur"
+    )
+    consignee_address = models.TextField(
+        blank=True,
+        verbose_name="Adresse du destinataire"
+    )
+    consignee_city = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Ville du destinataire"
+    )
+    consignee_postal_code = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name="Code postal destinataire"
+    )
+    consignee_country = models.CharField(
+        max_length=100,
+        blank=True,
+        default='Algerie',
+        verbose_name="Pays du destinataire"
+    )
+    consignee_country_code = models.CharField(
+        max_length=2,
+        blank=True,
+        default='DZ',
+        verbose_name="Code pays destinataire (ISO)"
+    )
+    consignee_tax_id = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="ID fiscal destinataire",
+        help_text="NIF ou EORI du destinataire"
+    )
+    consignee_contact_name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Contact chez le destinataire"
+    )
+    consignee_phone = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Telephone destinataire"
+    )
+    consignee_email = models.EmailField(
+        blank=True,
+        verbose_name="Email destinataire"
+    )
+
+    # ================================================
+    # INVOICE DETAILS
+    # ================================================
+    invoice_number = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Numero de facture"
+    )
+    invoice_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Date de facture"
+    )
+    invoice_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Montant total facture"
+    )
+    invoice_currency = models.CharField(
+        max_length=3,
+        blank=True,
+        default='EUR',
+        choices=CURRENCY_CHOICES,
+        verbose_name="Devise"
+    )
+
+    # ================================================
+    # PRODUCT DETAILS
+    # ================================================
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Quantite"
+    )
+    unit_of_measure = models.CharField(
+        max_length=20,
+        blank=True,
+        default='PCE',
+        choices=UNIT_CHOICES,
+        verbose_name="Unite de mesure"
+    )
+    unit_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Prix unitaire"
+    )
+    gross_weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        verbose_name="Poids brut (kg)"
+    )
+    net_weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        verbose_name="Poids net (kg)"
+    )
+    number_of_packages = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Nombre de colis"
+    )
+    package_type = models.CharField(
+        max_length=50,
+        blank=True,
+        default='Carton',
+        verbose_name="Type d'emballage",
+        help_text="Ex: Carton, Palette, Caisse, Sac"
+    )
+
+    # ================================================
+    # TRANSPORT DETAILS
+    # ================================================
+    transport_mode = models.CharField(
+        max_length=20,
+        blank=True,
+        choices=TRANSPORT_MODE_CHOICES,
+        verbose_name="Mode de transport"
+    )
+    transport_mode_code = models.CharField(
+        max_length=1,
+        blank=True,
+        verbose_name="Code mode transport",
+        help_text="1=Maritime, 2=Rail, 3=Route, 4=Air"
+    )
+    transport_document_type = models.CharField(
+        max_length=30,
+        blank=True,
+        choices=TRANSPORT_DOC_CHOICES,
+        verbose_name="Type de document transport"
+    )
+    transport_document_ref = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Reference document transport",
+        help_text="Numero du B/L, AWB, CMR, etc."
+    )
+    transport_document_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Date document transport"
+    )
+    vessel_name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Nom du navire/vol",
+        help_text="Nom du navire ou numero de vol"
+    )
+    port_of_loading = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Port/aeroport de chargement"
+    )
+    port_of_discharge = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Port/aeroport de dechargement"
+    )
+    expected_arrival_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Date d'arrivee prevue"
+    )
+
+    # ================================================
+    # COMMERCIAL TERMS
+    # ================================================
+    incoterms = models.CharField(
+        max_length=3,
+        blank=True,
+        default='CIF',
+        choices=INCOTERMS_CHOICES,
+        verbose_name="Incoterms"
+    )
+    incoterms_location = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Lieu Incoterms",
+        help_text="Ex: CIF Alger, FOB Marseille"
+    )
+    freight_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Cout du fret"
+    )
+    insurance_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Cout de l'assurance"
+    )
+
+    # ================================================
+    # ORIGIN INFORMATION
+    # ================================================
+    country_of_origin = models.CharField(
+        max_length=100,
+        blank=True,
+        default='France',
+        verbose_name="Pays d'origine"
+    )
+    country_of_origin_code = models.CharField(
+        max_length=2,
+        blank=True,
+        default='FR',
+        verbose_name="Code pays origine (ISO)"
+    )
+    country_of_dispatch = models.CharField(
+        max_length=100,
+        blank=True,
+        default='France',
+        verbose_name="Pays d'expedition"
+    )
+    country_of_dispatch_code = models.CharField(
+        max_length=2,
+        blank=True,
+        default='FR',
+        verbose_name="Code pays expedition (ISO)"
+    )
+
+    # ================================================
+    # CUSTOMS PROCEDURE
+    # ================================================
+    customs_procedure_code = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name="Code regime douanier",
+        help_text="Ex: 10 00 (mise a la consommation)"
+    )
+    customs_procedure_description = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Description regime"
+    )
+
+    # ================================================
+    # CALCULATED VALUES
+    # ================================================
+    fob_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Valeur FOB"
+    )
+    cif_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Valeur CIF",
+        help_text="FOB + Fret + Assurance"
+    )
+    statistical_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Valeur statistique"
+    )
+
+    # ================================================
+    # METADATA
+    # ================================================
+    form_completed = models.BooleanField(
+        default=False,
+        verbose_name="Formulaire complete"
+    )
 
     class Meta:
         verbose_name = "Donnees Documents"
@@ -489,6 +834,46 @@ class DocumentsData(models.Model):
 
     def __str__(self):
         return f"Documents - {self.etape.expedition.reference}"
+
+    def calculate_cif_value(self):
+        """Calcule la valeur CIF = FOB + Fret + Assurance."""
+        from decimal import Decimal
+        fob = self.fob_value or self.invoice_total or Decimal('0')
+        freight = self.freight_cost or Decimal('0')
+        insurance = self.insurance_cost or Decimal('0')
+        self.cif_value = fob + freight + insurance
+        return self.cif_value
+
+    def get_transport_mode_code(self):
+        """Retourne le code transport pour les formulaires douaniers."""
+        codes = {
+            'sea': '1',
+            'rail': '2',
+            'road': '3',
+            'air': '4',
+            'multimodal': '7',
+        }
+        code = codes.get(self.transport_mode, '')
+        self.transport_mode_code = code
+        return code
+
+    def get_required_documents(self):
+        """Retourne la liste des documents requis selon la direction."""
+        direction = self.etape.expedition.direction
+        if direction == 'FR_DZ':
+            return ['dau']  # Export EU
+        else:  # DZ_FR
+            return ['d10', 'd12']  # Import Algerie
+
+    def get_consignee_full_address(self):
+        """Retourne l'adresse complete du destinataire formatee."""
+        parts = [
+            self.consignee_address,
+            self.consignee_postal_code,
+            self.consignee_city,
+            self.consignee_country,
+        ]
+        return ', '.join(filter(None, parts))
 
 
 # =============================================================================
