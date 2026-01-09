@@ -1,184 +1,172 @@
 # Agent IA Core
 
-Motor de agentes inteligentes con Function Calling para el sistema de procedimientos aduaneros.
+Moteur d'agents intelligents avec Function Calling pour le systeme de procedures douanieres.
 
-## Estructura
+## Structure
 
 ```
 agent_ia_core/
-├── __init__.py                 # Re-export de FunctionCallingAgent
-└── chatbots/
-    ├── __init__.py
-    ├── shared/                 # Infraestructura compartida
-    │   ├── base.py             # ToolDefinition (dataclass)
-    │   └── registry.py         # ToolRegistry (gestión de tools)
-    │
-    ├── base/                   # Chatbot Base (genérico)
-    │   ├── agent.py            # FunctionCallingAgent
-    │   ├── config.py           # Configuración
-    │   ├── prompts.py          # System prompts
-    │   └── tools/
-    │       ├── web_search.py
-    │       └── browse_webpage.py
-    │
-    └── etapes_classification_taric/  # Chatbot Classification TARIC
-        ├── config.py           # Configuración específica
-        ├── prompts.py          # Prompts de classification
-        ├── service.py          # TARICClassificationService
-        └── tools/
-            ├── get_expedition_documents.py
-            └── search_taric_database.py
++-- __init__.py
++-- chatbots/
+    +-- __init__.py
+    +-- shared/                 # Infrastructure partagee
+    |   +-- base.py             # ToolDefinition (dataclass)
+    |   +-- registry.py         # ToolRegistry (gestion des tools)
+    |
+    +-- etapes_classification_taric/  # Chatbot Classification TARIC
+        +-- config.py           # Configuration specifique
+        +-- prompts.py          # Prompts de classification
+        +-- service.py          # TARICClassificationService
+        +-- tools/              # 4 outils du chatbot
+            +-- web_search.py
+            +-- browse_webpage.py
+            +-- analyze_documents.py
+            +-- fetch_pdf.py
 ```
 
-## Filosofía
+## Philosophie
 
-**Cada chatbot es completamente independiente** con su propio:
-- `config.py` - Configuración específica
-- `prompts.py` - System prompts y templates
-- `tools/` - Herramientas especializadas
+**Chaque chatbot est completement independant** avec son propre:
+- config.py - Configuration specifique
+- prompts.py - System prompts et templates
+- tools/ - Outils specialises
 
-Solo se comparte la infraestructura básica en `shared/`:
-- `ToolDefinition` - Definición de herramientas
-- `ToolRegistry` - Registro y ejecución de tools
+Seule l'infrastructure basique est partagee dans shared/:
+- ToolDefinition - Definition des outils
+- ToolRegistry - Registre et execution des outils
 
-## Uso
+## Les 4 Outils du Chatbot TARIC
 
-### Importar el agente base
+| Outil | Description | Innovation |
+|-------|-------------|------------|
+| web_search | Recherche Google Custom Search API | Informations actualisees sur les codes TARIC |
+| browse_webpage | Extraction de contenu web | Early stopping : economie de 92% des tokens |
+| analyze_documents | Analyse Vision GPT-4o | Strategie intelligente PDF : texte vs image |
+| fetch_pdf | Telechargement PDF | Sauvegarde automatique dans l'expedition |
 
-```python
-from agent_ia_core import FunctionCallingAgent
+## Utilisation
 
-agent = FunctionCallingAgent(
-    llm_provider='google',  # 'ollama', 'openai', 'google'
-    llm_model='gemini-2.5-flash',
-    llm_api_key='your-api-key',
-    user=request.user
-)
-
-response = agent.query("¿Qué tiempo hace en Madrid?")
-```
-
-### Usar un chatbot especializado
+### Utiliser le service de classification
 
 ```python
 from agent_ia_core.chatbots.etapes_classification_taric.service import TARICClassificationService
 
-service = TARICClassificationService(expedition=expedition, user=request.user)
+service = TARICClassificationService(user=request.user, expedition=expedition)
+
+# Message de bienvenue
 welcome = service.get_welcome_message()
-response = service.process_message("Tengo un ordenador portátil para clasificar")
+
+# Traiter un message
+response = service.process_message(
+    message="J'ai un ordinateur portable a classifier",
+    conversation_history=[]
+)
+
+# response contient:
+# - content: texte de la reponse
+# - metadata: {proposals: [...], tools_used: [...]}
 ```
 
-### Crear un nuevo chatbot
+### Creer un nouvel outil
 
-1. Crear carpeta en `chatbots/`:
-```
-chatbots/
-└── mi_nuevo_chatbot/
-    ├── __init__.py
-    ├── config.py
-    ├── prompts.py
-    ├── service.py
-    └── tools/
-        ├── __init__.py
-        └── mi_tool.py
-```
+1. Creer fichier dans tools/:
 
-2. Definir configuración en `config.py`:
 ```python
-CHATBOT_CONFIG = {
-    'name': 'Mi Chatbot',
-    'max_iterations': 10,
-    'temperature': 0.3,
-    'tools_enabled': ['mi_tool'],
-}
-```
+# tools/mon_outil.py
 
-3. Crear prompts en `prompts.py`:
-```python
-SYSTEM_PROMPT = """Tu eres un asistente especializado en..."""
-WELCOME_MESSAGE = """Bienvenido! Puedo ayudarte con..."""
-```
-
-4. Definir tools en `tools/mi_tool.py`:
-```python
 from agent_ia_core.chatbots.shared import ToolDefinition
 
-def mi_funcion(param1: str, param2: int = 5) -> dict:
-    return {'success': True, 'data': {...}}
+def mon_outil(param1: str, param2: int = 5, **kwargs) -> dict:
+    """
+    Execute l'outil avec les parametres donnes.
+    **kwargs contient: user, llm, api_key, etc. (injectes par registry)
+    """
+    return {
+        'success': True,
+        'data': {...}
+    }
 
 TOOL_DEFINITION = ToolDefinition(
-    name='mi_tool',
-    description='Descripción para el LLM',
+    name='mon_outil',
+    description='Description pour le LLM',
     parameters={
         'type': 'object',
         'properties': {
             'param1': {'type': 'string', 'description': '...'},
-            'param2': {'type': 'integer', 'description': '...'}
+            'param2': {'type': 'integer', 'description': '...', 'default': 5}
         },
         'required': ['param1']
     },
-    function=mi_funcion,
-    category='mi_categoria'
+    function=mon_outil,
+    category='ma_categorie'
 )
 ```
 
-5. Autodiscovery en `tools/__init__.py`:
-```python
-from agent_ia_core.chatbots.shared import ToolDefinition
-import importlib
-from pathlib import Path
+2. L'outil sera autodecouvert au demarrage (via tools/__init__.py)
 
-ALL_TOOLS = []
+### Creer un nouveau chatbot
 
-for file_path in Path(__file__).parent.glob("*.py"):
-    if file_path.name == "__init__.py":
-        continue
-    module = importlib.import_module(f".{file_path.stem}", package=__package__)
-    if hasattr(module, "TOOL_DEFINITION"):
-        tool_def = module.TOOL_DEFINITION
-        if isinstance(tool_def, dict):
-            tool_def = ToolDefinition(**tool_def)
-        ALL_TOOLS.append(tool_def)
+1. Creer dossier dans chatbots/:
+```
+chatbots/
++-- mon_chatbot/
+    +-- __init__.py
+    +-- config.py
+    +-- prompts.py
+    +-- service.py
+    +-- tools/
+        +-- __init__.py
+        +-- mon_outil.py
 ```
 
-## Proveedores LLM soportados
+2. Definir configuration dans config.py:
+```python
+CHATBOT_CONFIG = {
+    'name': 'Mon Chatbot',
+    'max_iterations': 10,
+    'temperature': 0.3,
+    'tools_enabled': ['mon_outil'],
+}
+```
 
-| Proveedor | Modelos | Function Calling |
-|-----------|---------|------------------|
-| Ollama | qwen2.5:7b, llama3.2, etc. | ✓ Nativo |
-| OpenAI | gpt-4o, gpt-4o-mini | ✓ Nativo |
-| Google | gemini-2.5-flash, gemini-2.5-pro | ✓ Nativo |
+3. Creer prompts dans prompts.py:
+```python
+SYSTEM_PROMPT = """Tu es un assistant specialise en..."""
+WELCOME_MESSAGE = """Bienvenue! Je peux vous aider avec..."""
+```
+
+4. Implementer service.py avec la logique metier
 
 ## ToolDefinition
 
-Cada tool se define con:
+Chaque outil est defini avec:
 
 ```python
 @dataclass
 class ToolDefinition:
-    name: str           # Nombre único (debe coincidir con archivo .py)
-    description: str    # Descripción para el LLM
-    parameters: dict    # JSON Schema de parámetros
-    function: Callable  # Función Python a ejecutar
-    category: str       # Categoría (web, classification, etc.)
+    name: str           # Nom unique
+    description: str    # Description pour le LLM
+    parameters: dict    # JSON Schema des parametres
+    function: Callable  # Fonction Python a executer
+    category: str       # Categorie (web, classification, etc.)
 ```
 
-Métodos disponibles:
-- `to_openai_format()` - Formato OpenAI/Ollama
-- `to_gemini_format()` - Formato Google Gemini
-- `get_reviewer_format()` - Formato texto para prompts
+Methodes disponibles:
+- to_openai_format() - Format OpenAI
+- to_gemini_format() - Format Google Gemini
+- get_reviewer_format() - Format texte pour prompts
 
 ## ToolRegistry
 
-El registry gestiona:
-- Autodiscovery de tools
-- Inyección de dependencias (user, llm, api_keys, etc.)
-- Ejecución con reintentos
-- Conversión de formatos por proveedor
+Le registry gere:
+- Autodiscovery des outils
+- Injection de dependances (user, llm, api_keys, etc.)
+- Execution avec reintentos
+- Conversion de formats par fournisseur
 
 ```python
 from agent_ia_core.chatbots.shared import ToolRegistry
-from agent_ia_core.chatbots.base.tools import ALL_TOOLS
+from agent_ia_core.chatbots.etapes_classification_taric.tools import ALL_TOOLS
 
 registry = ToolRegistry(
     all_tools=ALL_TOOLS,
@@ -188,9 +176,46 @@ registry = ToolRegistry(
     google_engine_id='...'
 )
 
-# Ejecutar tool
-result = registry.execute_tool('web_search', query='precio bitcoin')
+# Executer un outil
+result = registry.execute_tool('web_search', query='code TARIC verre cristal')
 
-# Obtener tools para LLM
+# Obtenir les outils au format OpenAI
 tools = registry.get_openai_tools()
 ```
+
+## Extraction Structuree
+
+Le service utilise OpenAI Structured Output pour extraire les codes TARIC:
+
+```python
+TARIC_EXTRACTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "proposals": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "code_taric": {"type": "string"},
+                    "description": {"type": "string"},
+                    "probability": {"type": "integer"},
+                    "droits_douane": {"type": "string"},
+                    "tva": {"type": "string"},
+                    "justification": {"type": "string"}
+                },
+                "required": ["code_taric", "description", "probability"],
+                "additionalProperties": False
+            }
+        }
+    },
+    "required": ["proposals"],
+    "additionalProperties": False
+}
+```
+
+Cela garantit un JSON valide a 100% avec les champs requis.
+
+---
+
+**Version:** 2.0.0
+**Date:** Janvier 2026

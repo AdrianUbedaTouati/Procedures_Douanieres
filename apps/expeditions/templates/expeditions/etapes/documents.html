@@ -535,6 +535,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const expeditionPk = {{ expedition.pk }};
     const csrfToken = '{{ csrf_token }}';
 
+    // URLs Django generadas dinámicamente
+    const baseUrl = '/expeditions/' + expeditionPk;
+    const urls = {
+        updateProfile: '{% url "apps_expeditions:update_profile" %}',
+        generateDoc: function(docType) {
+            return baseUrl + '/documents/generate/' + docType + '/';
+        },
+        deleteDoc: function(docId) {
+            return baseUrl + '/documents/delete/' + docId + '/';
+        },
+        validateDocs: baseUrl + '/documents/validate/'
+    };
+
     // Profile Form
     const profileForm = document.getElementById('profileForm');
     const profileModal = document.getElementById('profileModal');
@@ -551,14 +564,21 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enregistrement...';
 
-            fetch('{% url "apps_expeditions:update_profile" %}', {
+            fetch(urls.updateProfile, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrfToken
                 },
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Erreur serveur (${response.status}): ${text.substring(0, 200)}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     profileModalInstance.hide();
@@ -576,7 +596,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Erreur de connexion');
+                alert('Erreur: ' + error.message);
             })
             .finally(() => {
                 submitBtn.disabled = false;
@@ -595,14 +615,21 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generation...';
 
-            fetch(`/expeditions/${expeditionPk}/documents/generate/${docType}/`, {
+            fetch(urls.generateDoc(docType), {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrfToken,
                     'Content-Type': 'application/json'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Erreur serveur (${response.status}): ${text.substring(0, 200)}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     window.location.reload();
@@ -614,7 +641,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Erreur de connexion');
+                alert('Erreur: ' + error.message);
                 this.disabled = false;
                 this.innerHTML = originalHtml;
             });
@@ -641,13 +668,20 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Suppression...';
 
-        fetch(`/expeditions/${expeditionPk}/documents/delete/${deleteDocId}/`, {
+        fetch(urls.deleteDoc(deleteDocId), {
             method: 'POST',
             headers: {
                 'X-CSRFToken': csrfToken
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => {
+                    throw new Error(`Erreur serveur (${response.status}): ${text.substring(0, 200)}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 deleteDocModal.hide();
@@ -658,7 +692,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Erreur de connexion');
+            alert('Erreur: ' + error.message);
         })
         .finally(() => {
             btn.disabled = false;
@@ -677,14 +711,21 @@ document.addEventListener('DOMContentLoaded', function() {
             this.disabled = true;
             this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Validation...';
 
-            fetch(`/expeditions/${expeditionPk}/documents/validate/`, {
+            fetch(urls.validateDocs, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrfToken,
                     'Content-Type': 'application/json'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Erreur serveur (${response.status}): ${text.substring(0, 200)}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     window.location.href = data.redirect_url;
@@ -696,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Erreur de connexion');
+                alert('Erreur: ' + error.message);
                 this.disabled = false;
                 this.innerHTML = '<i class="bi bi-check-lg"></i> Valider l\'etape';
             });

@@ -1,75 +1,102 @@
-# Solution d'Automatisation des Procédures Douanières .l.
+# Solution d'Automatisation des Procedures Douanieres
 
-Plateforme intelligente d'automatisation du parcours douanier utilisant l'Intelligence Artificielle avec **Function Calling**, **Classification automatique SH/NC/TARIC**, et génération documentaire automatisée.
+Plateforme intelligente d'automatisation du parcours douanier utilisant l'Intelligence Artificielle avec **Function Calling**, **Classification automatique SH/NC/TARIC**, et generation documentaire automatisee.
+
+**Projet de Fin de Master** - Janvier 2026
 
 ## Objectifs du Projet
 
-Cette solution répond aux **5 axes majeurs** définis dans le cahier des charges :
+Cette solution repond aux **5 axes majeurs** definis dans le cahier des charges :
 
-| Axe | Fonctionnalité | Statut |
+| Axe | Fonctionnalite | Statut |
 |-----|----------------|--------|
-| 1 | **Classification douanière par IA** - Identification des codes SH/NC/TARIC | Implémenté |
-| 2 | **Automatisation documentaire** - Génération DAU, D10, D12, ENS/ICS2 | En développement |
-| 3 | **Transmission électronique** - Connexion DELTA, BADR | Planifié |
-| 4 | **Paiement automatisé** - Calcul et règlement des droits | Planifié |
-| 5 | **Gestion OEA** - Statut Opérateur Économique Agréé | Planifié |
+| 1 | **Classification douaniere par IA** - Identification des codes SH/NC/TARIC | Implemente |
+| 2 | **Automatisation documentaire** - Generation DAU, D10 | Implemente |
+| 3 | **Transmission electronique** - Connexion DELTA, BADR | Planifie |
+| 4 | **Paiement automatise** - Calcul et reglement des droits | Planifie |
+| 5 | **Gestion OEA** - Statut Operateur Economique Agree | Planifie |
 
-## Périmètre Phase 1
+## Perimetre Phase 1
 
-- **Corridor** : France ↔ Algérie (export France → import Algérie et vice-versa)
-- **Articles** : Produits de base (hors produits pétroliers, matières dangereuses, licences)
-- **Contexte** : Projet académique
+- **Corridor** : France <-> Algerie (export France -> import Algerie et vice-versa)
+- **Articles** : Produits de base (hors produits petroliers, matieres dangereuses, licences)
+- **Contexte** : Projet academique
 
-## Caractéristiques Principales
+## Caracteristiques Principales
 
-### 1. Classification Douanière par IA (Implémentée)
+### Etape 1 : Classification Douaniere par Chatbot IA
 
-- **Code SH (6 chiffres)** : Identifiable dans la quasi-totalité des cas
-- **Code NC (8 chiffres, UE)** : Identifiable dans la majorité des cas
-- **Code TARIC (10 chiffres)** : Identifiable avec informations contextuelles
+Chatbot intelligent avec **4 outils (tools)** pour classifier les produits :
 
-**Méthode** :
+| Outil | Fonction |
+|-------|----------|
+| `web_search` | Recherche Google Custom Search API |
+| `browse_webpage` | Extraction progressive avec early stopping |
+| `analyze_documents` | Analyse Vision GPT-4o (photos/PDF) |
+| `fetch_pdf` | Telechargement de fiches techniques |
+
+**Fonctionnement** :
 - Upload d'une photo du produit ou d'une fiche technique PDF
-- Analyse par Intelligence Artificielle
+- Chatbot IA avec Function Calling (agent autonome)
 - Proposition de codes candidats avec niveaux de confiance
-- Validation manuelle ou automatique
+- Extraction structuree avec OpenAI Structured Output (JSON Schema strict)
+- Validation par selection de bouton
 
-### 2. Module Expéditions (Implémenté)
+### Etape 2 : Generation de Documents Douaniers
 
-Le module central de l'application avec **5 étapes du processus douanier** :
+Generation automatique des documents officiels :
 
-| Étape | Nom | Description | Statut |
+| Direction | Document | Description |
+|-----------|----------|-------------|
+| France -> Algerie | **DAU** | Document Administratif Unique (exportation UE) |
+| Algerie -> France | **D10** | Declaration de mise a la consommation |
+
+**Processus** :
+1. Formulaire avec 50+ champs (destinataire, transport, valeurs, marchandises)
+2. Template Django HTML/CSS
+3. Conversion PDF via WeasyPrint
+4. Stockage et telechargement
+
+### Module Expeditions
+
+Le module central de l'application avec **5 etapes du processus douanier** :
+
+| Etape | Nom | Description | Statut |
 |-------|-----|-------------|--------|
 | 1 | Classification | Codes SH/NC/TARIC par IA | Fonctionnel |
-| 2 | Documents | Génération DAU, D10, D12 | En développement |
-| 3 | Transmission | Envoi vers DELTA/BADR | Planifié |
-| 4 | Paiement | Calcul et paiement des droits | Planifié |
-| 5 | OEA | Gestion statut OEA | Planifié |
+| 2 | Documents | Generation DAU, D10 | Fonctionnel |
+| 3 | Transmission | Envoi vers DELTA/BADR | Planifie |
+| 4 | Paiement | Calcul et paiement des droits | Planifie |
+| 5 | OEA | Gestion statut OEA | Planifie |
 
-### 3. Assistant Conversationnel
+## Stack Technique
 
-- Chatbot IA spécialisé en procédures douanières
-- Répond aux questions sur la réglementation
-- Aide à la classification et au calcul des droits
+| Couche | Technologies | Justification |
+|--------|--------------|---------------|
+| **Backend** | Django 5.x, Python 3.12 | Framework robuste, ORM puissant |
+| **IA** | OpenAI GPT-4o, Function Calling | Meilleur rapport qualite/prix pour le tool-calling |
+| **Vision** | GPT-4o Vision | Analyse d'images et PDFs scannes |
+| **PDF** | WeasyPrint | Generation PDF depuis HTML/CSS, open-source |
+| **Frontend** | Bootstrap 5, Alpine.js, HTMX | Leger, reactif, sans build complexe |
+| **Base de donnees** | SQLite | Simple pour developpement |
 
-## Prérequis
+## Prerequis
 
 - Python 3.10+
 - Django 5.1.6
-- **Option 1** : Ollama installé localement (100% gratuit, sans API key)
-- **Option 2** : Google Gemini / OpenAI / NVIDIA API Key
-- ChromaDB pour la vectorisation
+- OpenAI API Key (pour GPT-4o et Function Calling)
+- Google Custom Search API Key (optionnel, pour web_search)
 
 ## Installation
 
-### 1. Cloner le dépôt
+### 1. Cloner le depot
 
 ```bash
 git clone <repo-url>
 cd Procedures_Douanieres
 ```
 
-### 2. Créer l'environnement virtuel
+### 2. Creer l'environnement virtuel
 
 ```bash
 python -m venv .venv
@@ -77,7 +104,7 @@ source .venv/bin/activate  # Linux/Mac
 .venv\Scripts\activate     # Windows
 ```
 
-### 3. Installer les dépendances
+### 3. Installer les dependances
 
 ```bash
 pip install -r requirements.txt
@@ -85,18 +112,20 @@ pip install -r requirements.txt
 
 ### 4. Configurer les variables d'environnement
 
-Créer un fichier `.env` à la racine :
+Creer un fichier `.env` a la racine :
 
 ```env
 # Django
-SECRET_KEY=votre-clé-secrète
+SECRET_KEY=votre-cle-secrete
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
-# Configuration IA
-LLM_PROVIDER=ollama              # ollama | google | openai | nvidia
-GOOGLE_API_KEY=                  # Si google
-OPENAI_API_KEY=                  # Si openai
+# OpenAI (requis)
+OPENAI_API_KEY=sk-...
+
+# Google Custom Search (optionnel, pour web_search)
+GOOGLE_API_KEY=...
+GOOGLE_ENGINE_ID=...
 ```
 
 ### 5. Appliquer les migrations
@@ -105,7 +134,7 @@ OPENAI_API_KEY=                  # Si openai
 python manage.py migrate
 ```
 
-### 6. Créer un superutilisateur
+### 6. Creer un superutilisateur
 
 ```bash
 python manage.py createsuperuser
@@ -117,7 +146,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Accéder à http://127.0.0.1:8000
+Acceder a http://127.0.0.1:8000
 
 ## Structure du Projet
 
@@ -132,142 +161,100 @@ Procedures_Douanieres/
 │   ├── authentication/             # Authentification et profils
 │   ├── core/                       # Configuration, fournisseurs LLM
 │   ├── chat/                       # Assistant conversationnel
-│   └── expeditions/                # Module expéditions (principal)
-│       ├── models.py               # Expedition, ExpeditionEtape, ExpeditionDocument
+│   └── expeditions/                # Module expeditions (principal)
+│       ├── models.py               # Expedition, ExpeditionEtape, Documents
 │       ├── views.py                # Vues principales
-│       ├── forms.py                # Formulaires
-│       ├── urls.py                 # Routes
-│       └── etapes/                 # Modules par étape
-│           ├── classification/     # Étape 1: Classification IA
-│           │   ├── views.py
-│           │   ├── forms.py
-│           │   └── services.py     # ClassificationService
-│           ├── documents/          # Étape 2: Documents
-│           ├── transmission/       # Étape 3: Transmission
-│           ├── paiement/           # Étape 4: Paiement
-│           └── oea/                # Étape 5: OEA
+│       └── etapes/                 # Modules par etape
+│           ├── classification/     # Etape 1: Classification IA
+│           │   └── services.py     # TARICClassificationService
+│           └── documents/          # Etape 2: Generation PDF
+│               └── services.py     # DocumentGenerationService
 │
-├── agent_ia_core/                  # Moteur IA (voir agent_ia_core/README.md)
-│   └── chatbots/                   # Chatbots indépendants
-│       ├── shared/                 # Infrastructure partagée (ToolDefinition, ToolRegistry)
-│       ├── base/                   # Chatbot Base (FunctionCallingAgent, web_search)
-│       └── etapes_classification_taric/  # Chatbot Classification TARIC
+├── agent_ia_core/                  # Moteur IA
+│   └── chatbots/
+│       ├── shared/                 # ToolDefinition, ToolRegistry
+│       └── etapes_classification_taric/
+│           ├── service.py          # TARICClassificationService
+│           └── tools/              # 4 outils du chatbot
+│               ├── web_search.py
+│               ├── browse_webpage.py
+│               ├── analyze_documents.py
+│               └── fetch_pdf.py
 │
-├── data/                           # Données
-│   ├── db.sqlite3                  # Base de données
-│   └── media_expediciones/         # Fichiers uploadés par expédition
-│       └── {expedition_id}/        # Dossier par expédition
-│           └── etape_{n}_{type}/   # Sous-dossiers par étape
-│               ├── images/         # Photos
-│               └── documents/      # PDF, fiches techniques
+├── data/                           # Donnees
+│   ├── db.sqlite3                  # Base de donnees
+│   └── media_expediciones/         # Fichiers uploades
 │
 ├── docs/                           # Documentation
-│   ├── ARCHITECTURE.md             # Architecture technique
-│   ├── DOCS_INDEX.md               # Index documentation
-│   └── ...
+│   ├── ARCHITECTURE.md
+│   ├── DATABASE_SCHEMA.md
+│   └── DOCS_INDEX.md
+│
+├── presentation/                   # Presentation academique
+│   └── Procedures_Douanieres_Presentation.ipynb
 │
 └── tests/                          # Tests
 ```
 
 ## Guide d'Utilisation
 
-### 1. Créer une Expédition
+### 1. Creer une Expedition
 
-1. Se connecter à l'application
-2. Cliquer sur **Expéditions** dans la navbar
-3. Cliquer sur **Nouvelle Expédition**
-4. Remplir le nom de l'article et la direction (FR→DZ ou DZ→FR)
-5. L'expédition est créée avec 5 étapes
+1. Se connecter a l'application
+2. Cliquer sur **Expeditions** dans la navbar
+3. Cliquer sur **Nouvelle Expedition**
+4. Remplir le nom de l'article et la direction (FR->DZ ou DZ->FR)
+5. L'expedition est creee avec 5 etapes
 
-### 2. Classification d'un Produit (Étape 1)
+### 2. Classification d'un Produit (Etape 1)
 
-1. Ouvrir une expédition
-2. Cliquer sur **Continuer** sur l'étape "Classification"
-3. Télécharger une **photo** ou une **fiche technique PDF**
-4. Cliquer sur **Lancer la classification IA**
-5. Vérifier les codes proposés (SH, NC, TARIC)
-6. Modifier manuellement si nécessaire
-7. Cliquer sur **Valider** pour passer à l'étape suivante
+1. Ouvrir une expedition
+2. Cliquer sur **Continuer** sur l'etape "Classification"
+3. Telecharger une **photo** ou une **fiche technique PDF**
+4. Discuter avec le chatbot IA
+5. Le chatbot analyse, recherche sur le web, et propose des codes TARIC
+6. Selectionner le code en cliquant sur le bouton correspondant
+7. L'etape passe a "termine"
 
-### 3. Utiliser l'Assistant IA
+### 3. Generation de Documents (Etape 2)
 
-1. Cliquer sur **Assistant** dans la navbar
-2. Créer une nouvelle session de chat
-3. Poser des questions sur :
-   - La classification douanière
-   - Les documents requis
-   - Le calcul des droits
-   - La réglementation France-Algérie
+1. Ouvrir l'etape "Documents"
+2. Remplir le formulaire (destinataire, transport, valeurs...)
+3. Cliquer sur **Generer DAU** ou **Generer D10**
+4. Telecharger le PDF genere
 
-## Fournisseurs LLM Supportés
-
-| Fournisseur | Modèles | API Key | Coût | Confidentialité |
-|-------------|---------|---------|------|-----------------|
-| **Ollama** | llama3.2, qwen2.5, mistral | Non | Gratuit | 100% Local |
-| Google Gemini | gemini-2.0-flash-exp | Oui | Payant | Cloud |
-| OpenAI | gpt-4o, gpt-4o-mini | Oui | Payant | Cloud |
-| NVIDIA | mixtral, llama | Oui | Payant | Cloud |
-
-**Recommandation** : Ollama pour la confidentialité maximale et le coût nul.
-
-## Taux de Droits de Douane
-
-### Algérie (Importation)
-
-| Catégorie | Taux |
-|-----------|------|
-| Produits de première nécessité | 5% |
-| Matières premières industrielles | 15% |
-| Produits semi-finis | 30% |
-| Produits finis de consommation | 60% |
-
-### TVA
-
-- **Algérie** : 19%
-- **France** : 20%
-
-### Formule de Calcul
+## Modele de Donnees
 
 ```
-Droits = (Valeur CIF + Frais) × Taux applicable
-Total = Valeur CIF + Droits + TVA
+User (1) ──► (N) Expedition (1) ──► (5) ExpeditionEtape
+                                          │
+                                    ┌─────┼─────┐
+                                    ▼     ▼     ▼
+                              Classification  Documents  Expedition
+                              Data (1:1)      Data (1:1) Document (1:N)
 ```
 
-## Tests
-
-```bash
-# Exécuter tous les tests
-python manage.py test
-
-# Tests spécifiques
-python manage.py test tests.test_agent
-python manage.py test tests.test_chat
-```
+**ClassificationData** : code_taric, code_nc, code_sh, chat_historique, propositions
+**DocumentsData** : 50+ champs (consignee, transport, valeurs, incoterms...)
+**ExpeditionDocument** : fichiers (photos, PDFs, documents generes)
 
 ## Documentation
 
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Architecture technique détaillée
-- [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) - Schéma de base de données (modèles, relations, structure fichiers)
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Architecture technique detaillee
+- [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) - Schema de base de donnees
 - [DOCS_INDEX.md](docs/DOCS_INDEX.md) - Index de la documentation
-- [Cahier des charges](Cahier%20des%20charges%20-%20Procédures%20douanières.pdf) - Spécifications du projet
+- [agent_ia_core/README.md](agent_ia_core/README.md) - Documentation du moteur IA
 
 ## Licence
 
-Projet académique - Tous droits réservés
+Projet academique - Tous droits reserves
 
-## Équipe
+## Equipe
 
-**Développeurs** :
+**Developpeurs** :
 - Adrian Ubeda Touati (aubedatouati@gmail.com)
-- Juan Manuel Labrador Muñoz (mario.neta.rosario@gmail.com)
-
-**Technologies** :
-- Backend : Django 5.1.6 + Python 3.10+
-- IA/ML : LangChain + ChromaDB
-- LLMs : Ollama (local) | Google Gemini | OpenAI | NVIDIA
-- Frontend : Bootstrap 5 + JavaScript
-- Base de données : SQLite
+- Juan Manuel Labrador Munoz (mario.neta.rosario@gmail.com)
 
 ---
 
-**Solution d'Automatisation des Procédures Douanières** - Corridor France ↔ Algérie
+**Solution d'Automatisation des Procedures Douanieres** - Corridor France <-> Algerie

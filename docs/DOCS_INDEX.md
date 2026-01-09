@@ -1,254 +1,215 @@
-# Index de la Documentation - Procédures Douanières v1.0
+# Index de la Documentation - Procedures Douanieres v2.0
 
-**Solution d'Automatisation des Procédures Douanières - Corridor France ↔ Algérie**
+**Solution d'Automatisation des Procedures Douanieres - Corridor France <-> Algerie**
 
 ---
 
 ## Commencer Ici
 
-Si c'est votre première fois, lisez dans cet ordre :
+Si c'est votre premiere fois, lisez dans cet ordre :
 
-1. **[README.md](../README.md)** - Présentation et installation
+1. **[README.md](../README.md)** - Presentation et installation
 2. **[ARCHITECTURE.md](ARCHITECTURE.md)** - Architecture technique
-3. **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schéma de base de données
-4. **[Cahier des charges](../Cahier%20des%20charges%20-%20Procédures%20douanières.pdf)** - Spécifications du projet
+3. **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schema de base de donnees
 
 ---
 
 ## Documentation Principale
 
-### README.md
+### README.md (racine)
 
 **Contenu :**
 - Objectifs du projet (5 axes)
-- Périmètre Phase 1 (corridor France ↔ Algérie)
+- Perimetre Phase 1 (corridor France <-> Algerie)
+- Stack technique avec justifications
 - Installation et configuration
-- Guide d'utilisation (Expéditions, Classification, Assistant)
-- Fournisseurs LLM supportés
-- Taux de droits de douane
+- Guide d'utilisation (Expeditions, Classification, Documents)
+- Modele de donnees
 
 **Quand le lire :**
-- Première utilisation du système
+- Premiere utilisation du systeme
 - Installation dans un nouvel environnement
-- Configuration d'un nouveau fournisseur LLM
 
 ---
 
 ### ARCHITECTURE.md
 
 **Contenu :**
-- Vue d'ensemble du système
-- Architecture haut niveau
-- Module Expéditions (structure détaillée)
-- Modèles de données (Expedition, ExpeditionEtape, ExpeditionDocument)
-- Moteur IA (agent_ia_core)
-- Flux de données
-- Intégrations externes (DELTA, BADR)
+- Vue d'ensemble du systeme
+- Architecture haut niveau (diagramme)
+- Module Expeditions (structure detaillee)
+- Moteur IA - Etape 1 (4 outils du chatbot)
+- Generation Documents - Etape 2 (WeasyPrint)
+- Flux de donnees
+- Integrations externes (DELTA, BADR)
 
 **Quand le lire :**
 - Comprendre le fonctionnement interne
-- Développer de nouvelles fonctionnalités
-- Ajouter une nouvelle étape
+- Developper de nouvelles fonctionnalites
 
 ---
 
 ### DATABASE_SCHEMA.md
 
 **Contenu :**
-- Structure hiérarchique des tables (Expedition → ExpeditionEtape → *Data)
-- Détail de chaque modèle (ClassificationData, DocumentsData, etc.)
+- Structure hierarchique des tables
+- Detail de chaque modele (ClassificationData, DocumentsData, etc.)
 - Relations 1:1 et 1:N
 - Structure des fichiers media
-- Format des champs JSON (chat_historique, propositions)
-- Diagramme entité-relation
+- Format des champs JSON
 
 **Quand le lire :**
-- Comprendre la structure de données
-- Développer des fonctionnalités sur les étapes
-- Modifier les modèles Django
+- Comprendre la structure de donnees
+- Modifier les modeles Django
 
 ---
 
-## Structure du Projet
+### agent_ia_core/README.md
 
-```
-Procedures_Douanieres/
-├── README.md                    # Documentation principale
-├── Cahier des charges.pdf       # Spécifications
-│
-├── config/                      # Configuration Django
-│   ├── settings.py
-│   └── urls.py
-│
-├── apps/                        # Applications Django
-│   ├── authentication/          # Authentification
-│   ├── core/                    # Configuration, LLM providers
-│   ├── chat/                    # Assistant conversationnel
-│   └── expeditions/             # Module principal
-│       ├── models.py            # Modèles de données
-│       ├── views.py             # Vues principales
-│       └── etapes/              # Modules par étape
-│           ├── classification/  # Étape 1 (Implémentée)
-│           ├── documents/       # Étape 2
-│           ├── transmission/    # Étape 3
-│           ├── paiement/        # Étape 4
-│           └── oea/             # Étape 5
-│
-├── agent_ia_core/               # Moteur IA (voir agent_ia_core/README.md)
-│   └── chatbots/                # Chatbots indépendants
-│       ├── shared/              # ToolDefinition, ToolRegistry
-│       ├── base/                # FunctionCallingAgent + web tools
-│       └── etapes_classification_taric/  # Chatbot TARIC
-│
-├── data/                        # Données
-│   ├── db.sqlite3               # Base de données
-│   └── media_expediciones/      # Fichiers par expédition
-│
-├── docs/                        # Documentation
-│   ├── DOCS_INDEX.md            # Ce fichier
-│   ├── ARCHITECTURE.md          # Architecture
-│   └── DATABASE_SCHEMA.md       # Schéma BDD
-│
-└── tests/                       # Tests
-```
+**Contenu :**
+- Structure du moteur IA
+- Philosophie (chatbots independants)
+- Les 4 outils du chatbot TARIC
+- Comment creer un nouveau chatbot
+- ToolDefinition et ToolRegistry
+
+**Quand le lire :**
+- Travailler sur le chatbot IA
+- Ajouter de nouveaux outils
 
 ---
 
-## Les 5 Étapes du Processus Douanier
+## Les 5 Etapes du Processus Douanier
 
-### Étape 1 : Classification Douanière (Implémentée)
+### Etape 1 : Classification Douaniere (Implemente)
 
-**Localisation :** `apps/expeditions/etapes/classification/`
+**Localisation :** apps/expeditions/etapes/classification/
 
-**Fonctionnalités :**
+**Fonctionnalites :**
 - Upload photo ou fiche technique PDF
-- Analyse par IA (ClassificationService)
+- Chatbot IA avec Function Calling
+- 4 outils : web_search, browse_webpage, analyze_documents, fetch_pdf
 - Proposition des codes SH/NC/TARIC avec confiance
-- Validation manuelle ou automatique
+- Extraction structuree avec OpenAI Structured Output
+- Selection par bouton
 
-**Fichiers :**
-- `views.py` - ClassificationView, UploadView, AnalyseView, ValiderView
-- `forms.py` - ClassificationUploadForm, ClassificationManuelleForm
-- `services.py` - ClassificationService
-
-**Codes de classification :**
-| Code | Chiffres | Confiance |
-|------|----------|-----------|
-| SH | 6 | Haute |
-| NC | 8 | Moyenne |
-| TARIC | 10 | Variable |
+**Fichiers cles :**
+- agent_ia_core/chatbots/etapes_classification_taric/service.py
+- agent_ia_core/chatbots/etapes_classification_taric/tools/*.py
 
 ---
 
-### Étape 2 : Génération Documents (En développement)
+### Etape 2 : Generation Documents (Implemente)
 
-**Localisation :** `apps/expeditions/etapes/documents/`
+**Localisation :** apps/expeditions/etapes/documents/
 
-**Documents prévus :**
-- **France** : DAU, ENS, ICS2
-- **Algérie** : D10, D12
-- **Annexes** : Certificats d'origine, factures
+**Fonctionnalites :**
+- Formulaire 50+ champs (destinataire, transport, valeurs)
+- Generation PDF via WeasyPrint
+- Documents : DAU (FR->DZ), D10 (DZ->FR)
+- Telechargement ZIP
 
----
-
-### Étape 3 : Transmission Électronique (Planifié)
-
-**Localisation :** `apps/expeditions/etapes/transmission/`
-
-**Systèmes ciblés :**
-- **DELTA** (France) - API REST
-- **BADR** (Algérie) - Playwright
+**Fichiers cles :**
+- apps/expeditions/etapes/documents/services.py (DocumentGenerationService)
+- apps/expeditions/etapes/documents/forms.py (DocumentsDataForm)
 
 ---
 
-### Étape 4 : Paiement des Droits (Planifié)
+### Etape 3 : Transmission Electronique (Planifie)
 
-**Localisation :** `apps/expeditions/etapes/paiement/`
+**Localisation :** apps/expeditions/etapes/transmission/
 
-**Fonctionnalités prévues :**
+**Systemes cibles :**
+- DELTA (France) - API REST via prestataires
+- BADR (Algerie) - RPA si autorise
+
+---
+
+### Etape 4 : Paiement des Droits (Planifie)
+
+**Localisation :** apps/expeditions/etapes/paiement/
+
+**Fonctionnalites prevues :**
 - Calcul automatique des droits
 - Calcul TVA
 - Initiation du paiement
 
-**Formule :** `Droits = (Valeur CIF + Frais) × Taux`
+**Formule :** Droits = (Valeur CIF + Frais) x Taux
 
-**Taux Algérie :**
-| Catégorie | Taux |
+**Taux Algerie :**
+| Categorie | Taux |
 |-----------|------|
-| Première nécessité | 5% |
-| Matières premières | 15% |
+| Premiere necessite | 5% |
+| Matieres premieres | 15% |
 | Semi-finis | 30% |
 | Produits finis | 60% |
 
-**TVA :** 19% (Algérie), 20% (France)
-
 ---
 
-### Étape 5 : Gestion OEA (Planifié)
+### Etape 5 : Gestion OEA (Planifie)
 
-**Localisation :** `apps/expeditions/etapes/oea/`
+**Localisation :** apps/expeditions/etapes/oea/
 
 **Facilitations OEA :**
-- Paiement différé
-- Procédures simplifiées
-- Réduction des contrôles
+- Paiement differe
+- Procedures simplifiees
+- Reduction des controles
 
 ---
 
-## Guide par Rôle
+## Guide par Role
 
 ### Utilisateurs
 
-1. Se connecter à l'application
-2. Créer une nouvelle expédition (menu **Expéditions**)
-3. Compléter l'étape 1 (Classification)
-4. Utiliser l'**Assistant** pour les questions
+1. Se connecter a l'application
+2. Creer une nouvelle expedition (menu Expeditions)
+3. Completer l'etape 1 (Classification via chatbot)
+4. Completer l'etape 2 (Formulaire + Generation PDF)
 
-### Développeurs
+### Developpeurs
 
-1. Lire [ARCHITECTURE.md](ARCHITECTURE.md)
-2. Lire [agent_ia_core/README.md](../agent_ia_core/README.md) pour le moteur IA
-3. Structure des étapes : `apps/expeditions/etapes/`
-4. Chatbots IA : `agent_ia_core/chatbots/`
+1. Lire ARCHITECTURE.md
+2. Lire agent_ia_core/README.md pour le moteur IA
+3. Structure des etapes : apps/expeditions/etapes/
+4. Chatbots IA : agent_ia_core/chatbots/
 
-**Pour ajouter une nouvelle fonctionnalité à une étape :**
-1. Modifier `views.py` de l'étape
-2. Ajouter les formulaires dans `forms.py`
-3. Créer un service dans `services.py` si nécessaire
-4. Mettre à jour les templates
+**Pour ajouter un nouvel outil au chatbot :**
+1. Creer fichier dans agent_ia_core/chatbots/etapes_classification_taric/tools/
+2. Definir TOOL_DEFINITION avec ToolDefinition
+3. L'outil sera autodecouvert au demarrage
 
-**Pour créer un nouveau chatbot :**
-1. Créer dossier dans `agent_ia_core/chatbots/mon_chatbot/`
-2. Définir `config.py`, `prompts.py`, `service.py`
-3. Créer `tools/` avec les outils spécialisés
-4. Voir [agent_ia_core/README.md](../agent_ia_core/README.md) pour les détails
+**Pour creer un nouveau chatbot :**
+1. Creer dossier dans agent_ia_core/chatbots/mon_chatbot/
+2. Definir config.py, prompts.py, service.py
+3. Creer tools/ avec les outils specialises
+4. Voir agent_ia_core/README.md pour les details
 
 ---
 
-## Périmètre Phase 1
+## Perimetre Phase 1
 
-**Corridor :** France ↔ Algérie uniquement
+**Corridor :** France <-> Algerie uniquement
 
 **Limitations :**
 - Produits de base (articles courants)
-- Hors : produits pétroliers, matières dangereuses, licences spéciales
+- Hors : produits petroliers, matieres dangereuses, licences speciales
 
-**Ce qui est implémenté :**
-- Module Expéditions complet (structure)
-- Étape 1 : Classification douanière par IA
-- Assistant conversationnel
+**Ce qui est implemente :**
+- Module Expeditions complet (structure)
+- Etape 1 : Classification douaniere par chatbot IA
+- Etape 2 : Generation documents PDF (DAU, D10)
 - Authentification
 
 ---
 
 ## Contact
 
-**Développeurs :**
+**Developpeurs :**
 - Adrian Ubeda Touati (aubedatouati@gmail.com)
-- Juan Manuel Labrador Muñoz (mario.neta.rosario@gmail.com)
+- Juan Manuel Labrador Munoz (mario.neta.rosario@gmail.com)
 
 ---
 
-**Version :** 1.0.0
-**Date :** Décembre 2025
-**Contexte :** Projet académique
+**Version :** 2.0.0
+**Date :** Janvier 2026
+**Contexte :** Projet academique - Fin de Master

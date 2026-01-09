@@ -139,6 +139,15 @@
                                         </span>
                                     </div>
                                     {% endif %}
+
+                                    <!-- Documents générés étape 2 -->
+                                    {% if etape.numero == 2 and etape.documents.exists %}
+                                    <div class="mt-2">
+                                        <span class="badge bg-info">
+                                            <i class="bi bi-file-earmark-pdf"></i> {{ etape.documents.count }} document{{ etape.documents.count|pluralize }} généré{{ etape.documents.count|pluralize }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
                                 </div>
 
                                 <!-- Statut et action -->
@@ -187,6 +196,11 @@
                                            class="btn btn-outline-primary btn-sm mt-2">
                                             <i class="bi bi-eye"></i> Voir
                                         </a>
+                                    {% elif etape.statut == 'termine' and etape.numero == 2 %}
+                                        <a href="{% url 'apps_expeditions:documents' expedition.pk %}"
+                                           class="btn btn-outline-success btn-sm mt-2">
+                                            <i class="bi bi-eye"></i> Voir
+                                        </a>
                                     {% endif %}
                                 </div>
                             </div>
@@ -202,8 +216,22 @@
     {% for etape in etapes %}
     {% if etape.documents.exists %}
     <div class="card mb-4">
-        <div class="card-header bg-light">
-            <i class="bi bi-paperclip"></i> Documents - Étape {{ etape.numero }}: {{ etape.nom }}
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <div>
+                {% if etape.numero == 2 %}
+                    <i class="bi bi-file-earmark-pdf text-danger"></i>
+                {% else %}
+                    <i class="bi bi-paperclip"></i>
+                {% endif %}
+                Documents - Étape {{ etape.numero }}: {{ etape.nom }}
+                <span class="badge bg-secondary ms-2">{{ etape.documents.count }}</span>
+            </div>
+            {% if etape.documents.count > 1 %}
+            <a href="{% url 'apps_expeditions:download_documents_zip' expedition.pk etape.numero %}"
+               class="btn btn-sm btn-success">
+                <i class="bi bi-file-zip"></i> Télécharger tout (ZIP)
+            </a>
+            {% endif %}
         </div>
         <div class="card-body">
             <div class="list-group">
@@ -219,10 +247,20 @@
                         {% endif %}
                         {{ doc.nom_original }}
                         <span class="badge bg-light text-dark">{{ doc.get_type_display }}</span>
+                        {% if doc.fichier.size %}
+                        <small class="text-muted ms-2">({{ doc.fichier.size|filesizeformat }})</small>
+                        {% endif %}
                     </div>
-                    <a href="{{ doc.fichier.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
-                        <i class="bi bi-download"></i> Télécharger
-                    </a>
+                    <div class="btn-group">
+                        {% if doc.is_pdf %}
+                        <a href="{{ doc.fichier.url }}" class="btn btn-sm btn-outline-info" target="_blank" title="Voir">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% endif %}
+                        <a href="{{ doc.fichier.url }}" class="btn btn-sm btn-outline-primary" download title="Télécharger">
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </div>
                 </div>
                 {% endfor %}
             </div>

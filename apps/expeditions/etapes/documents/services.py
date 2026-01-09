@@ -94,7 +94,7 @@ class DocumentGenerationService:
 
             return {
                 'success': True,
-                'document': saved_doc,
+                'document_id': saved_doc.pk,
                 'file_path': saved_doc.fichier.url,
                 'filename': saved_doc.nom_original,
             }

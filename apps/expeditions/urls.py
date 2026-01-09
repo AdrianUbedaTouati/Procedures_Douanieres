@@ -32,6 +32,11 @@ urlpatterns = [
     # Supprimer une expédition
     path('<int:pk>/supprimer/', views.ExpeditionDeleteView.as_view(), name='delete'),
 
+    # Télécharger tous les documents d'une étape en ZIP
+    path('<int:pk>/etape/<int:etape_numero>/download-zip/',
+         views.DownloadDocumentsZipView.as_view(),
+         name='download_documents_zip'),
+
     # =========================================================================
     # ÉTAPE 1: CLASSIFICATION DOUANIÈRE
     # =========================================================================

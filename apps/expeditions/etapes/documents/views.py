@@ -199,34 +199,44 @@ class GenerateDocumentView(LoginRequiredMixin, View):
     """API pour generer un document PDF."""
 
     def post(self, request, pk, doc_type):
-        expedition = get_object_or_404(
-            Expedition.objects.filter(user=request.user),
-            pk=pk
-        )
+        try:
+            expedition = get_object_or_404(
+                Expedition.objects.filter(user=request.user),
+                pk=pk
+            )
 
-        # Check if form is completed
-        etape = expedition.get_etape(2)
-        if not etape.documents_data.form_completed:
+            # Check if form is completed
+            etape = expedition.get_etape(2)
+            if not etape.documents_data.form_completed:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Veuillez d\'abord remplir le formulaire de donnees.'
+                })
+
+            # Check profile is complete
+            if not request.user.has_complete_customs_profile():
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Veuillez completer votre profil entreprise avant de generer des documents.'
+                })
+
+            # Generate document
+            service = DocumentGenerationService(expedition, request.user)
+            result = service.generate_document(doc_type)
+
+            if result['success']:
+                messages.success(request, f'Document {doc_type.upper()} genere avec succes.')
+
+            return JsonResponse(result)
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Error generating document {doc_type}: {e}")
             return JsonResponse({
                 'success': False,
-                'error': 'Veuillez d\'abord remplir le formulaire de donnees.'
-            })
-
-        # Check profile is complete
-        if not request.user.has_complete_customs_profile():
-            return JsonResponse({
-                'success': False,
-                'error': 'Veuillez completer votre profil entreprise avant de generer des documents.'
-            })
-
-        # Generate document
-        service = DocumentGenerationService(expedition, request.user)
-        result = service.generate_document(doc_type)
-
-        if result['success']:
-            messages.success(request, f'Document {doc_type.upper()} genere avec succes.')
-
-        return JsonResponse(result)
+                'error': f'Erreur lors de la generation: {str(e)}'
+            }, status=500)
 
 
 class DownloadDocumentView(LoginRequiredMixin, View):
@@ -283,95 +293,125 @@ class ValidateDocumentsView(LoginRequiredMixin, View):
     """Vue pour valider l'etape et passer a l'etape suivante."""
 
     def post(self, request, pk):
-        expedition = get_object_or_404(
-            Expedition.objects.filter(user=request.user),
-            pk=pk
-        )
+        try:
+            expedition = get_object_or_404(
+                Expedition.objects.filter(user=request.user),
+                pk=pk
+            )
 
-        service = DocumentGenerationService(expedition, request.user)
+            service = DocumentGenerationService(expedition, request.user)
 
-        # Check all required documents are generated
-        if not service.all_documents_generated():
+            # Check all required documents are generated
+            if not service.all_documents_generated():
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Veuillez generer tous les documents requis avant de valider.'
+                })
+
+            # Mark etape as complete
+            etape = expedition.get_etape(2)
+            etape.marquer_termine()
+
+            messages.success(request, 'Etape Documents validee. Passage a l\'etape de Transmission.')
+
             return JsonResponse({
-                'success': False,
-                'error': 'Veuillez generer tous les documents requis avant de valider.'
+                'success': True,
+                'redirect_url': reverse('apps_expeditions:transmission', kwargs={'pk': pk})
             })
 
-        # Mark etape as complete
-        etape = expedition.get_etape(2)
-        etape.marquer_termine()
-
-        messages.success(request, 'Etape Documents validee. Passage a l\'etape de Transmission.')
-
-        return JsonResponse({
-            'success': True,
-            'redirect_url': reverse('apps_expeditions:transmission', kwargs={'pk': pk})
-        })
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Error validating documents: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': f'Erreur lors de la validation: {str(e)}'
+            }, status=500)
 
 
 class UpdateUserProfileView(LoginRequiredMixin, View):
     """Vue pour mettre a jour le profil douanier utilisateur."""
 
     def post(self, request):
-        form = UserCustomsProfileForm(request.POST)
+        try:
+            form = UserCustomsProfileForm(request.POST)
 
-        if form.is_valid():
-            user = request.user
-            user.company_name = form.cleaned_data['company_name']
-            user.company_legal_form = form.cleaned_data.get('company_legal_form', '')
-            user.address_line1 = form.cleaned_data['address_line1']
-            user.city = form.cleaned_data['city']
-            user.postal_code = form.cleaned_data['postal_code']
-            user.country = form.cleaned_data['country']
-            user.eori_number = form.cleaned_data.get('eori_number', '')
-            user.nif_number = form.cleaned_data.get('nif_number', '')
-            user.vat_number = form.cleaned_data.get('vat_number', '')
-            user.siret_number = form.cleaned_data.get('siret_number', '')
-            user.default_incoterms = form.cleaned_data['default_incoterms']
-            user.default_currency = form.cleaned_data['default_currency']
-            user.save()
+            if form.is_valid():
+                user = request.user
+                user.company_name = form.cleaned_data['company_name']
+                user.company_legal_form = form.cleaned_data.get('company_legal_form', '')
+                user.address_line1 = form.cleaned_data['address_line1']
+                user.city = form.cleaned_data['city']
+                user.postal_code = form.cleaned_data['postal_code']
+                user.country = form.cleaned_data['country']
+                user.eori_number = form.cleaned_data.get('eori_number', '')
+                user.nif_number = form.cleaned_data.get('nif_number', '')
+                user.vat_number = form.cleaned_data.get('vat_number', '')
+                user.siret_number = form.cleaned_data.get('siret_number', '')
+                user.default_incoterms = form.cleaned_data['default_incoterms']
+                user.default_currency = form.cleaned_data['default_currency']
+                user.save()
 
-            return JsonResponse({'success': True})
+                return JsonResponse({'success': True})
 
-        return JsonResponse({
-            'success': False,
-            'errors': form.errors
-        })
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            })
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Error updating profile: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': f'Erreur lors de la mise a jour: {str(e)}'
+            }, status=500)
 
 
 class DeleteDocumentView(LoginRequiredMixin, View):
     """Vue pour supprimer un document genere."""
 
     def post(self, request, pk, doc_id):
-        expedition = get_object_or_404(
-            Expedition.objects.filter(user=request.user),
-            pk=pk
-        )
+        try:
+            expedition = get_object_or_404(
+                Expedition.objects.filter(user=request.user),
+                pk=pk
+            )
 
-        document = get_object_or_404(
-            ExpeditionDocument,
-            pk=doc_id,
-            etape__expedition=expedition
-        )
+            document = get_object_or_404(
+                ExpeditionDocument,
+                pk=doc_id,
+                etape__expedition=expedition
+            )
 
-        # Get doc type before deleting
-        doc_type = document.type
+            # Get doc type before deleting
+            doc_type = document.type
 
-        # Delete file and record
-        if document.fichier:
-            document.fichier.delete()
-        document.delete()
+            # Delete file and record
+            if document.fichier:
+                document.fichier.delete()
+            document.delete()
 
-        # Update generation status
-        etape = expedition.get_etape(2)
-        if doc_type == 'dau':
-            etape.documents_data.dau_genere = False
-        elif doc_type == 'd10':
-            etape.documents_data.d10_genere = False
-        elif doc_type == 'd12':
-            etape.documents_data.d12_genere = False
-        etape.documents_data.save()
+            # Update generation status
+            etape = expedition.get_etape(2)
+            if doc_type == 'dau':
+                etape.documents_data.dau_genere = False
+            elif doc_type == 'd10':
+                etape.documents_data.d10_genere = False
+            elif doc_type == 'd12':
+                etape.documents_data.d12_genere = False
+            etape.documents_data.save()
 
-        messages.success(request, 'Document supprime.')
+            messages.success(request, 'Document supprime.')
 
-        return JsonResponse({'success': True})
+            return JsonResponse({'success': True})
+
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception(f"Error deleting document: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': f'Erreur lors de la suppression: {str(e)}'
+            }, status=500)
